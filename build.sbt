@@ -6,11 +6,11 @@ import sbt.internal.inc.ReflectUtilities
 
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
-def nodeVersionTag: String = "v1.0.2"
+def nodeVersionTag: String = "v1.0.0"
 
-lazy val node = ProjectRef(uri(s"git://github.com/wavesplatform/Waves.git#$nodeVersionTag"), "node")
+lazy val node = ProjectRef(uri(s"git://github.com/BlackTurtle123/TurtleNetwork.git#$nodeVersionTag"), "node")
 
-lazy val `node-it` = ProjectRef(uri(s"git://github.com/wavesplatform/Waves.git#$nodeVersionTag"), "node-it")
+lazy val `node-it` = ProjectRef(uri(s"git://github.com/BlackTurtle123/TurtleNetwork.git#$nodeVersionTag"), "node-it")
 
 lazy val dex = project.dependsOn(node % "compile;test->test;runtime->provided")
 
@@ -49,10 +49,10 @@ inScope(Global)(
   Seq(
     scalaVersion := "2.12.8",
     organization := "com.wavesplatform",
-    organizationName := "Waves Platform",
-    organizationHomepage := Some(url("https://wavesplatform.com")),
-    scmInfo := Some(ScmInfo(url("https://github.com/wavesplatform/dex"), "git@github.com:wavesplatform/dex.git", None)),
-    licenses := Seq(("MIT", url("https://github.com/wavesplatform/dex/blob/master/LICENSE"))),
+    organizationName := "TurtleNetwork",
+    organizationHomepage := Some(url("https://Turtlenetwork.eu")),
+    scmInfo := Some(ScmInfo(url("https://github.com/TurtleNetwork/dex"), "git@github.com:TurtleNetwork/dex.git", None)),
+    licenses := Seq(("MIT", url("https://github.com/TurtleNetwork/dex/blob/master/LICENSE"))),
     scalacOptions ++= Seq(
       "-feature",
       "-deprecation",

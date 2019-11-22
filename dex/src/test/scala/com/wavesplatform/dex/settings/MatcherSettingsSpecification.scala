@@ -20,7 +20,7 @@ import scala.util.Try
 class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
   def getSettingByConfig(conf: Config): Either[String, MatcherSettings] =
-    Try(conf.as[MatcherSettings]("waves.dex")).toEither.leftMap(_.getMessage)
+    Try(conf.as[MatcherSettings]("TN.dex")).toEither.leftMap(_.getMessage)
 
   val correctOrderFeeStr: String =
     s"""
@@ -30,7 +30,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
        |    base-fee = 300000
        |  }
        |  fixed {
-       |    asset = WAVES
+       |    asset = TN
        |    min-fee = 300000
        |  }
        |  percent {
@@ -87,7 +87,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
       |    order-books-recovering-timeout = 111s
       |    rest-order-limit = 100
       |    price-assets = [
-      |      WAVES
+      |      TN
       |      8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS
       |      DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J
       |    ]
@@ -149,7 +149,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     val config = configWithSettings()
 
-    val settings = config.as[MatcherSettings]("waves.dex")
+    val settings = config.as[MatcherSettings]("TN.dex")
     settings.account should be("3Mqjki7bLtMEBRCYeQis39myp9B4cnooDEX")
     settings.bindAddress should be("127.0.0.1")
     settings.port should be(6886)
@@ -161,7 +161,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
     settings.snapshotsLoadingTimeout should be(423.seconds)
     settings.startEventsProcessingTimeout should be(543.seconds)
     settings.maxOrdersPerRequest should be(100)
-    settings.priceAssets should be(Seq("WAVES", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J"))
+    settings.priceAssets should be(Seq("TN", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J"))
     settings.blacklistedAssets shouldBe Set("a")
     settings.blacklistedNames.map(_.pattern.pattern()) shouldBe Seq("b")
     settings.blacklistedAddresses shouldBe Set("3N5CBq8NYBMBU3UVS3rfMgaQEpjZrkWcBAD")
@@ -261,7 +261,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
          |    base-fee = 300000
          |  }
          |  fixed {
-         |    asset = WAVES
+         |    asset = TN
          |    min-fee = 300000
          |  }
          |  percent {
@@ -279,7 +279,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
          |    base-fee = 300000
          |  }
          |  fixed {
-         |    asset = WAVES
+         |    asset = TN
          |    min-fee = 300000
          |  }
          |  percent {
@@ -354,50 +354,50 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     val incorrectAssetsCount =
       """allowed-asset-pairs = [
-        | "WAVES-BTC",
-        | "WAVES-BTC-ETH",
+        | "TN-BTC",
+        | "TN-BTC-ETH",
         | "ETH"
         |]
       """.stripMargin
 
     val incorrectAssets =
       """allowed-asset-pairs = [
-        | "WAVES-;;;",
-        | "WAVES-BTC"
+        | "TN-;;;",
+        | "TN-BTC"
         |]
       """.stripMargin
 
     val duplicates =
       """allowed-asset-pairs = [
-        | "WAVES-BTC",
-        | "WAVES-ETH",
-        | "WAVES-BTC"
+        | "TN-BTC",
+        | "TN-ETH",
+        | "TN-BTC"
         |]
       """.stripMargin
 
     val nonEmptyCorrect =
       """allowed-asset-pairs = [
-        | "WAVES-BTC",
-        | "WAVES-ETH",
-        | "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS-WAVES"
+        | "TN-BTC",
+        | "TN-ETH",
+        | "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS-TN"
         |]
       """.stripMargin
 
     getSettingByConfig(configStr(incorrectAssetsCount)) should produce(
-      "Invalid setting allowed-asset-pairs value: WAVES-BTC-ETH (incorrect assets count, expected 2 but got 3), ETH (incorrect assets count, expected 2 but got 1)"
+      "Invalid setting allowed-asset-pairs value: TN-BTC-ETH (incorrect assets count, expected 2 but got 3), ETH (incorrect assets count, expected 2 but got 1)"
     )
 
     getSettingByConfig(configStr(incorrectAssets)) should produce(
-      "Invalid setting allowed-asset-pairs value: WAVES-;;; (requirement failed: Wrong char ';' in Base58 string ';;;')"
+      "Invalid setting allowed-asset-pairs value: TN-;;; (requirement failed: Wrong char ';' in Base58 string ';;;')"
     )
 
     getSettingByConfig(configStr(duplicates)).explicitGet().allowedAssetPairs.size shouldBe 2
 
     getSettingByConfig(configStr(nonEmptyCorrect)).explicitGet().allowedAssetPairs shouldBe
       Set(
-        AssetPair.createAssetPair("WAVES", "BTC").get,
-        AssetPair.createAssetPair("WAVES", "ETH").get,
-        AssetPair.createAssetPair("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES").get
+        AssetPair.createAssetPair("TN", "BTC").get,
+        AssetPair.createAssetPair("TN", "ETH").get,
+        AssetPair.createAssetPair("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "TN").get
       )
   }
 
@@ -407,7 +407,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     val nonEmptyCorrect =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         |   step-amount = 0.001
         |   min-amount  = 0.001
         |   max-amount  = 1000000
@@ -422,7 +422,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     val incorrectPairAndStepAmount =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         |   step-amount = -0.013
         |   min-amount  = 0.001
         |   max-amount  = 1000000
@@ -437,14 +437,14 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     val incorrectMinAndMax =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         |   step-amount = 0.013
         |   min-amount  = 0.001
         |   max-amount  = 1000000
         |   min-price   = 100
         |   max-price   = 10
         | },
-        | "ETH-WAVES": {
+        | "ETH-TN": {
         |   step-price = 0.14
         |   max-price  = 17
         | }
@@ -458,7 +458,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
     withClue("nonempty correct") {
       getSettingByConfig(configStr(nonEmptyCorrect)).explicitGet().orderRestrictions shouldBe
         Map(
-          AssetPair.createAssetPair("WAVES", "BTC").get ->
+          AssetPair.createAssetPair("TN", "BTC").get ->
             OrderRestrictionsSettings(
               stepAmount = 0.001,
               minAmount = 0.001,
@@ -482,13 +482,13 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
     withClue("incorrect pair and step amount") {
       getSettingByConfig(configStr(incorrectPairAndStepAmount)) should produce(
         "Invalid setting order-restrictions value: Can't parse asset pair 'ETH-;;;', " +
-          "Invalid setting order-restrictions.WAVES-BTC.step-amount value: -0.013 (required 0 < value)"
+          "Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value)"
       )
     }
 
     withClue("incorrect min and max") {
       getSettingByConfig(configStr(incorrectMinAndMax)) should produce(
-        "Required order-restrictions.WAVES-BTC.min-price < order-restrictions.WAVES-BTC.max-price")
+        "Required order-restrictions.TN-BTC.min-price < order-restrictions.TN-BTC.max-price")
     }
   }
 
@@ -497,7 +497,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     val nonEmptyCorrect =
       """matching-rules = {
-        |  "WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+        |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
         |    {
         |      start-offset = 100
         |      tick-size    = 0.002
@@ -512,7 +512,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     def incorrectRulesOrder(firstRuleOffset: Long, secondRuleOffset: Long): String =
       s"""matching-rules = {
-        |  "WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+        |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
         |    {
         |      start-offset = $firstRuleOffset
         |      tick-size    = 0.002
@@ -531,7 +531,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     withClue("nonempty correct") {
       getSettingByConfig(configStr(nonEmptyCorrect)).explicitGet().matchingRules shouldBe Map(
-        AssetPair.fromString("WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
+        AssetPair.fromString("TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
           NonEmptyList[RawMatchingRules](
             RawMatchingRules(100L, 0.002),
             List(

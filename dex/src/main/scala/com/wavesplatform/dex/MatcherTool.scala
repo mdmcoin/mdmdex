@@ -219,9 +219,9 @@ object MatcherTool extends ScorexLogging {
 
     val userConfig                = args.headOption.fold(ConfigFactory.empty())(f => ConfigFactory.parseFile(new File(f)))
     val actualConfig              = loadConfig(userConfig)
-    val settings: MatcherSettings = actualConfig.as[MatcherSettings]("waves.dex")
+    val settings: MatcherSettings = actualConfig.as[MatcherSettings]("TN.dex")
     val db                        = openDB(settings.dataDir)
-    val blockchainDb              = openDB(actualConfig.getString("waves.db.directory"))
+    val blockchainDb              = openDB(actualConfig.getString("TN.db.directory"))
 
     AddressScheme.current = new AddressScheme {
       override val chainId: Byte = Base58.tryDecodeWithLimit(settings.account).get(1)

@@ -81,7 +81,7 @@ trait MatcherTestData extends NTPTime { _: Suite =>
       |  }
       |}""".stripMargin))
 
-  val matcherSettings = config.as[MatcherSettings]("waves.dex")
+  val matcherSettings = config.as[MatcherSettings]("TN.dex")
 
   def valueFromGen[T](gen: Gen[T]): T = {
     var value = gen.sample

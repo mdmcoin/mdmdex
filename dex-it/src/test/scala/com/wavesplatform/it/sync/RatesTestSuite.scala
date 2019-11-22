@@ -20,7 +20,7 @@ class RatesTestSuite extends MatcherSuiteBase {
 
     val orderFeeSettingsStr =
       s"""
-         |waves.dex {
+         |TN.dex {
          |  allowed-order-versions = [1, 2, 3]
          |  order-fee {
          |    mode = dynamic

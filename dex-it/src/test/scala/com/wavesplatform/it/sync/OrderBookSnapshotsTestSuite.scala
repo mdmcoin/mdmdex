@@ -15,8 +15,8 @@ import scala.concurrent.duration.DurationInt
 
 class OrderBookSnapshotsTestSuite extends MatcherSuiteBase {
   private def interval        = 50L
-  private def configOverrides = ConfigFactory.parseString(s"""waves.dex {
-      |  price-assets = ["WAVES"]
+  private def configOverrides = ConfigFactory.parseString(s"""TN.dex {
+      |  price-assets = ["TN"]
       |  snapshots-interval = $interval
       |}""".stripMargin)
 

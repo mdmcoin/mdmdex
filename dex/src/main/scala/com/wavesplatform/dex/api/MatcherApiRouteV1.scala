@@ -57,8 +57,8 @@ case class MatcherApiRouteV1(assetPairBuilder: AssetPairBuilder,
   @ApiOperation(value = "Get Order Book for a given Asset Pair", notes = "Get Order Book for a given Asset Pair", httpMethod = "GET")
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset Id in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
-      new ApiImplicitParam(name = "priceAsset", value = "Price Asset Id in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset Id in Pair, or 'TN'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "priceAsset", value = "Price Asset Id in Pair, or 'TN'", dataType = "string", paramType = "path"),
       new ApiImplicitParam(name = "depth",
                            value = "Limit the number of bid/ask records returned",
                            required = false,

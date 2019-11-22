@@ -76,7 +76,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       markets.amountAssetName shouldBe amountAssetName
       markets.amountAssetInfo shouldBe Some(AssetDecimalsInfo(aliceCoinDecimals))
 
-      markets.priceAssetName shouldBe "WAVES"
+      markets.priceAssetName shouldBe "TN"
       markets.priceAssetInfo shouldBe Some(AssetDecimalsInfo(8))
     }
 
@@ -244,7 +244,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       }
 
       "request order book for blacklisted pair" in {
-        val f = node.matcherGetStatusCode(s"/matcher/orderbook/$ForbiddenAssetId/WAVES", 404)
+        val f = node.matcherGetStatusCode(s"/matcher/orderbook/$ForbiddenAssetId/TN", 404)
         f.message shouldBe s"The asset $ForbiddenAssetId not found"
       }
 

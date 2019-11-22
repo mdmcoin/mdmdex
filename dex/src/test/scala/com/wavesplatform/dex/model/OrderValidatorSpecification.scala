@@ -55,7 +55,7 @@ class OrderValidatorSpecification
   }
 
   "OrderValidator" should {
-    "allow buying WAVES for BTC without balance for order fee" in asa() { v =>
+    "allow buying TN for BTC without balance for order fee" in asa() { v =>
       v shouldBe 'right
     }
 

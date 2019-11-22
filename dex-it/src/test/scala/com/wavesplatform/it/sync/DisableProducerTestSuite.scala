@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 class DisableProducerTestSuite extends MatcherSuiteBase {
-  private def matcherConfig = ConfigFactory.parseString(s"""waves.dex.events-queue {
+  private def matcherConfig = ConfigFactory.parseString(s"""TN.dex.events-queue {
        |  local.enable-storing  = no
        |  kafka.producer.enable = no
        |}""".stripMargin)

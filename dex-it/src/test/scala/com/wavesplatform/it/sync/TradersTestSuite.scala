@@ -66,16 +66,16 @@ class TradersTestSuite extends MatcherSuiteBase {
 
     node.assertAssetBalance(bob.address, bobNewAsset, bobAssetQuantity)
 
-    "AssetPair BOB/WAVES vs BOB/NULL" in {
+    "AssetPair BOB/TN vs BOB/NULL" in {
       val trickyBobWavesPairWB58 = AssetPair(
         amountAsset = bobAssetId,
-        priceAsset = IssuedAsset(ByteStr.decodeBase58("WAVES").get)
+        priceAsset = IssuedAsset(ByteStr.decodeBase58("TN").get)
       )
 
       trickyBobWavesPairWB58.key shouldBe bobWavesPair.key
 
       val trickyBobWavesPairWS = AssetPair(
-        priceAsset = IssuedAsset(ByteStr("WAVES".getBytes())),
+        priceAsset = IssuedAsset(ByteStr("TN".getBytes())),
         amountAsset = bobAssetId
       )
 
@@ -261,5 +261,5 @@ class TradersTestSuite extends MatcherSuiteBase {
 }
 
 object TradersTestSuite {
-  val matcherSettingsOrderV3Allowed: Config = ConfigFactory.parseString("waves.dex { allowed-order-versions = [1, 2, 3] }")
+  val matcherSettingsOrderV3Allowed: Config = ConfigFactory.parseString("TN.dex { allowed-order-versions = [1, 2, 3] }")
 }

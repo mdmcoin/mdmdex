@@ -59,14 +59,14 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
           price,
           invalidFee,
           2,
-          expectedMessage = Some("Required 0.007 WAVES as fee for this order, but given 0.00699999 WAVES")
+          expectedMessage = Some("Required 0.007 TN as fee for this order, but given 0.00699999 TN")
         )
 
         val counter = node.placeOrder(alice, oneSmartPair, SELL, amount, price, expectedFee, 2).message.id
         node.waitOrderStatus(oneSmartPair, counter, "Accepted")
 
         info("expected fee should be reserved")
-        node.reservedBalance(alice)("WAVES") shouldBe expectedFee
+        node.reservedBalance(alice)("TN") shouldBe expectedFee
 
         val submitted = node.placeOrder(bob, oneSmartPair, BUY, amount, price, expectedFee, 2).message.id
         node.waitOrderInBlockchain(submitted)
@@ -99,14 +99,14 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
             price,
             invalidFee,
             2,
-            expectedMessage = Some("Required 0.015 WAVES as fee for this order, but given 0.01499999 WAVES")
+            expectedMessage = Some("Required 0.015 TN as fee for this order, but given 0.01499999 TN")
           )
 
           val counter = node.placeOrder(alice, bothSmartPair, SELL, amount, price, expectedFee, 2).message.id
           node.waitOrderStatus(bothSmartPair, counter, "Accepted")
 
           info("expected fee should be reserved")
-          node.reservedBalance(alice)("WAVES") shouldBe expectedFee
+          node.reservedBalance(alice)("TN") shouldBe expectedFee
 
           val submitted = node.placeOrder(bob, bothSmartPair, BUY, amount, price, expectedFee, 2).message.id
           node.waitOrderInBlockchain(submitted)

@@ -280,7 +280,7 @@ object Worker {
 }
 
 object AssetPairCreator {
-  val WavesName = "WAVES"
+  val WavesName = "TN"
 
   def createAssetPair(asset1: Asset, asset2: Asset): AssetPair =
     if (AssetPairBuilder.assetIdOrdering.compare(asset1.compatId, asset2.compatId) > 0)

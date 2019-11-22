@@ -98,7 +98,7 @@ class OrderHistoryBalanceSpecification
     }
   }
 
-  property("New buy WAVES order added") {
+  property("New buy TN order added") {
     val ord = buy(WavesBtc, 1000, 0.008, matcherFee = Some(3000))
     val lo  = LimitOrder(ord)
 
@@ -108,7 +108,7 @@ class OrderHistoryBalanceSpecification
       orderStatus(ord.id()) shouldBe OrderStatus.Accepted
     }
 
-    withClue("reserved assets considering amount of received WAVES") {
+    withClue("reserved assets considering amount of received TN") {
       openVolume(ord.senderPublicKey, WavesBtc.amountAsset) shouldBe 2000L
       openVolume(ord.senderPublicKey, WavesBtc.priceAsset) shouldBe 8L
     }
@@ -116,7 +116,7 @@ class OrderHistoryBalanceSpecification
     activeOrderIds(ord.senderPublicKey) shouldBe Seq(ord.id())
   }
 
-  property("New sell WAVES order added") {
+  property("New sell TN order added") {
     val ord = sell(WavesBtc, 10000, 0.0008)
     val lo  = LimitOrder(ord)
 
@@ -128,7 +128,7 @@ class OrderHistoryBalanceSpecification
     activeOrderIds(ord.senderPublicKey) shouldBe Seq(ord.id())
   }
 
-  property("Should not reserve fee, if seller receives more WAVES than total fee in sell order") {
+  property("Should not reserve fee, if seller receives more TN than total fee in sell order") {
     val pair = AssetPair(mkAssetId("BTC"), Waves)
     val ord  = sell(pair, 100000, 0.01, matcherFee = Some(1000L))
 
@@ -138,7 +138,7 @@ class OrderHistoryBalanceSpecification
     openVolume(ord.senderPublicKey, pair.priceAsset) shouldBe 0L
   }
 
-  property("Should not reserve fee, if buyer receives more WAVES than total fee in buy order") {
+  property("Should not reserve fee, if buyer receives more TN than total fee in buy order") {
     val ord = buy(WavesBtc, 100000, 0.0007, matcherFee = Some(1000L))
 
     oh.process(OrderAdded(LimitOrder(ord), ntpTime.getTimestamp()))
@@ -175,7 +175,7 @@ class OrderHistoryBalanceSpecification
     }
   }
 
-  property("Buy WAVES order filled exactly") {
+  property("Buy TN order filled exactly") {
     val counter   = buy(WavesBtc, 100000, 0.0008, matcherFee = Some(2000L))
     val submitted = sell(WavesBtc, 100000, 0.0007, matcherFee = Some(1000L))
 
@@ -217,7 +217,7 @@ class OrderHistoryBalanceSpecification
     }
   }
 
-  property("Buy WAVES order filled with remainder") {
+  property("Buy TN order filled with remainder") {
     val counter   = sell(WavesBtc, 840340L, 0.00000238, matcherFee = Some(300000L))
     val submitted = buy(WavesBtc, 425532L, 0.00000238, matcherFee = Some(300000L))
 
@@ -278,7 +278,7 @@ class OrderHistoryBalanceSpecification
     }
   }
 
-  property("Sell WAVES order - filled, buy order - partial") {
+  property("Sell TN order - filled, buy order - partial") {
     val counter   = sell(WavesBtc, 100000000, 0.0008, matcherFee = Some(2000L))
     val submitted = buy(WavesBtc, 120000000, 0.00085, matcherFee = Some(1000L))
 
@@ -326,7 +326,7 @@ class OrderHistoryBalanceSpecification
     }
   }
 
-  property("Buy WAVES order - filled with 2 steps, sell order - partial") {
+  property("Buy TN order - filled with 2 steps, sell order - partial") {
     val counter    = buy(WavesBtc, 100000000, 0.0008, matcherFee = Some(300001L))
     val submitted1 = sell(WavesBtc, 50000000, 0.00075, matcherFee = Some(300001L))
     val submitted2 = sell(WavesBtc, 80000000, 0.0008, matcherFee = Some(300001L))
@@ -402,7 +402,7 @@ class OrderHistoryBalanceSpecification
     }
   }
 
-  property("Sell ETH twice (filled, partial), buy WAVES order - filled") {
+  property("Sell ETH twice (filled, partial), buy TN order - filled") {
     val pair      = AssetPair(mkAssetId("ETH"), Waves)
     val counter1  = sell(pair, 2864310, 0.003, matcherFee = Some(300000L))
     val counter2  = sell(pair, 7237977, 0.003, matcherFee = Some(300000L))

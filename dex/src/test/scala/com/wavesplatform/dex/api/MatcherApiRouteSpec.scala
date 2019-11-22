@@ -24,7 +24,7 @@ import scala.concurrent.Future
 
 class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with PathMockFactory with Eventually with WithDB {
 
-  private val settings                       = MatcherSettings.valueReader.read(ConfigFactory.load(), "waves.dex")
+  private val settings                       = MatcherSettings.valueReader.read(ConfigFactory.load(), "TN.dex")
   private val matcherKeyPair                 = KeyPair("matcher".getBytes("utf-8"))
   private def getAssetDecimals(asset: Asset) = 8
 
