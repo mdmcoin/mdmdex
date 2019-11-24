@@ -4,7 +4,7 @@
 # https://aka.ms/yaml
 
 variables:
-  SBT_THREAD_NUMBER: 2 
+  SBT_THREAD_NUMBER: 4 
 
 trigger:
 - master
