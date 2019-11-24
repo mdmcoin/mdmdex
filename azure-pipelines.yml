@@ -3,6 +3,9 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+variables:
+  SBT_THREAD_NUMBER: 2 
+
 trigger:
 - master
 
@@ -17,6 +20,11 @@ steps:
    sudo apt-get update --allow-unauthenticated
    sudo apt-get install sbt --allow-unauthenticated
   displayName: 'Command Line Script'
+
+- script: |
+   sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  dex-it/docker
+   docker images
+  displayName: 'Build docker and show'
 
 - script: 'sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  test'
   displayName: 'Run tests '
