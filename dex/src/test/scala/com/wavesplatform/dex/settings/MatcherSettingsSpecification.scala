@@ -71,8 +71,8 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
                          orderRestrictionsStr: String = correctOrderRestrictionsStr,
                          matchingRulesStr: String = correctMatchingRulesStr): Config = {
     val configStr =
-      s"""waves {
-      |  directory = /waves
+      s"""TN {
+      |  directory = /TN
       |  dex {
       |    account = 3Mqjki7bLtMEBRCYeQis39myp9B4cnooDEX
       |    bind-address = 127.0.0.1
@@ -155,8 +155,8 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
     settings.port should be(6886)
     settings.exchangeTxBaseFee should be(4000000)
     settings.actorResponseTimeout should be(11.seconds)
-    settings.journalDataDir should be("/waves/matcher/journal")
-    settings.snapshotsDataDir should be("/waves/matcher/snapshots")
+    settings.journalDataDir should be("/TN/matcher/journal")
+    settings.snapshotsDataDir should be("/TN/matcher/snapshots")
     settings.snapshotsInterval should be(999)
     settings.snapshotsLoadingTimeout should be(423.seconds)
     settings.startEventsProcessingTimeout should be(543.seconds)

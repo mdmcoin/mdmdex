@@ -21,7 +21,7 @@ import scala.util.Random
 class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
 
   private val matcherConfig = ConfigFactory.parseString(
-    s"""waves {
+    s"""TN {
        |  dex {
        |    price-assets = ["${Asset1.id()}", "${Asset2.id()}"]
        |    rest-order-limit = 100
