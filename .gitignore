@@ -2,6 +2,7 @@
 .idea
 .ensime
 .ensime_cache/
+*.iml
 
 # scala build folders and files
 target
