@@ -64,8 +64,8 @@ trait MatcherTestData extends NTPTime { _: Suite =>
   val maxTimeGen: Gen[Long]     = Gen.choose(10000L, Order.MaxLiveTime).map(_ + System.currentTimeMillis())
   val createdTimeGen: Gen[Long] = Gen.choose(0L, 10000L).map(System.currentTimeMillis() - _)
 
-  val config = loadConfig(ConfigFactory.parseString("""waves {
-      |  directory: "/tmp/waves-test"
+  val config = loadConfig(ConfigFactory.parseString("""TN {
+      |  directory: "/tmp/TN-test"
       |  matcher {
       |    account: ""
       |    bind-address: "127.0.0.1"

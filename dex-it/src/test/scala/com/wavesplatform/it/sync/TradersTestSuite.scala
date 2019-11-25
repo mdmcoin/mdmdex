@@ -108,7 +108,7 @@ class TradersTestSuite extends MatcherSuiteBase {
       node.waitOrderStatus(bobWavesPair, correctBobOrderId, "Cancelled")
     }
 
-    "owner moves assets/waves to another account and order become an invalid" - {
+    "owner moves assets/TN to another account and order become an invalid" - {
       // Could not work sometimes because of NODE-546
       "order with assets" - {
         "moved assets, insufficient assets" in {
