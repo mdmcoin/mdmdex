@@ -6,9 +6,6 @@
 variables:
   SBT_THREAD_NUMBER: 4 
 
-trigger:
-- master
-
 pool:
   name: Hosted Ubuntu 1604
   timeoutInMinutes: 360
