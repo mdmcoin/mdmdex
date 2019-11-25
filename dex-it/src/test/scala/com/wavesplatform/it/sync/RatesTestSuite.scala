@@ -25,7 +25,7 @@ class RatesTestSuite extends MatcherSuiteBase {
          |  order-fee {
          |    mode = dynamic
          |    dynamic {
-         |      base-fee = 300000
+         |      base-fee = 4000000
          |    }
          |  }  
          |}
@@ -68,7 +68,7 @@ class RatesTestSuite extends MatcherSuiteBase {
             amount = matcherFee * 5,
             timestamp = System.currentTimeMillis(),
             feeAssetId = Waves,
-            feeAmount = 300000,
+            feeAmount = 4000000,
             attachment = Array.emptyByteArray
           )
           .explicitGet()

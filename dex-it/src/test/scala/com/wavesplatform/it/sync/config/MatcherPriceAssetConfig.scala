@@ -65,7 +65,7 @@ object MatcherPriceAssetConfig {
       decimals = Decimals,
       reissuable = false,
       script = None,
-      fee = 1.waves,
+      fee = 1.TN,
       timestamp = System.currentTimeMillis()
     )
     .right
@@ -81,7 +81,7 @@ object MatcherPriceAssetConfig {
       decimals = Decimals,
       reissuable = false,
       script = None,
-      fee = 1.waves,
+      fee = 1.TN,
       timestamp = System.currentTimeMillis()
     )
     .right
@@ -97,7 +97,7 @@ object MatcherPriceAssetConfig {
       decimals = 8,
       reissuable = false,
       script = None,
-      fee = 1.waves,
+      fee = 1.TN,
       timestamp = System.currentTimeMillis()
     )
     .right
@@ -113,7 +113,7 @@ object MatcherPriceAssetConfig {
       decimals = 8,
       reissuable = false,
       script = None,
-      fee = 1.waves,
+      fee = 1.TN,
       timestamp = System.currentTimeMillis()
     )
     .right

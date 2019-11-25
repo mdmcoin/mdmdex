@@ -21,7 +21,7 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
 
   "Order can be canceled" - {
     "by sender" in {
-      val orderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.waves, 800, matcherFee).message.id
+      val orderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.TN, 800, matcherFee).message.id
       node.waitOrderStatus(wavesUsdPair, orderId, "Accepted", 1.minute)
 
       node.cancelOrder(bob, wavesUsdPair, orderId)
@@ -32,7 +32,7 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
       }
     }
     "with API key" in {
-      val orderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.waves, 800, matcherFee).message.id
+      val orderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.TN, 800, matcherFee).message.id
       node.waitOrderStatus(wavesUsdPair, orderId, "Accepted", 1.minute)
 
       node.cancelOrderWithApiKey(orderId)
@@ -49,7 +49,7 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
 
   "Cancel is rejected" - {
     "when request sender is not the sender of and order" in {
-      val orderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.waves, 800, matcherFee).message.id
+      val orderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.TN, 800, matcherFee).message.id
       node.waitOrderStatus(wavesUsdPair, orderId, "Accepted", 1.minute)
 
       node.expectCancelRejected(matcher, wavesUsdPair, orderId)
@@ -66,13 +66,13 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
         node.fullOrderHistory(bob)
 
         val usdOrderIds = 1 to 5 map { i =>
-          node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.waves + i, 400, matcherFee).message.id
+          node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.TN + i, 400, matcherFee).message.id
         }
 
         node.assetBalance(bob.toAddress.stringRepr, BtcId.toString)
 
         val btcOrderIds = 1 to 5 map { i =>
-          node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 100.waves + i, 400, matcherFee).message.id
+          node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 100.TN + i, 400, matcherFee).message.id
         }
 
         (usdOrderIds ++ btcOrderIds).foreach(id => node.waitOrderStatus(wavesUsdPair, id, "Accepted"))
@@ -84,11 +84,11 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
 
       "a pair" in {
         val usdOrderIds = 1 to 5 map { i =>
-          node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.waves + i, 400, matcherFee).message.id
+          node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.TN + i, 400, matcherFee).message.id
         }
 
         val btcOrderIds = 1 to 5 map { i =>
-          node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 100.waves + i, 400, matcherFee).message.id
+          node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 100.TN + i, 400, matcherFee).message.id
         }
 
         (usdOrderIds ++ btcOrderIds).foreach(id => node.waitOrderStatus(wavesUsdPair, id, "Accepted"))

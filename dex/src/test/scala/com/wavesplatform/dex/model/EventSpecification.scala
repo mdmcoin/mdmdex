@@ -10,8 +10,8 @@ import org.scalatest.{FreeSpec, Matchers}
 class EventSpecification extends FreeSpec with Matchers with MatcherTestData {
   "Proper rounding scenario 1" in {
     val pair      = AssetPair(Waves, mkAssetId("BTC"))
-    val counter   = sell(pair, 840340L, 0.00000238, matcherFee = Some(300000L))
-    val submitted = buy(pair, 425532L, 0.00000238, matcherFee = Some(300000L))
+    val counter   = sell(pair, 840340L, 0.00000238, matcherFee = Some(4000000L))
+    val submitted = buy(pair, 425532L, 0.00000238, matcherFee = Some(4000000L))
     val exec      = OrderExecuted(LimitOrder(submitted), LimitOrder(counter), 0L)
     exec.executedAmount shouldBe 420169L
     exec.counterRemainingAmount shouldBe 420171L
@@ -39,9 +39,9 @@ class EventSpecification extends FreeSpec with Matchers with MatcherTestData {
     val pair = AssetPair(mkAssetId("BTC"), mkAssetId("ETH"))
 
     val alicePk   = KeyPair("alice".getBytes("utf-8"))
-    val counter   = buy(pair, 923431000L, 0.00031887, matcherFee = Some(300000), sender = Some(alicePk))
+    val counter   = buy(pair, 923431000L, 0.00031887, matcherFee = Some(4000000), sender = Some(alicePk))
     val bobPk     = KeyPair("bob".getBytes("utf-8"))
-    val submitted = sell(pair, 223345000L, 0.00031887, matcherFee = Some(300000), sender = Some(bobPk))
+    val submitted = sell(pair, 223345000L, 0.00031887, matcherFee = Some(4000000), sender = Some(bobPk))
 
     val exec = OrderExecuted(LimitOrder(submitted), LimitOrder(counter), 0L)
     exec.executedAmount shouldBe 223344937L

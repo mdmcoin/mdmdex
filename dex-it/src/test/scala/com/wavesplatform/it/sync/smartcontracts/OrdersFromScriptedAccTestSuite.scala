@@ -55,14 +55,14 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
   "issue asset and run test" - {
     "trading is deprecated" in {
       assertBadRequestAndResponse(
-        node.placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 1, 10.minutes),
+        node.placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 1, 10.minutes),
         "An account's feature isn't yet supported"
       )
     }
 
     "can't place an OrderV2 before the activation" in {
       assertBadRequestAndResponse(
-        node.placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 2, 10.minutes),
+        node.placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 2, 10.minutes),
         "The order of version .* isn't yet supported"
       )
     }
@@ -71,7 +71,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
       node.waitForHeight(activationHeight, 5.minutes)
       setContract(Some("true && (height > 0)"), bob)
       assertBadRequestAndResponse(
-        node.placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 2, 10.minutes),
+        node.placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 2, 10.minutes),
         "An access to the blockchain.height is denied on DEX"
       )
     }
@@ -79,7 +79,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
     "scripted account can trade once SmartAccountTrading is activated" in {
       setContract(Some(sDupNames), bob)
       val bobOrder =
-        node.placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 2, 10.minutes)
+        node.placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 2, 10.minutes)
       bobOrder.status shouldBe "OrderAccepted"
     }
 
@@ -102,7 +102,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
         pair       = aliceWavesPair,
         orderType  = OrderType.BUY,
         amount     = 500,
-        price      = 2.waves * Order.PriceConstant,
+        price      = 2.TN * Order.PriceConstant,
         fee        = smartTradeFee,
         version    = 2,
         timeToLive = 10.minutes
@@ -133,7 +133,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
         pair       = aliceWavesPair,
         orderType  = OrderType.BUY,
         amount     = 2000,
-        price      = 2.waves * Order.PriceConstant,
+        price      = 2.TN * Order.PriceConstant,
         fee        = smartTradeFee,
         version    = 2,
         timeToLive = 10.minutes
@@ -148,7 +148,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
         pair       = aliceWavesPair,
         orderType  = OrderType.BUY,
         amount     = 500,
-        price      = 2.waves * Order.PriceConstant,
+        price      = 2.TN * Order.PriceConstant,
         fee        = smartTradeFee,
         version    = 2,
         timeToLive = 10.minutes
@@ -158,7 +158,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
     "can trade from non-scripted account" in {
       // Alice places sell order
       val aliceOrder =
-        node.placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, matcherFee, version = 1, 10.minutes)
+        node.placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant, matcherFee, version = 1, 10.minutes)
 
       aliceOrder.status shouldBe "OrderAccepted"
 

@@ -27,11 +27,11 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
        |order-fee {
        |  mode = percent
        |  dynamic {
-       |    base-fee = 300000
+       |    base-fee = 4000000
        |  }
        |  fixed {
        |    asset = TN
-       |    min-fee = 300000
+       |    min-fee = 4000000
        |  }
        |  percent {
        |    asset-type = amount
@@ -77,7 +77,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
       |    account = 3Mqjki7bLtMEBRCYeQis39myp9B4cnooDEX
       |    bind-address = 127.0.0.1
       |    port = 6886
-      |    exchange-tx-base-fee = 300000
+      |    exchange-tx-base-fee = 4000000
       |    actor-response-timeout = 11s
       |    snapshots-interval = 999
       |    limit-events-during-recovery = 48879
@@ -153,7 +153,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
     settings.account should be("3Mqjki7bLtMEBRCYeQis39myp9B4cnooDEX")
     settings.bindAddress should be("127.0.0.1")
     settings.port should be(6886)
-    settings.exchangeTxBaseFee should be(300000)
+    settings.exchangeTxBaseFee should be(4000000)
     settings.actorResponseTimeout should be(11.seconds)
     settings.journalDataDir should be("/waves/matcher/journal")
     settings.snapshotsDataDir should be("/waves/matcher/snapshots")
@@ -183,10 +183,10 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     settings.orderFee match {
       case DynamicSettings(baseFee) =>
-        baseFee shouldBe 300000
+        baseFee shouldBe 4000000
       case FixedSettings(defaultAssetId, minFee) =>
         defaultAssetId shouldBe None
-        minFee shouldBe 300000
+        minFee shouldBe 4000000
       case PercentSettings(assetType, minFee) =>
         assetType shouldBe AssetType.AMOUNT
         minFee shouldBe 0.1
@@ -258,11 +258,11 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
          |order-fee {
          |  mode = invalid
          |  dynamic {
-         |    base-fee = 300000
+         |    base-fee = 4000000
          |  }
          |  fixed {
          |    asset = TN
-         |    min-fee = 300000
+         |    min-fee = 4000000
          |  }
          |  percent {
          |    asset-type = amount
@@ -276,11 +276,11 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
          |order-fee {
          |  mode = percent
          |  dynamic {
-         |    base-fee = 300000
+         |    base-fee = 4000000
          |  }
          |  fixed {
          |    asset = TN
-         |    min-fee = 300000
+         |    min-fee = 4000000
          |  }
          |  percent {
          |    asset-type = test
@@ -294,11 +294,11 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
          |order-fee {
          |  mode = fixed
          |  dynamic {
-         |    base-fee = 300000
+         |    base-fee = 4000000
          |  }
          |  fixed {
          |    asset = ;;;;
-         |    min-fee = -300000
+         |    min-fee = -4000000
          |  }
          |  percent {
          |    asset-type = test
@@ -316,7 +316,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
          |  }
          |  fixed {
          |    asset = ;;;;
-         |    min-fee = -300000
+         |    min-fee = -4000000
          |  }
          |  percent {
          |    asset-type = test
@@ -341,7 +341,7 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
     settingsInvalidAssetAndFee shouldBe
       Left(
         "Invalid setting order-fee.fixed.asset value: ;;;;, " +
-          "Invalid setting order-fee.fixed.min-fee value: -300000 (required 0 < fee)")
+          "Invalid setting order-fee.fixed.min-fee value: -4000000 (required 0 < fee)")
 
     settingsInvalidFeeInDynamicMode shouldBe Left(
       s"Invalid setting order-fee.dynamic.base-fee value: -350000 (required 0 < base fee <= ${OrderFeeSettings.totalWavesAmount})"

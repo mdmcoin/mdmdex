@@ -31,7 +31,7 @@ import scala.util.{Failure, Success, Try}
 
 object AsyncMatcherHttpApi extends Assertions {
 
-  val DefaultMatcherFee: Int = 300000
+  val DefaultMatcherFee: Int = 4000000
 
   def cancelRequest(sender: KeyPair, orderId: String): CancelOrderRequest = {
     val req       = CancelOrderRequest(sender, Some(ByteStr.decodeBase58(orderId).get), None, Array.emptyByteArray)

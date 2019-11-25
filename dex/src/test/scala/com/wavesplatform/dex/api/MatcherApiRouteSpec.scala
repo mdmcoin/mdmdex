@@ -95,7 +95,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
       time = ntpTime,
       currentOffset = () => 0L,
       lastOffset = () => Future.successful(0L),
-      matcherAccountFee = 300000L,
+      matcherAccountFee = 4000000L,
       apiKeyHash = None,
       rateCache = RateCache.inMem,
       validatedAllowedOrderVersions = Set(1, 2, 3)

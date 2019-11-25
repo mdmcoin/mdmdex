@@ -112,7 +112,7 @@ class OrdersFromScriptedAssetTestSuite extends MatcherSuiteBase {
     node.waitOrderStatus(pair, counterId, "Accepted")
 
     info("update a script")
-    val setAssetScriptId = node.setAssetScript(AllowAsset2Id, matcher.address, 1.waves, Some(DenyBigAmountScript.bytes().base64)).id
+    val setAssetScriptId = node.setAssetScript(AllowAsset2Id, matcher.address, 1.TN, Some(DenyBigAmountScript.bytes().base64)).id
     node.waitForTransaction(setAssetScriptId)
 
     info("a counter order wasn't rejected")
@@ -138,7 +138,7 @@ class OrdersFromScriptedAssetTestSuite extends MatcherSuiteBase {
     node.waitOrderStatus(pair, counterId, "Accepted")
 
     info("update a script")
-    val setAssetScriptId = node.setAssetScript(AllowAsset3Id, matcher.address, 1.waves, Some(DenyBigAmountScript.bytes().base64)).id
+    val setAssetScriptId = node.setAssetScript(AllowAsset3Id, matcher.address, 1.TN, Some(DenyBigAmountScript.bytes().base64)).id
     node.waitForTransaction(setAssetScriptId)
 
     info("a counter order wasn't rejected")
@@ -182,7 +182,7 @@ object OrdersFromScriptedAssetTestSuite {
       quantity = Int.MaxValue / 3,
       decimals = 0,
       reissuable = false,
-      fee = 1.waves,
+      fee = 1.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()
@@ -200,7 +200,7 @@ object OrdersFromScriptedAssetTestSuite {
         decimals = 0,
         reissuable = false,
         script = Some(ExprScript(Terms.TRUE).explicitGet()),
-        fee = 1.waves,
+        fee = 1.TN,
         timestamp = System.currentTimeMillis()
       )
       .explicitGet()
@@ -223,7 +223,7 @@ object OrdersFromScriptedAssetTestSuite {
       decimals = 0,
       reissuable = false,
       script = Some(ExprScript(Terms.FALSE).explicitGet()),
-      fee = 1.waves,
+      fee = 1.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()

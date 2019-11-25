@@ -61,14 +61,14 @@ class OrderTypeTestSuite extends MatcherSuiteBase {
         setContract(Some(sco1), alice)
 
         val aliceOrd1 = node
-          .placeOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
+          .placeOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
           .message
           .id
         node.waitOrderStatus(predefAssetPair, aliceOrd1, "Accepted", 1.minute)
 
         assertBadRequest(
           node
-            .placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
+            .placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
             .message
             .id)
 
@@ -82,12 +82,12 @@ class OrderTypeTestSuite extends MatcherSuiteBase {
 
         assertBadRequest(
           node
-            .placeOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
+            .placeOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
             .message
             .id)
 
         val aliceOrd2 = node
-          .placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
+          .placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
           .message
           .id
         node.waitOrderStatus(aliceWavesPair, aliceOrd2, "Accepted", 1.minute)
@@ -101,13 +101,13 @@ class OrderTypeTestSuite extends MatcherSuiteBase {
         setContract(Some(sco3), alice)
 
         val aliceOrd1 = node
-          .placeOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
+          .placeOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
           .message
           .id
         node.waitOrderStatus(predefAssetPair, aliceOrd1, "Accepted", 1.minute)
 
         val aliceOrd2 = node
-          .placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
+          .placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
           .message
           .id
         node.waitOrderStatus(aliceWavesPair, aliceOrd2, "Accepted", 1.minute)
@@ -120,13 +120,13 @@ class OrderTypeTestSuite extends MatcherSuiteBase {
 
       "place order and then set contract on BUY type" in {
         val aliceOrd1 = node
-          .placeOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
+          .placeOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
           .message
           .id
         node.waitOrderStatus(predefAssetPair, aliceOrd1, "Accepted", 1.minute)
 
         val aliceOrd2 = node
-          .placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
+          .placeOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2, 10.minutes)
           .message
           .id
         node.waitOrderStatus(aliceWavesPair, aliceOrd2, "Accepted", 1.minute)
@@ -134,11 +134,11 @@ class OrderTypeTestSuite extends MatcherSuiteBase {
         setContract(Some(sco1), alice)
 
         val bobOrd1 = node
-          .placeOrder(bob, predefAssetPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 1, 10.minutes)
+          .placeOrder(bob, predefAssetPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 1, 10.minutes)
           .message
           .id
         val bobOrd2 = node
-          .placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 1, 10.minutes)
+          .placeOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 1, 10.minutes)
           .message
           .id
 

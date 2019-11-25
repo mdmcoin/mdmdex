@@ -291,7 +291,7 @@ class OrderValidatorSpecification
       }
 
       "sell order's price is out of deviation bounds (market aware)" in {
-        val fixedWavesFeeSettings = DynamicSettings(300000L)
+        val fixedWavesFeeSettings = DynamicSettings(4000000L)
 
         // seller cannot sell with price which:
         //   1. less than 50% of best bid (sell order price must be >= 2000)

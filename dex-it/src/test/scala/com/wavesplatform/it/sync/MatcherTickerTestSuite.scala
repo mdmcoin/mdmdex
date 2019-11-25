@@ -59,7 +59,7 @@ class MatcherTickerTestSuite extends MatcherSuiteBase {
     }
 
     val bidPrice  = 200
-    val bidAmount = 1.waves
+    val bidAmount = 1.TN
     val askPrice  = 400
     val askAmount = bidAmount / 2
 
@@ -156,7 +156,7 @@ object MatcherTickerTestSuite {
       quantity = defaultAssetQuantity,
       decimals = Decimals,
       reissuable = false,
-      fee = 1.waves,
+      fee = 1.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()
@@ -169,7 +169,7 @@ object MatcherTickerTestSuite {
       quantity = defaultAssetQuantity,
       decimals = 8,
       reissuable = false,
-      fee = 1.waves,
+      fee = 1.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()

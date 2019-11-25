@@ -32,9 +32,9 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
   // distribute
   {
     val xs = Seq(
-      node.broadcastTransfer(alice, bob.address, defaultAssetQuantity / 2, 0.005.waves, Some(asset0), None).id,
-      node.broadcastTransfer(alice, bob.address, defaultAssetQuantity / 2, 0.009.waves, Some(asset1), None).id,
-      node.broadcastTransfer(bob, alice.address, defaultAssetQuantity / 2, 0.005.waves, Some(asset2), None).id
+      node.broadcastTransfer(alice, bob.address, defaultAssetQuantity / 2, 0.005.TN, Some(asset0), None).id,
+      node.broadcastTransfer(alice, bob.address, defaultAssetQuantity / 2, 0.009.TN, Some(asset1), None).id,
+      node.broadcastTransfer(bob, alice.address, defaultAssetQuantity / 2, 0.005.TN, Some(asset2), None).id
     )
     xs.foreach(node.waitForTransaction(_))
   }

@@ -18,7 +18,7 @@ trait MatcherNode extends BeforeAndAfterAll with Nodes with ScorexLogging {
       ScriptCompiler(scriptText, isAssetScript = false).explicitGet()._1
     }
     val setScriptTransaction = SetScriptTransaction
-      .selfSigned(acc, script, 0.014.waves, System.currentTimeMillis())
+      .selfSigned(acc, script, 0.014.TN, System.currentTimeMillis())
       .explicitGet()
 
     nodes.head

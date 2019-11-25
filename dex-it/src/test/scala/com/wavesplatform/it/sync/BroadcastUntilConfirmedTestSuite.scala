@@ -50,7 +50,7 @@ class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
       price = 80000L,
       timestamp = now,
       expiration = now + 1.day.toMillis,
-      matcherFee = 300000L
+      matcherFee = 4000000L
     )
 
     val bobPlace = OrderV1.buy(
@@ -61,7 +61,7 @@ class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
       price = 100000L,
       timestamp = now,
       expiration = now + 1.day.toMillis,
-      matcherFee = 300000L
+      matcherFee = 4000000L
     )
 
     markup("Shutdown miners")

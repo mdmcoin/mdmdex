@@ -111,7 +111,7 @@ object MatcherTool extends ScorexLogging {
       } yield readOnlyBlockchainDb.get(Keys.addressScript(id)(height)).isDefined
     }.getOrElse(false)
 
-    val defaultFee   = 300000L
+    val defaultFee   = 4000000L
     val scriptRunFee = 400000L
     val baseFee      = defaultFee + (if (isMatcherScripted) scriptRunFee else 0L)
 
