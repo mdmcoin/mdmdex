@@ -327,9 +327,9 @@ class OrderHistoryBalanceSpecification
   }
 
   property("Buy TN order - filled with 2 steps, sell order - partial") {
-    val counter    = buy(WavesBtc, 100000000, 0.0008, matcherFee = Some(300001L))
-    val submitted1 = sell(WavesBtc, 50000000, 0.00075, matcherFee = Some(300001L))
-    val submitted2 = sell(WavesBtc, 80000000, 0.0008, matcherFee = Some(300001L))
+    val counter    = buy(WavesBtc, 100000000, 0.0008, matcherFee = Some(4000001L))
+    val submitted1 = sell(WavesBtc, 50000000, 0.00075, matcherFee = Some(4000001L))
+    val submitted2 = sell(WavesBtc, 80000000, 0.0008, matcherFee = Some(4000001L))
 
     oh.process(OrderAdded(LimitOrder(counter), ntpTime.getTimestamp()))
     val exec1 = OrderExecuted(LimitOrder(submitted1), LimitOrder(counter))
@@ -446,15 +446,15 @@ class OrderHistoryBalanceSpecification
   property("Total execution of two counter orders and the one submitted") {
     val pair = AssetPair(mkAssetId("Alice"), Waves)
 
-    val counter1  = buy(pair, 150, 190000000L, matcherFee = Some(4000000))
-    val counter2  = buy(pair, 200, 200000000L, matcherFee = Some(4000000))
+    val counter1  =  buy(pair, 150, 190000000L, matcherFee = Some(4000000))
+    val counter2  =  buy(pair, 200, 200000000L, matcherFee = Some(4000000))
     val submitted = sell(pair, 350, 210000000L, matcherFee = Some(4000000))
 
     oh.processAll(OrderAdded(LimitOrder(counter1), ntpTime.getTimestamp()), OrderAdded(LimitOrder(counter2), ntpTime.getTimestamp()))
     val exec1 = OrderExecuted(LimitOrder(submitted), LimitOrder(counter1))
     oh.processAll(exec1, OrderAdded(exec1.submittedRemaining, ntpTime.getTimestamp()), OrderExecuted(exec1.submittedRemaining, LimitOrder(counter2)))
 
-    orderStatus(submitted.id()) shouldBe OrderStatus.Filled(350, 299999)
+    orderStatus(submitted.id()) shouldBe OrderStatus.Filled(350, 3999999)
   }
 
   property("Partially with own order") {
