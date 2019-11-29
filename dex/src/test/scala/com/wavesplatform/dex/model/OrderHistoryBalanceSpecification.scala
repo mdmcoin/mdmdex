@@ -237,7 +237,7 @@ class OrderHistoryBalanceSpecification
       exec.counterRemainingAmount shouldBe 420171L
       exec.counterRemainingAmount shouldBe counter.amount - exec.executedAmount
 
-      exec.counterRemainingFee shouldBe 150001L
+      exec.counterRemainingFee shouldBe 2000005L
 
       orderStatus(counter.id()) shouldBe OrderStatus.PartiallyFilled(exec.executedAmount, exec.counterExecutedFee)
     }
@@ -335,7 +335,7 @@ class OrderHistoryBalanceSpecification
     val exec1 = OrderExecuted(LimitOrder(submitted1), LimitOrder(counter))
     oh.process(exec1)
 
-    orderStatus(counter.id()) shouldBe OrderStatus.PartiallyFilled(50000000, 150000)
+    orderStatus(counter.id()) shouldBe OrderStatus.PartiallyFilled(50000000, 2000000)
     orderStatus(submitted1.id()) shouldBe OrderStatus.Filled(50000000, 300001)
 
     val exec2 = OrderExecuted(LimitOrder(submitted2), exec1.counterRemaining)
@@ -476,7 +476,7 @@ class OrderHistoryBalanceSpecification
       exec.submittedRemainingAmount shouldBe submitted.amount - exec.executedAmount
     }
 
-    openVolume(pk, WavesBtc.amountAsset) shouldBe 110157143L
+    openVolume(pk, WavesBtc.amountAsset) shouldBe 112095239L
     openVolume(pk, WavesBtc.priceAsset) shouldBe 0L
 
     withClue("orders list") {
