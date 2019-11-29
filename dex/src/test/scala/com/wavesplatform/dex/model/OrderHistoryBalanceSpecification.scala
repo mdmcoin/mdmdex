@@ -246,7 +246,7 @@ class OrderHistoryBalanceSpecification
       exec.submittedRemainingAmount shouldBe 5363L
       exec.submittedRemainingAmount shouldBe submitted.amount - exec.executedAmount
 
-      exec.submittedRemainingFee shouldBe 3781L
+      exec.submittedRemainingFee shouldBe 50413L
       orderStatus(submitted.id()) shouldBe OrderStatus.Filled(exec.executedAmount, exec.submittedExecutedFee)
     }
 
@@ -346,7 +346,7 @@ class OrderHistoryBalanceSpecification
     }
 
     orderStatus(submitted1.id()) shouldBe OrderStatus.Filled(50000000, 4000001)
-    orderStatus(submitted2.id()) shouldBe OrderStatus.PartiallyFilled(50000000, 187500)
+    orderStatus(submitted2.id()) shouldBe OrderStatus.PartiallyFilled(50000000, 2500000)
 
     openVolume(counter.senderPublicKey, WavesBtc.priceAsset) shouldBe 0L
     openVolume(counter.senderPublicKey, WavesBtc.amountAsset) shouldBe 0L

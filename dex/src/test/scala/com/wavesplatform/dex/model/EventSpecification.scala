@@ -22,7 +22,7 @@ class EventSpecification extends FreeSpec with Matchers with MatcherTestData {
     exec.submittedRemainingAmount shouldBe 5363L
     exec.submittedRemainingAmount shouldBe submitted.amount - exec.executedAmount
 
-    exec.submittedRemainingFee shouldBe 3781L
+    exec.submittedRemainingFee shouldBe 50413L
   }
 
   "Remaining fee and amount checks" in {
