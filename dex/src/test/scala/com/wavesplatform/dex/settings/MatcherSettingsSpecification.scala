@@ -422,17 +422,17 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     val incorrectPairAndStepAmount =
       """order-restrictions = {
-        | "ETH-;;;": {
-        |   step-amount = 0.01
-        |   min-amount  = 0.05
-        |   max-amount  = 20000
-        | },
-        |}
         | "TN-BTC": {
         |   step-amount = -0.013
         |   min-amount  = 0.001
         |   max-amount  = 1000000
+        | },
+        | "ETH-;;;": {
+        |   step-amount = 0.01
+        |   min-amount  = 0.05
+        |   max-amount  = 20000
         | }
+        |}
       """.stripMargin
 
     val incorrectMinAndMax =
