@@ -336,7 +336,7 @@ class OrderHistoryBalanceSpecification
     oh.process(exec1)
 
     orderStatus(counter.id()) shouldBe OrderStatus.PartiallyFilled(50000000, 2000000)
-    orderStatus(submitted1.id()) shouldBe OrderStatus.Filled(50000000, 300001)
+    orderStatus(submitted1.id()) shouldBe OrderStatus.Filled(50000000, 4000001)
 
     val exec2 = OrderExecuted(LimitOrder(submitted2), exec1.counterRemaining)
     oh.processAll(exec2, OrderAdded(exec2.submittedRemaining, ntpTime.getTimestamp()))
@@ -345,7 +345,7 @@ class OrderHistoryBalanceSpecification
       orderStatus(counter.id()) shouldBe OrderStatus.Filled(100000000, 4000000)
     }
 
-    orderStatus(submitted1.id()) shouldBe OrderStatus.Filled(50000000, 300001)
+    orderStatus(submitted1.id()) shouldBe OrderStatus.Filled(50000000, 4000001)
     orderStatus(submitted2.id()) shouldBe OrderStatus.PartiallyFilled(50000000, 187500)
 
     openVolume(counter.senderPublicKey, WavesBtc.priceAsset) shouldBe 0L
@@ -532,7 +532,7 @@ class OrderHistoryBalanceSpecification
       exec1,
       OrderCanceled(exec1.counter.partial(exec1.counterRemainingAmount, exec1.counterRemainingFee), unmatchable = false, ntpTime.getTimestamp()))
 
-    orderStatus(counter.id()) shouldBe OrderStatus.Cancelled(1000000000, 142857)
+    orderStatus(counter.id()) shouldBe OrderStatus.Cancelled(1000000000, 1904761)
     orderStatus(submitted.id()) shouldBe OrderStatus.Filled(1000000000, 4000000)
 
     openVolume(counter.senderPublicKey, WavesBtc.amountAsset) shouldBe 0L

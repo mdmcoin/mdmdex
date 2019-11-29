@@ -17,7 +17,7 @@ class EventSpecification extends FreeSpec with Matchers with MatcherTestData {
     exec.counterRemainingAmount shouldBe 420171L
     exec.counterRemainingAmount shouldBe counter.amount - exec.executedAmount
 
-    exec.counterRemainingFee shouldBe 150001L
+    exec.counterRemainingFee shouldBe 2000005L
 
     exec.submittedRemainingAmount shouldBe 5363L
     exec.submittedRemainingAmount shouldBe submitted.amount - exec.executedAmount
