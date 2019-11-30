@@ -49,7 +49,7 @@ class MatcherRestartTestSuite extends MatcherSuiteBase {
       // check that order is correct
       val orders = node.orderBook(aliceWavesPair)
       orders.asks.head.amount shouldBe 500
-      orders.asks.head.price shouldBe 2.waves * Order.PriceConstant
+      orders.asks.head.price shouldBe 2.TN * Order.PriceConstant
 
       // sell order should be in the node orderbook
       node.fullOrderHistory(alice).head.status shouldBe "Accepted"

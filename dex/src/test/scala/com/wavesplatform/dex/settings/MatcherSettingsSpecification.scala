@@ -481,8 +481,9 @@ class MatcherSettingsSpecification extends FlatSpec with Matchers {
 
     withClue("incorrect pair and step amount") {
       getSettingByConfig(configStr(incorrectPairAndStepAmount)) should produce(
-        "Invalid setting order-restrictions value: Can't parse asset pair 'ETH-;;;', " +
-          "Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value)"
+        "Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value)," +
+        " Can't parse asset pair 'ETH-;;;'"
+
       )
     }
 
