@@ -32,16 +32,16 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
   // distribute
   {
     val xs = Seq(
-      node.broadcastTransfer(alice, bob.address, defaultAssetQuantity / 2, 0.005.TN, Some(asset0), None).id,
-      node.broadcastTransfer(alice, bob.address, defaultAssetQuantity / 2, 0.009.TN, Some(asset1), None).id,
-      node.broadcastTransfer(bob, alice.address, defaultAssetQuantity / 2, 0.005.TN, Some(asset2), None).id
+      node.broadcastTransfer(alice, bob.address, defaultAssetQuantity / 2, 0.06.TN, Some(asset0), None).id,
+      node.broadcastTransfer(alice, bob.address, defaultAssetQuantity / 2, 0.1.TN, Some(asset1), None).id,
+      node.broadcastTransfer(bob, alice.address, defaultAssetQuantity / 2, 0.06.TN, Some(asset2), None).id
     )
     xs.foreach(node.waitForTransaction(_))
   }
 
   "When matcher executes orders" - {
     "with one Smart Account and one Smart Asset" - {
-      "then fee should be 0.003 + 0.004 (for Smart Asset only, not Smart Account)" in {
+      "then fee should be 0.04 + 0.04 (for Smart Asset only, not Smart Account)" in {
         val oneSmartPair = createAssetPair(asset0, asset1)
 
         val aliceInitBalance   = node.accountBalances(alice.address)._1
@@ -59,7 +59,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
           price,
           invalidFee,
           2,
-          expectedMessage = Some("Required 0.007 TN as fee for this order, but given 0.00699999 TN")
+          expectedMessage = Some("Required 0.08 TN as fee for this order, but given 0.07999999 TN")
         )
 
         val counter = node.placeOrder(alice, oneSmartPair, SELL, amount, price, expectedFee, 2).message.id
