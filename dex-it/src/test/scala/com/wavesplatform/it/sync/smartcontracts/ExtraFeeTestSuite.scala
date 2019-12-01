@@ -78,7 +78,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
     }
 
     "with one Smart Account, two Smart Assets and scripted Matcher" - {
-      "then fee should be 0.003 + (0.004 * 2) + 0.004 (for Smart Assets and Matcher Script)" - {
+      "then fee should be 0.04 + (0.04 * 2) + 0.004 (for Smart Assets and Matcher Script)" - {
         "and total fee should be divided proportionally with partial filling" in {
           setContract(Some("true"), matcher)
 
@@ -99,7 +99,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
             price,
             invalidFee,
             2,
-            expectedMessage = Some("Required 0.015 TN as fee for this order, but given 0.01499999 TN")
+            expectedMessage = Some("Required 0.16 TN as fee for this order, but given 0.15999999 TN")
           )
 
           val counter = node.placeOrder(alice, bothSmartPair, SELL, amount, price, expectedFee, 2).message.id
