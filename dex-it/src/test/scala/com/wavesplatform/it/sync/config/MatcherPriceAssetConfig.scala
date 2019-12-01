@@ -45,6 +45,7 @@ object MatcherPriceAssetConfig {
   val matcher: KeyPair = accounts("matcher")
   val alice: KeyPair   = accounts("alice")
   val bob: KeyPair     = accounts("bob")
+  val miner: KeyPair = accounts("miner")
 
   val Decimals: Byte = 2
 
