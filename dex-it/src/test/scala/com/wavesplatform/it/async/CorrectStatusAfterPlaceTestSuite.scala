@@ -65,7 +65,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
             assetId = Waves,
             transfers = traders.map(x => MassTransferTransaction.ParsedTransfer(x.toAddress, 100.TN)).toList,
             timestamp = startTs,
-            feeAmount = 0.006.TN,
+            feeAmount = 0.12.TN,
             attachment = Array.emptyByteArray
           )
           .explicitGet()
@@ -86,7 +86,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
               assetId = IssuedAsset(issueTx.id()),
               transfers = traders.map(x => MassTransferTransaction.ParsedTransfer(x.toAddress, sendAmount)).toList,
               timestamp = startTs,
-              feeAmount = 0.006.TN,
+              feeAmount = 0.12.TN,
               attachment = Array.emptyByteArray
             )
             .explicitGet()
@@ -109,7 +109,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
       account <- traders
       pair    <- pairs
       i       <- 1 to 60
-    } yield node.prepareOrder(account, pair, OrderType.SELL, 100000L, 10000L, 0.003.TN, 1, timestamp = ts + i)
+    } yield node.prepareOrder(account, pair, OrderType.SELL, 100000L, 10000L, 0.04.TN, 1, timestamp = ts + i)
 
     val r = Await.result(Future.traverse(orders.grouped(orders.size / 5))(requests), 5.minutes).flatten
     r.foreach {

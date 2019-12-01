@@ -118,7 +118,7 @@ class RatesTestSuite extends MatcherSuiteBase {
       getOrder,
       400,
       "OrderRejected",
-      Some(s"Required 0.0033 $btcStr as fee for this order, but given 0.003 $btcStr")
+      Some(s"Required 0.044 $btcStr as fee for this order, but given 0.04 $btcStr")
     )
 
     // return previous rate for btc

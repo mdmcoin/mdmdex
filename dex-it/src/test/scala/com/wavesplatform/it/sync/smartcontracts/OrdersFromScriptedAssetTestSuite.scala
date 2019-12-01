@@ -182,7 +182,7 @@ object OrdersFromScriptedAssetTestSuite {
       quantity = Int.MaxValue / 3,
       decimals = 0,
       reissuable = false,
-      fee = 1.TN,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()
@@ -200,7 +200,7 @@ object OrdersFromScriptedAssetTestSuite {
         decimals = 0,
         reissuable = false,
         script = Some(ExprScript(Terms.TRUE).explicitGet()),
-        fee = 1.TN,
+        fee = 1000.TN,
         timestamp = System.currentTimeMillis()
       )
       .explicitGet()
@@ -223,7 +223,7 @@ object OrdersFromScriptedAssetTestSuite {
       decimals = 0,
       reissuable = false,
       script = Some(ExprScript(Terms.FALSE).explicitGet()),
-      fee = 1.TN,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()

@@ -156,7 +156,7 @@ object MatcherTickerTestSuite {
       quantity = defaultAssetQuantity,
       decimals = Decimals,
       reissuable = false,
-      fee = 1.TN,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()
@@ -169,7 +169,7 @@ object MatcherTickerTestSuite {
       quantity = defaultAssetQuantity,
       decimals = 8,
       reissuable = false,
-      fee = 1.TN,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()
