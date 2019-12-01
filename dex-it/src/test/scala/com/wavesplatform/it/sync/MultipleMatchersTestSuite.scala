@@ -28,7 +28,7 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase {
   private def matcher2NodeConfig =
     ConfigFactory
       .parseString("""
-      |waves {
+      |TN {
       |  network.node-name = node11
       |  miner.miner.enable = no
       |}
