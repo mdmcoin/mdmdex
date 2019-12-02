@@ -30,7 +30,7 @@ class AddressActorSpecification
     with NTPTime {
 
   private val assetId    = ByteStr("asset".getBytes("utf-8"))
-  private val matcherFee = 30000L
+  private val matcherFee = 4000000L
 
   private val sellTokenOrder1 = OrderV1(
     sender = privateKey("test"),

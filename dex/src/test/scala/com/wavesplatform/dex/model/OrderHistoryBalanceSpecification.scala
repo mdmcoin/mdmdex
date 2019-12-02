@@ -149,8 +149,8 @@ class OrderHistoryBalanceSpecification
 
   property("Two sell orders added") {
     val pk   = KeyPair("private".getBytes("utf-8"))
-    val ord1 = sell(WavesBtc, 10000, 0.0005, Some(pk), matcherFee = Some(30000L), ts = Some(System.currentTimeMillis()))
-    val ord2 = sell(WavesBtc, 16000, 0.0008, Some(pk), matcherFee = Some(30000L), ts = Some(System.currentTimeMillis() + 1))
+    val ord1 = sell(WavesBtc, 10000, 0.0005, Some(pk), matcherFee = Some(4000000L), ts = Some(System.currentTimeMillis()))
+    val ord2 = sell(WavesBtc, 16000, 0.0008, Some(pk), matcherFee = Some(4000000L), ts = Some(System.currentTimeMillis() + 1))
 
     oh.processAll(OrderAdded(LimitOrder(ord1), ntpTime.getTimestamp()), OrderAdded(LimitOrder(ord2), ntpTime.getTimestamp()))
 
