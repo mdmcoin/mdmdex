@@ -36,7 +36,7 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
     (rawExchangeTx \ "price").as[Long] shouldBe counter.price
     (rawExchangeTx \ "amount").as[Long] shouldBe filledAmount
-    (rawExchangeTx \ "buyMatcherFee").as[Long] shouldBe 40L
+    (rawExchangeTx \ "buyMatcherFee").as[Long] shouldBe 542L
     (rawExchangeTx \ "sellMatcherFee").as[Long] shouldBe 296219L
 
     val aliceBalanceAfter = node.accountBalances(alice.address)._1
