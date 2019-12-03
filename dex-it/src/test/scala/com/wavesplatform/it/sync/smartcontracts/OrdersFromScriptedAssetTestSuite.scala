@@ -243,7 +243,7 @@ object OrdersFromScriptedAssetTestSuite {
 
   val activationHeight = 10
 
-  private val commonConfig = ConfigFactory.parseString(s"""waves {
+  private val commonConfig = ConfigFactory.parseString(s"""TN {
                                                           |  blockchain.custom.functionality.pre-activated-features = {
                                                           |    ${BlockchainFeatures.SmartAssets.id} = 0,
                                                           |    ${BlockchainFeatures.SmartAccountTrading.id} = $activationHeight

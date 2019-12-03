@@ -13,14 +13,14 @@ import scala.concurrent.duration.DurationInt
 
 class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
   private def minerConfig = ConfigFactory.parseString(
-    """waves {
+    """TN {
       |  network.node-name = node02
       |  extensions = []
       |}""".stripMargin).withFallback(Default.head)
 
   private def matcherConfig =
     ConfigFactory
-      .parseString(s"""waves {
+      .parseString(s"""TN {
                       |  miner.enable = no
                       |  matcher.exchange-transaction-broadcast {
                       |    broadcast-until-confirmed = yes
