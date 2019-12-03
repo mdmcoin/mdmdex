@@ -231,8 +231,8 @@ class TradeBalanceAndRoundingTestSuite extends MatcherSuiteBase {
   }
 
   "Alice and Bob trade WCT-TN on not enough fee when place order" - {
-    val wctWavesSellAmount = 6
-    val wctWavesPrice      = 11234560000000L
+    val wctWavesSellAmount = 2
+    val wctWavesPrice      = 112345600000000L
 
     "bob lease all waves exact half matcher fee" in {
       val leasingAmount = node.accountBalances(bob.address)._1 - leasingFee - matcherFee / 2
