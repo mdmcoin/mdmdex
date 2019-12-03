@@ -195,7 +195,7 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
     entity(as[Double]) { rate =>
       withAsset(a) { asset =>
         complete(
-          if (asset == Waves) StatusCodes.BadRequest -> wrapMessage("Rate for Waves cannot be changed")
+          if (asset == Waves) StatusCodes.BadRequest -> wrapMessage("Rate for TN cannot be changed")
           else {
             val assetStr = AssetPair.assetIdStr(asset)
             rateCache.upsertRate(asset, rate) match {
@@ -218,7 +218,7 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
   def deleteRate: Route = (path("settings" / "rates" / AssetPM) & delete & withAuth) { a =>
     withAsset(a) { asset =>
       complete(
-        if (asset == Waves) StatusCodes.BadRequest -> wrapMessage("Rate for Waves cannot be deleted")
+        if (asset == Waves) StatusCodes.BadRequest -> wrapMessage("Rate for TN cannot be deleted")
         else {
           val assetStr = AssetPair.assetIdStr(asset)
           rateCache.deleteRate(asset) match {

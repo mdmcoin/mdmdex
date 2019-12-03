@@ -112,7 +112,7 @@ class OrdersFromScriptedAssetTestSuite extends MatcherSuiteBase {
     node.waitOrderStatus(pair, counterId, "Accepted")
 
     info("update a script")
-    val setAssetScriptId = node.setAssetScript(AllowAsset2Id, miner.address, 1.TN, Some(DenyBigAmountScript.bytes().base64)).id
+    val setAssetScriptId = node.setAssetScript(AllowAsset2Id, miner.address, 1.04.TN, Some(DenyBigAmountScript.bytes().base64)).id
     node.waitForTransaction(setAssetScriptId)
 
     info("a counter order wasn't rejected")
@@ -138,7 +138,7 @@ class OrdersFromScriptedAssetTestSuite extends MatcherSuiteBase {
     node.waitOrderStatus(pair, counterId, "Accepted")
 
     info("update a script")
-    val setAssetScriptId = node.setAssetScript(AllowAsset3Id, miner.address, 1.TN, Some(DenyBigAmountScript.bytes().base64)).id
+    val setAssetScriptId = node.setAssetScript(AllowAsset3Id, miner.address, 1.04.TN, Some(DenyBigAmountScript.bytes().base64)).id
     node.waitForTransaction(setAssetScriptId)
 
     info("a counter order wasn't rejected")
