@@ -174,7 +174,7 @@ object OrdersFromScriptedAccTestSuite {
   val activationHeight = 10
 
   private val matcherConfig = ConfigFactory.parseString(s"""
-                                                           |waves {
+                                                           |TN {
                                                            |  utx.allow-skip-checks = false
                                                            |
                                                            |  blockchain.custom.functionality.pre-activated-features = {

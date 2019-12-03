@@ -94,7 +94,7 @@ class RatesTestSuite extends MatcherSuiteBase {
     node.getRates shouldBe defaultRateMap + (wctAsset -> wctRateUpdated)
 
     // update rate for Waves is not allowed
-    node.upsertRate(Waves, wctRateUpdated, expectedStatusCode = BadRequest).message shouldBe "Rate for Waves cannot be changed"
+    node.upsertRate(Waves, wctRateUpdated, expectedStatusCode = BadRequest).message shouldBe "Rate for TN cannot be changed"
     node.getRates shouldBe defaultRateMap + (wctAsset -> wctRateUpdated)
 
     // delete rate for wct
