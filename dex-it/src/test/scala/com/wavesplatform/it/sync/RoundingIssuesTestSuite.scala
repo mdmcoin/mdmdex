@@ -37,13 +37,13 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
     (rawExchangeTx \ "price").as[Long] shouldBe counter.price
     (rawExchangeTx \ "amount").as[Long] shouldBe filledAmount
     (rawExchangeTx \ "buyMatcherFee").as[Long] shouldBe 542L
-    (rawExchangeTx \ "sellMatcherFee").as[Long] shouldBe 296219L
+    (rawExchangeTx \ "sellMatcherFee").as[Long] shouldBe 3949587L
 
     val aliceBalanceAfter = node.accountBalances(alice.address)._1
     val bobBalanceAfter   = node.accountBalances(bob.address)._1
 
-    (aliceBalanceAfter - aliceBalanceBefore) shouldBe (-40L + 420169L)
-    (bobBalanceAfter - bobBalanceBefore) shouldBe (-296219L - 420169L)
+    (aliceBalanceAfter - aliceBalanceBefore) shouldBe (-542L + 420169L)
+    (bobBalanceAfter - bobBalanceBefore) shouldBe (-3949587L - 420169L)
   }
 
   "reserved balance should not be negative" in {
