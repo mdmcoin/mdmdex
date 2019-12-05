@@ -140,7 +140,7 @@ class Worker(workerSettings: Settings,
         case Left(e) => throw new RuntimeException(s"[$tag] Generated transaction is wrong: $e")
         case Right(txRequest) =>
           log.info(
-            s"[$tag] ${assetId.compatId.fold("Waves")(_.toString)} balance of ${sender.address}: $balance, sending $transferAmount to ${recipient.address}")
+            s"[$tag] ${assetId.compatId.fold("TN")(_.toString)} balance of ${sender.address}: $balance, sending $transferAmount to ${recipient.address}")
           val signedTx = createSignedTransferRequest(txRequest)
           to(endpoint).broadcastRequest(signedTx).flatMap { tx =>
             to(endpoint).waitForTransaction(tx.id)
