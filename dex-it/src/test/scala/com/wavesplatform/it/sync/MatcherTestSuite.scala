@@ -94,6 +94,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       }
 
       "frozen amount should be listed via matcherBalance REST endpoint" in {
+        //TODO: fix test, for some reason it keeps showing 3000000 TN as reservedBalance
         node.reservedBalance(alice) shouldBe Map(aliceAsset -> aliceSellAmount)
         node.reservedBalance(bob) shouldBe Map()
       }
