@@ -12,7 +12,7 @@ class OrderInfoSpec extends FreeSpec with Matchers with MatcherTestData with Pro
   private def finalizedOrderInfoGen(o: Order, orderInfoVersion: Byte): Gen[OrderInfo[OrderStatus.Final]] =
     for {
       filledAmount <- Gen.choose(0, o.amount)
-      filledFee    <- if (orderInfoVersion == 1) Gen.const((BigInt(filledAmount) * 300000 / o.amount).toLong) else Gen.choose(0, o.matcherFee)
+      filledFee    <- if (orderInfoVersion == 1) Gen.const((BigInt(filledAmount) * 4000000 / o.amount).toLong) else Gen.choose(0, o.matcherFee)
       status       <- Gen.oneOf(OrderStatus.Filled(filledAmount, filledFee), OrderStatus.Cancelled(filledAmount, filledFee))
     } yield o.toInfo(orderInfoVersion, status)
 

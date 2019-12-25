@@ -23,12 +23,12 @@ object WalletGeneratorApp extends App {
   val config = ConfigFactory.parseFile(configFile)
 
   val networkByte = {
-    val x = config.getString("waves.blockchain.custom.address-scheme-character")
+    val x = config.getString("TN.blockchain.custom.address-scheme-character")
     if (x.length != 1) throw new IllegalArgumentException(s"Invalid network byte in '$configFile': $x")
     x.head.toByte
   }
 
-  val walletSettings = config.as[WalletSettings]("waves.wallet")
+  val walletSettings = config.as[WalletSettings]("TN.wallet")
   val walletFile     = new File(args(1))
   val nonceList      = args(2).split(',').map(_.toInt)
 

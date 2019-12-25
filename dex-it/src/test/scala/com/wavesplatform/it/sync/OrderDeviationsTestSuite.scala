@@ -52,7 +52,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
   override protected def nodeConfigs: Seq[Config] = {
     val orderDeviations =
       s"""
-         |waves.dex {
+         |TN.dex {
          |  allowed-order-versions = [1, 2, 3]
          |  max-price-deviations {
          |    enable = yes

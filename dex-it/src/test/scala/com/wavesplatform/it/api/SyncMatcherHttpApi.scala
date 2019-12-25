@@ -174,7 +174,7 @@ object SyncMatcherHttpApi extends Assertions {
                                      orderType: OrderType,
                                      amount: Long,
                                      price: Long,
-                                     fee: Long = 300000L,
+                                     fee: Long = 4000000L,
                                      version: Byte = 1,
                                      timeToLive: Duration = 30.days - 1.seconds,
                                      expectedMessage: Option[String] = None,
@@ -228,7 +228,7 @@ object SyncMatcherHttpApi extends Assertions {
                      orderType: OrderType,
                      amount: Long,
                      price: Long,
-                     fee: Long = 300000L,
+                     fee: Long = 4000000L,
                      version: Byte = 1: Byte,
                      timeToLive: Duration = 30.days - 1.seconds,
                      feeAsset: Asset = Waves): Order = {

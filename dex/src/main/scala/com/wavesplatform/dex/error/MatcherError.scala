@@ -120,7 +120,7 @@ case class OrderCommonValidationFailed(details: String)
     extends MatcherError(order, commonEntity, commonClass, e"The order is invalid: ${'details -> details}")
 
 case class InvalidAsset(theAsset: String)
-    extends MatcherError(asset, commonEntity, broken, e"The asset '${'assetId -> theAsset}' is wrong. It should be 'WAVES' or a Base58 string")
+    extends MatcherError(asset, commonEntity, broken, e"The asset '${'assetId -> theAsset}' is wrong. It should be 'TN' or a Base58 string")
 
 case class AssetBlacklisted(theAsset: IssuedAsset)
     extends MatcherError(asset, commonEntity, blacklisted, e"The asset ${'assetId -> theAsset} is blacklisted")

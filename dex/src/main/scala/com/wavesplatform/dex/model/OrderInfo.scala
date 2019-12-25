@@ -23,7 +23,7 @@ object OrderInfo {
   type FinalOrderInfo = OrderInfo[OrderStatus.Final]
 
   def v1[S <: OrderStatus](side: OrderType, amount: Long, price: Long, timestamp: Long, status: S, assetPair: AssetPair): OrderInfo[S] =
-    Impl(1, side, amount, price, 300000L, Waves, timestamp, status, assetPair)
+    Impl(1, side, amount, price, 4000000L, Waves, timestamp, status, assetPair)
 
   def v2[S <: OrderStatus](side: OrderType,
                            amount: Long,
@@ -74,7 +74,7 @@ object OrderInfo {
   private def decodeV1(side: Byte, buf: ByteBuffer): FinalOrderInfo = {
     val version: Byte = 1
     val totalAmount   = buf.getLong()
-    val totalFee      = 300000L
+    val totalFee      = 4000000L
 
     OrderInfo.v1(
       side = OrderType(side),

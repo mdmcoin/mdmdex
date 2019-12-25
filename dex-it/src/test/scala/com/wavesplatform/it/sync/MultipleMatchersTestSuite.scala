@@ -23,8 +23,8 @@ import scala.util.control.NonFatal
 
 @DexItKafkaRequired
 class MultipleMatchersTestSuite extends MatcherSuiteBase {
-  private def configOverrides = ConfigFactory.parseString("""waves.dex {
-      |  price-assets = ["WAVES"]
+  private def configOverrides = ConfigFactory.parseString("""TN.dex {
+      |  price-assets = ["TN"]
       |  snapshots-interval = 51
       |}""".stripMargin)
 
@@ -32,11 +32,11 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase {
   private def matcher2NodeConfig =
     ConfigFactory
       .parseString("""
-      |waves {
+      |TN {
       |  network.node-name = node11
       |  miner.miner.enable = no
       |}
-      |waves.dex.events-queue.kafka.group = 1""".stripMargin)
+      |TN.dex.events-queue.kafka.group = 1""".stripMargin)
       .withFallback(matcher1NodeConfig)
 
   override protected def nodeConfigs: Seq[Config] = Seq(matcher1NodeConfig, matcher2NodeConfig)

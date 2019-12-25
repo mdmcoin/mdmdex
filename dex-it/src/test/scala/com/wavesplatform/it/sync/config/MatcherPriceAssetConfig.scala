@@ -47,6 +47,7 @@ object MatcherPriceAssetConfig {
   val matcher: KeyPair = accounts("matcher")
   val alice: KeyPair   = accounts("alice")
   val bob: KeyPair     = accounts("bob")
+  val miner: KeyPair = accounts("miner")
 
   val Decimals: Byte = 2
 
@@ -67,7 +68,7 @@ object MatcherPriceAssetConfig {
       decimals = Decimals,
       reissuable = false,
       script = None,
-      fee = 1.waves,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .right
@@ -83,7 +84,7 @@ object MatcherPriceAssetConfig {
       decimals = Decimals,
       reissuable = false,
       script = None,
-      fee = 1.waves,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .right
@@ -99,7 +100,7 @@ object MatcherPriceAssetConfig {
       decimals = 8,
       reissuable = false,
       script = None,
-      fee = 1.waves,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .right
@@ -115,7 +116,7 @@ object MatcherPriceAssetConfig {
       decimals = 8,
       reissuable = false,
       script = None,
-      fee = 1.waves,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .right
@@ -169,9 +170,9 @@ object MatcherPriceAssetConfig {
   val orderLimit = 10
 
   val ForbiddenAssetId             = "FdbnAsset"
-  val updatedMatcherConfig: Config = parseString(s"""waves.dex {
+  val updatedMatcherConfig: Config = parseString(s"""TN.dex {
                                             |  blacklisted-assets = ["$ForbiddenAssetId"]
-                                            |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
+                                            |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
                                             |  rest-order-limit = $orderLimit
                                             |  snapshots-interval = 10
                                             |}""".stripMargin)

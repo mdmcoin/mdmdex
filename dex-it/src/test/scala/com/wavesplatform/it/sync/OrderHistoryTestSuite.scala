@@ -123,7 +123,7 @@ class OrderHistoryTestSuite extends MatcherSuiteBase {
 
   def getOrdersHistoryCfgString(batchLingerMs: Long): String =
     s"""
-       |waves.dex {
+       |TN.dex {
        |  ${getPostgresConnectionCfgString(postgresContainerName, postgresContainerPort)}
        |  order-history {
        |    enabled = yes

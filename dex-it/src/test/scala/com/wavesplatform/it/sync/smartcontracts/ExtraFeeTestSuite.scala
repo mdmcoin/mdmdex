@@ -57,9 +57,9 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
   // distribute
   {
     val xs = Seq(
-      node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.005.waves, Some(asset0), None).id,
-      node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.009.waves, Some(asset1), None).id,
-      node.broadcastTransfer(bob, alice.toAddress.toString, defaultAssetQuantity / 2, 0.005.waves, Some(asset2), None).id
+      node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.06.TN, Some(asset0), None).id,
+      node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.1.TN, Some(asset1), None).id,
+      node.broadcastTransfer(bob, alice.toAddress.toString, defaultAssetQuantity / 2, 0.06.TN, Some(asset2), None).id
     )
     xs.foreach(node.waitForTransaction(_))
 
@@ -71,7 +71,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
 
     val orderFeeSettingsStr =
       s"""
-         |waves.dex {
+         |TN.dex {
          |  allowed-order-versions = [1, 2, 3]
          |  order-fee {
          |    mode = dynamic
@@ -91,7 +91,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
 
   "When matcher executes orders" - {
     "with one Smart Account and one Smart Asset" - {
-      "then fee should be 0.003 + 0.004 (for Smart Asset only, not Smart Account)" in {
+      "then fee should be 0.04 + 0.04 (for Smart Asset only, not Smart Account)" in {
         val oneSmartPair = createAssetPair(asset0, asset1)
 
         val aliceInitBalance = node.accountBalances(alice.toAddress.toString)._1
@@ -109,14 +109,14 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
           price,
           invalidFee,
           2,
-          expectedMessage = Some("Required 0.007 WAVES as fee for this order, but given 0.00699999 WAVES")
+          expectedMessage = Some("Required 0.08 TN as fee for this order, but given 0.07999999 TN")
         )
 
         val counter = node.placeOrder(alice, oneSmartPair, SELL, amount, price, expectedFee, 2).message.id
         node.waitOrderStatus(oneSmartPair, counter, "Accepted")
 
         info("expected fee should be reserved")
-        node.reservedBalance(alice)("WAVES") shouldBe expectedFee
+        node.reservedBalance(alice)("TN") shouldBe expectedFee
 
         val submitted = node.placeOrder(bob, oneSmartPair, BUY, amount, price, expectedFee, 2).message.id
         node.waitOrderInBlockchain(submitted)
@@ -128,7 +128,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
     }
 
     "with one Smart Account, two Smart Assets and scripted Matcher" - {
-      "then fee should be 0.003 + (0.004 * 2) + 0.004 (for Smart Assets and Matcher Script)" - {
+      "then fee should be 0.04 + (0.04 * 2) + 0.004 (for Smart Assets and Matcher Script)" - {
         "and total fee should be divided proportionally with partial filling" in {
           setContract(Some("true"), matcher)
 
@@ -149,14 +149,14 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
             price,
             invalidFee,
             2,
-            expectedMessage = Some("Required 0.015 WAVES as fee for this order, but given 0.01499999 WAVES")
+            expectedMessage = Some("Required 0.16 TN as fee for this order, but given 0.15999999 TN")
           )
 
           val counter = node.placeOrder(alice, bothSmartPair, SELL, amount, price, expectedFee, 2).message.id
           node.waitOrderStatus(bothSmartPair, counter, "Accepted")
 
           info("expected fee should be reserved")
-          node.reservedBalance(alice)("WAVES") shouldBe expectedFee
+          node.reservedBalance(alice)("TN") shouldBe expectedFee
 
           val submitted = node.placeOrder(bob, bothSmartPair, BUY, amount, price, expectedFee, 2).message.id
           node.waitOrderInBlockchain(submitted)

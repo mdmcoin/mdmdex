@@ -80,7 +80,7 @@ class ReservedBalanceSpecification
 
   private implicit val timeout: Timeout = 5.seconds
 
-  val pair = AssetPair(mkAssetId("WAVES"), mkAssetId("USD"))
+  val pair = AssetPair(mkAssetId("TN"), mkAssetId("USD"))
   val p    = new AssetPairDecimals(8, 2)
 
   var oh = new OrderHistoryStub(system, ntpTime)

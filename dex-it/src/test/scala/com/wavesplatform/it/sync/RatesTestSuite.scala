@@ -21,12 +21,12 @@ class RatesTestSuite extends MatcherSuiteBase {
 
     val orderFeeSettingsStr =
       s"""
-         |waves.dex {
+         |TN.dex {
          |  allowed-order-versions = [1, 2, 3]
          |  order-fee {
          |    mode = dynamic
          |    dynamic {
-         |      base-fee = 300000
+         |      base-fee = 4000000
          |    }
          |  }  
          |}
@@ -69,7 +69,7 @@ class RatesTestSuite extends MatcherSuiteBase {
             amount = matcherFee * 5,
             timestamp = System.currentTimeMillis(),
             feeAssetId = Waves,
-            feeAmount = 300000,
+            feeAmount = 4000000,
             attachment = Array.emptyByteArray
           )
           .explicitGet()
@@ -99,8 +99,7 @@ class RatesTestSuite extends MatcherSuiteBase {
     node.getRates shouldBe defaultRateMap + (wctAsset -> wctRateUpdated)
 
     // update rate for Waves is not allowed
-    node.upsertRate(Waves, wctRateUpdated, expectedStatusCode = BadRequest).message shouldBe "The rate for WAVES cannot be changed"
-    node.getRates shouldBe defaultRateMap + (wctAsset -> wctRateUpdated)
+    node.upsertRate(Waves, wctRateUpdated, expectedStatusCode = BadRequest).message shouldBe "The rate for TN cannot be changed"
 
     // delete rate for wct
     node.deleteRate(wctAsset).message shouldBe s"Rate for the asset $wctStr deleted, old value = $wctRateUpdated"
@@ -141,7 +140,7 @@ class RatesTestSuite extends MatcherSuiteBase {
       getOrder,
       400,
       "OrderRejected",
-      Some(s"Required 0.0033 $btcStr as fee for this order, but given 0.003 $btcStr")
+      Some(s"Required 0.044 $btcStr as fee for this order, but given 0.04 $btcStr")
     )
 
     // return previous rate for btc
@@ -162,7 +161,7 @@ class RatesTestSuite extends MatcherSuiteBase {
       getOrder,
       400,
       "OrderRejected",
-      Some(s"Required 0.0033 $btcStr as fee for this order, but given 0.003 $btcStr")
+      Some(s"Required 0.044 $btcStr as fee for this order, but given 0.04 $btcStr")
     )
 
     // restart matcher
@@ -173,7 +172,7 @@ class RatesTestSuite extends MatcherSuiteBase {
       getOrder,
       400,
       "OrderRejected",
-      Some(s"Required 0.0033 $btcStr as fee for this order, but given 0.003 $btcStr")
+      Some(s"Required 0.044 $btcStr as fee for this order, but given 0.04 $btcStr")
     )
   }
 }

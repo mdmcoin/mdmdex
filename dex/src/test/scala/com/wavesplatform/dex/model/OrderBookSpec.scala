@@ -324,7 +324,7 @@ class OrderBookSpec extends FreeSpec with PropertyChecks with Matchers with Matc
   }
 
   "buy small amount of pricey asset" in {
-    val p = AssetPair(IssuedAsset(ByteStr("WAVES".getBytes)), IssuedAsset(ByteStr("USD".getBytes)))
+    val p = AssetPair(IssuedAsset(ByteStr("TN".getBytes)), IssuedAsset(ByteStr("USD".getBytes)))
     val b = rawBuy(p, 700000L, 280)
     val s = rawSell(p, 30000000000L, 280)
 

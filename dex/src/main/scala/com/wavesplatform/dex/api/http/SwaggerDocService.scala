@@ -13,9 +13,9 @@ class SwaggerDocService(val actorSystem: ActorSystem, val materializer: ActorMat
 
   override val host: String = settings.bindAddress + ":" + settings.port
   override val info: Info = Info(
-    "The Web Interface to the Waves DEX API",
+    "The Web Interface to the Turtle Network DEX API",
     Version.VersionString,
-    "Waves DEX",
+    "Turtle Network DEX",
     "License: MIT License",
     None,
     Some(License("MIT License", "https://github.com/wavesplatform/dex/blob/master/LICENSE"))

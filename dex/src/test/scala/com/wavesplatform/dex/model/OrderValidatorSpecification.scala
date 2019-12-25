@@ -52,7 +52,7 @@ class OrderValidatorSpecification
   private implicit val errorContext: ErrorFormatterContext = _ => defaultAssetDecimals
 
   "OrderValidator" should {
-    "allow buying WAVES for BTC without balance for order fee" in asa() { v =>
+    "allow buying TN for BTC without balance for order fee" in asa() { v =>
       v shouldBe 'right
     }
 
@@ -145,7 +145,7 @@ class OrderValidatorSpecification
                 AssetPair(amountAsset, Waves),
                 10 * Constants.UnitsInWave,
                 price,
-                matcherFee = Some((0.003 * Constants.UnitsInWave).toLong)
+                matcherFee = Some((0.04 * Constants.UnitsInWave).toLong)
               )) should produce("PriceLastDecimalsMustBeZero")
           }
       }
@@ -381,6 +381,7 @@ class OrderValidatorSpecification
           (midSellOrderPrices ++ highSellOrderPrices).foreach(price =>
             priceValidationWithLowerBound { sellOrder.updatePrice(price.btc) } shouldBe 'right)
         }
+
 
         val priceValidationWithUpperBound =
           OrderValidator.marketAware(orderFeeSettings, deviationSettings, Some(MarketStatus(None, None, Some(bestAsk))), rateCache) _
@@ -752,7 +753,7 @@ class OrderValidatorSpecification
             amount = 100 * Constants.UnitsInWave,
             price = 0.0022,
             sender = Some(pk),
-            matcherFee = Some((0.003 * Constants.UnitsInWave).toLong),
+            matcherFee = Some((0.04 * Constants.UnitsInWave).toLong),
             ts = Some(System.currentTimeMillis()),
             version = version.toByte
           )
@@ -817,7 +818,7 @@ class OrderValidatorSpecification
       price = (0.0022 * Order.PriceConstant).toLong,
       timestamp = System.currentTimeMillis(),
       expiration = System.currentTimeMillis() + 60 * 60 * 1000L,
-      matcherFee = (0.003 * Constants.UnitsInWave).toLong,
+      matcherFee = (0.04 * Constants.UnitsInWave).toLong,
       orderType = BUY,
       proofs = Proofs.empty
     )
@@ -831,7 +832,7 @@ class OrderValidatorSpecification
     Some(AssetDescription(MatcherAccount, Array.emptyByteArray, Array.emptyByteArray, decimals, reissuable = false, BigInt(0), None, 0))
 
   private def newBuyOrder: Order =
-    buy(pair = pairWavesBtc, amount = 100 * Constants.UnitsInWave, price = 0.0022, matcherFee = Some((0.003 * Constants.UnitsInWave).toLong))
+    buy(pair = pairWavesBtc, amount = 100 * Constants.UnitsInWave, price = 0.0022, matcherFee = Some((0.04 * Constants.UnitsInWave).toLong))
 
   private def newBuyOrder(pk: KeyPair, ts: Long = 0, version: Byte = 1) =
     buy(
@@ -839,7 +840,7 @@ class OrderValidatorSpecification
       amount = 100 * Constants.UnitsInWave,
       price = 0.0022,
       sender = Some(pk),
-      matcherFee = Some((0.003 * Constants.UnitsInWave).toLong),
+      matcherFee = Some((0.04 * Constants.UnitsInWave).toLong),
       ts = Some(ts),
       version = version
     )

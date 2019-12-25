@@ -32,7 +32,7 @@ class HistoryRouterSpecification
   def privateKey(seed: String): KeyPair = Wallet.generateNewAccount(seed.getBytes(), 0)
 
   val assetId    = ByteStr("asset".getBytes)
-  val matcherFee = 30000L
+  val matcherFee = 4000000L
 
   val assetDecimals: Byte = 8
   val wavesDecimals: Byte = 8

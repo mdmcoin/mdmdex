@@ -13,14 +13,14 @@ import scala.concurrent.duration.DurationInt
 
 class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
   private def minerConfig = ConfigFactory.parseString(
-    """waves {
+    """TN {
       |  network.node-name = node02
       |  extensions = []
       |}""".stripMargin).withFallback(Default.head)
 
   private def matcherConfig =
     ConfigFactory
-      .parseString(s"""waves {
+      .parseString(s"""TN {
                       |  miner.enable = no
                       |  dex.exchange-transaction-broadcast {
                       |    broadcast-until-confirmed = yes
@@ -50,7 +50,7 @@ class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
       price = 80000L,
       timestamp = now,
       expiration = now + 1.day.toMillis,
-      matcherFee = 300000L
+      matcherFee = 4000000L
     )
 
     val bobPlace = OrderV1.buy(
@@ -61,7 +61,7 @@ class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
       price = 100000L,
       timestamp = now,
       expiration = now + 1.day.toMillis,
-      matcherFee = 300000L
+      matcherFee = 4000000L
     )
 
     markup("Shutdown miners")

@@ -18,7 +18,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
 
     val matcherRulesStr =
       s"""
-         |waves.dex {
+         |TN.dex {
          |  matching-rules = {
          |    "$WctId-$UsdId": [
          |      {

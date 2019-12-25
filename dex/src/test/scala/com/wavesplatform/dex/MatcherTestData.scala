@@ -116,8 +116,8 @@ trait MatcherTestData extends NTPTime { _: Suite =>
   val maxTimeGen: Gen[Long]     = Gen.choose(10000L, Order.MaxLiveTime).map(_ + System.currentTimeMillis())
   val createdTimeGen: Gen[Long] = Gen.choose(0L, 10000L).map(System.currentTimeMillis() - _)
 
-  val config: Config = loadConfig(ConfigFactory.parseString("""waves {
-      |  directory: "/tmp/waves-test"
+  val config: Config = loadConfig(ConfigFactory.parseString("""TN {
+      |  directory: "/tmp/TN-test"
       |  dex {
       |    account: ""
       |    bind-address: "127.0.0.1"
@@ -133,7 +133,7 @@ trait MatcherTestData extends NTPTime { _: Suite =>
       |  }
       |}""".stripMargin))
 
-  val matcherSettings: MatcherSettings = config.as[MatcherSettings]("waves.dex")
+  val matcherSettings: MatcherSettings = config.as[MatcherSettings]("TN.dex")
 
   def valueFromGen[T](gen: Gen[T]): T = {
     var value = gen.sample

@@ -4,7 +4,7 @@
 # https://aka.ms/yaml
 
 variables:
-  SBT_THREAD_NUMBER: 4 
+  SBT_THREAD_NUMBER: 4
 
 jobs:
 - job: Default
@@ -13,8 +13,6 @@ jobs:
     name: Hosted Ubuntu 1604
 
   steps:
-
-
   - script: |
       sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  dex-it/docker
       docker images

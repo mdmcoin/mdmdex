@@ -21,7 +21,7 @@ object WavesExtensionDockerPlugin extends AutoPlugin {
         dockerfile := {
           new Dockerfile {
             from(baseImage.value)
-            add(additionalFiles.value, "/opt/waves/")
+            add(additionalFiles.value, "/opt/TN/")
             expose(exposedPorts.value.toSeq: _*)
           }
         },
@@ -30,7 +30,7 @@ object WavesExtensionDockerPlugin extends AutoPlugin {
 }
 
 trait WavesExtensionDockerKeys {
-  val additionalFiles    = taskKey[Seq[File]]("Additional files to copy to /opt/waves")
+  val additionalFiles    = taskKey[Seq[File]]("Additional files to copy to /opt/TN")
   val exposedPorts       = taskKey[Set[Int]]("Exposed ports")
   val buildNodeContainer = taskKey[Unit]("Builds a NODE container")
   val baseImage          = taskKey[String]("A base image for this container")

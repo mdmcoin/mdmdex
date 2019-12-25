@@ -17,7 +17,7 @@ class SeveralPartialOrdersTestSuite extends MatcherSuiteBase {
     node.waitForTransaction(node.broadcastRequest(IssueUsdTx.json()).id)
   }
 
-  "Alice and Bob trade WAVES-USD" - {
+  "Alice and Bob trade TN-USD" - {
     val price           = 238
     val buyOrderAmount  = 425532L
     val sellOrderAmount = 840340L
@@ -29,8 +29,8 @@ class SeveralPartialOrdersTestSuite extends MatcherSuiteBase {
       val bobOrder1   = node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, sellOrderAmount, price)
       val bobOrder1Id = node.placeOrder(bobOrder1).message.id
       node.waitOrderStatus(wavesUsdPair, bobOrder1Id, "Accepted", 1.minute)
-      node.reservedBalance(bob)("WAVES") shouldBe sellOrderAmount + matcherFee
-      node.tradableBalance(bob, wavesUsdPair)("WAVES") shouldBe bobWavesBalanceBefore - (sellOrderAmount + matcherFee)
+      node.reservedBalance(bob)("TN") shouldBe sellOrderAmount + matcherFee
+      node.tradableBalance(bob, wavesUsdPair)("TN") shouldBe bobWavesBalanceBefore - (sellOrderAmount + matcherFee)
 
       val aliceOrder   = node.prepareOrder(alice, wavesUsdPair, OrderType.BUY, buyOrderAmount, price)
       val aliceOrderId = node.placeOrder(aliceOrder).message.id

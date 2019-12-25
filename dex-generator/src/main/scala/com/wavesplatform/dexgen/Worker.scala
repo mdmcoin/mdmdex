@@ -49,7 +49,7 @@ class Worker(workerSettings: Settings,
   private val invalidAccounts  = generatorSettings.invalidAccounts
   private val fakeAccounts     = generatorSettings.fakeAccounts
 
-  private val fee = 0.003.waves
+  private val fee = 0.04.TN
 
   private def now = System.currentTimeMillis()
 
@@ -127,7 +127,7 @@ class Worker(workerSettings: Settings,
       implicit tag: String): Future[Transaction] =
     to(endpoint).balance(sender.toAddress.toString, assetId).flatMap { balance =>
       val halfAmount     = if (halfBalance) balance / 2 else balance
-      val transferAmount = assetId.fold(halfAmount - 0.001.waves)(_ => halfAmount)
+      val transferAmount = assetId.fold(halfAmount - 0.02.TN)(_ => halfAmount)
 
       TransferTransactionV1.selfSigned(assetId,
                                        sender,
@@ -140,7 +140,7 @@ class Worker(workerSettings: Settings,
         case Left(e) => throw new RuntimeException(s"[$tag] Generated transaction is wrong: $e")
         case Right(txRequest) =>
           log.info(
-            s"[$tag] ${assetId.compatId.fold("Waves")(_.toString)} balance of ${sender.toAddress.toString}: $balance, sending $transferAmount to ${recipient.toAddress.toString}")
+            s"[$tag] ${assetId.compatId.fold("TN")(_.toString)} balance of ${sender.toAddress.toString}: $balance, sending $transferAmount to ${recipient.toAddress.toString}")
           val signedTx = createSignedTransferRequest(txRequest)
           to(endpoint).broadcastRequest(signedTx).flatMap { tx =>
             to(endpoint).waitForTransaction(tx.id)
@@ -280,7 +280,7 @@ object Worker {
 }
 
 object AssetPairCreator {
-  val WavesName = "WAVES"
+  val WavesName = "TN"
 
   def createAssetPair(asset1: Asset, asset2: Asset): AssetPair =
     if (AssetPairBuilder.assetIdOrdering.compare(asset1.compatId, asset2.compatId) > 0)

@@ -23,12 +23,12 @@ abstract class MatcherSuiteBase
 
   protected implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
-  val smartFee         = 0.004.waves
-  val minFee           = 0.001.waves + smartFee
-  val issueFee         = 1.waves
-  val smartIssueFee    = 1.waves + smartFee
-  val leasingFee       = 0.002.waves + smartFee
-  val tradeFee         = 0.003.waves
+  val smartFee         = 0.04.TN
+  val minFee           = 0.02.TN + smartFee
+  val issueFee         = 1000.TN
+  val smartIssueFee    = 1000.TN + smartFee
+  val leasingFee       = 0.02.TN + smartFee
+  val tradeFee         = 0.04.TN
   val smartTradeFee    = tradeFee + smartFee
   val twoSmartTradeFee = tradeFee + 2 * smartFee
 
@@ -47,7 +47,7 @@ abstract class MatcherSuiteBase
 object MatcherSuiteBase {
   private def baseConfig(seed: Int): Config = Option(System.getenv("KAFKA_SERVER")).fold(ConfigFactory.empty()) { kafkaServer =>
     ConfigFactory.parseString(s"""
-         |waves.dex.events-queue {
+         |TN.dex.events-queue {
          |  type = kafka
          |  kafka {
          |    servers = "$kafkaServer"

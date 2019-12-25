@@ -13,7 +13,7 @@ class OrderRestrictionsTestSuite extends MatcherSuiteBase {
 
     val orderRestrictionsStr =
       s"""
-         |waves.dex {
+         |TN.dex {
          |  order-restrictions = {
          |   "$WctId-$UsdId": {
          |     min-amount  = 0.1

@@ -27,7 +27,7 @@ import scala.concurrent.Future
 
 class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with PathMockFactory with Eventually with WithDB {
 
-  private val settings       = MatcherSettings.valueReader.read(ConfigFactory.load(), "waves.dex")
+  private val settings       = MatcherSettings.valueReader.read(ConfigFactory.load(), "TN.dex")
   private val matcherKeyPair = KeyPair("matcher".getBytes("utf-8"))
   private val smartAssetTx   = smartIssueTransactionGen().retryUntil(_.script.nonEmpty).sample.get
   private val smartAssetId   = smartAssetTx.id()
@@ -275,7 +275,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
         time = ntpTime,
         currentOffset = () => 0L,
         lastOffset = () => Future.successful(0L),
-        matcherAccountFee = 300000L,
+        matcherAccountFee = 4000000L,
         apiKeyHashStr = Base58.encode { crypto.secureHash(apiKey getBytes "UTF-8") },
         rateCache = rateCache,
         validatedAllowedOrderVersions = Set(1, 2, 3)

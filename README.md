@@ -147,12 +147,12 @@ Update your configuration to enable DEX:
 ```hocon
 # ... here many lines of your Node's configuration
  
-waves.extensions = [
+TN.extensions = [
   "com.wavesplatform.dex.Matcher"
   # ... here may be other extensions
 ]
  
-waves.dex {
+TN.dex {
   account = "3Q5GKPLkxXcEwGv6d57v8aksTjh1igHNNDd" # This account must be known at the Node, e.g. created through POST /addresses
   # bind-address = "0.0.0.0" # uncomment this line to accept connections from any host
 }

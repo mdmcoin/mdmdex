@@ -66,26 +66,26 @@ class TradersTestSuite extends MatcherSuiteBase {
 
     node.assertAssetBalance(bob.toAddress.toString, bobNewAsset, bobAssetQuantity)
 
-    "AssetPair BOB/WAVES vs BOB/NULL" in {
+    "AssetPair BOB/TN vs BOB/NULL" in {
       val trickyBobWavesPairWB58 = AssetPair(
         amountAsset = bobAssetId,
-        priceAsset = IssuedAsset(ByteStr.decodeBase58("WAVES").get)
+        priceAsset = IssuedAsset(ByteStr.decodeBase58("TN").get)
       )
 
       trickyBobWavesPairWB58.key shouldBe bobWavesPair.key
 
       val trickyBobWavesPairWS = AssetPair(
-        priceAsset = IssuedAsset(ByteStr("WAVES".getBytes())),
+        priceAsset = IssuedAsset(ByteStr("TN".getBytes())),
         amountAsset = bobAssetId
       )
 
-      val trickyBobOrderWB58 = node.prepareOrder(bob, trickyBobWavesPairWB58, OrderType.BUY, 1, 10.waves * Order.PriceConstant)
+      val trickyBobOrderWB58 = node.prepareOrder(bob, trickyBobWavesPairWB58, OrderType.BUY, 1, 10.TN * Order.PriceConstant)
       node.expectIncorrectOrderPlacement(trickyBobOrderWB58, 400, "OrderRejected")
 
-      val trickyBobOrderWS = node.prepareOrder(bob, trickyBobWavesPairWS, OrderType.BUY, 1, 10.waves * Order.PriceConstant)
+      val trickyBobOrderWS = node.prepareOrder(bob, trickyBobWavesPairWS, OrderType.BUY, 1, 10.TN * Order.PriceConstant)
       node.expectIncorrectOrderPlacement(trickyBobOrderWS, 400, "OrderRejected")
 
-      val correctBobOrder   = node.prepareOrder(bob, bobWavesPair, OrderType.BUY, 1, 10.waves * Order.PriceConstant)
+      val correctBobOrder   = node.prepareOrder(bob, bobWavesPair, OrderType.BUY, 1, 10.TN * Order.PriceConstant)
       val correctBobOrderId = node.placeOrder(correctBobOrder).message.id
       node.waitOrderStatus(bobWavesPair, correctBobOrderId, "Accepted")
 
@@ -108,7 +108,7 @@ class TradersTestSuite extends MatcherSuiteBase {
       node.waitOrderStatus(bobWavesPair, correctBobOrderId, "Cancelled")
     }
 
-    "owner moves assets/waves to another account and order become an invalid" - {
+    "owner moves assets/TN to another account and order become an invalid" - {
       // Could not work sometimes because of NODE-546
       "order with assets" - {
         "moved assets, insufficient assets" in {
@@ -194,11 +194,11 @@ class TradersTestSuite extends MatcherSuiteBase {
           // Amount of waves in order is smaller than fee
           val bobBalance = node.accountBalances(bob.toAddress.toString)._1
 
-          val oldestOrderId = bobPlacesWaveOrder(bobWavesPair, 1, 10.waves * Order.PriceConstant)
-          val newestOrderId = bobPlacesWaveOrder(bobWavesPair, 1, 10.waves * Order.PriceConstant)
+          val oldestOrderId = bobPlacesWaveOrder(bobWavesPair, 1, 10.TN * Order.PriceConstant)
+          val newestOrderId = bobPlacesWaveOrder(bobWavesPair, 1, 10.TN * Order.PriceConstant)
 
           //      waitForOrderStatus(node, bobAssetIdRaw, id, "Accepted")
-          val leaseAmount = bobBalance - matcherFee - 10.waves - matcherFee
+          val leaseAmount = bobBalance - matcherFee - 10.TN - matcherFee
           val leaseId     = node.broadcastLease(bob, alice.toAddress.toString, leaseAmount, matcherFee, waitForTx = true).id
 
           withClue(s"The newest order '$newestOrderId' is Cancelled") {
@@ -217,7 +217,7 @@ class TradersTestSuite extends MatcherSuiteBase {
 
         "leased waves, insufficient waves" in {
           val bobBalance = node.accountBalances(bob.toAddress.toString)._1
-          val price      = 1.waves
+          val price      = 1.TN
           val order2     = bobPlacesWaveOrder(bobWavesPair, 1, price * Order.PriceConstant)
 
           val leaseAmount = bobBalance - matcherFee - price / 2
@@ -301,5 +301,5 @@ class TradersTestSuite extends MatcherSuiteBase {
 }
 
 object TradersTestSuite {
-  val matcherSettingsOrderV3Allowed: Config = ConfigFactory.parseString("waves.dex { allowed-order-versions = [1, 2, 3] }")
+  val matcherSettingsOrderV3Allowed: Config = ConfigFactory.parseString("TN.dex { allowed-order-versions = [1, 2, 3] }")
 }

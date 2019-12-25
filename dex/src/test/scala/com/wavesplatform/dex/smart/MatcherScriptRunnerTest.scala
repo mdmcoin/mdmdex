@@ -27,7 +27,7 @@ class MatcherScriptRunnerTest extends FreeSpecLike with Matchers with Transactio
     amount = 100L,
     timestamp = 1L,
     expiration = 1000L,
-    matcherFee = 30000L
+    matcherFee = 4000000L
   )
 
   private def run(script: Script): (Log[Id], Either[String, Terms.EVALUATED]) = MatcherScriptRunner(script, sampleOrder)

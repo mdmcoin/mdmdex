@@ -41,7 +41,7 @@ import scala.util.{Failure, Success}
 
 class Matcher(context: Context) extends Extension with ScorexLogging {
 
-  private val settings = context.settings.config.as[MatcherSettings]("waves.dex")
+  private val settings = context.settings.config.as[MatcherSettings]("TN.dex")
 
   private val matcherKeyPair = (
     for {
@@ -152,7 +152,7 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
     } yield o
 
   lazy val matcherApiRoutes: Seq[ApiRoute] = {
-    val keyHashStr = context.settings.config.getString("waves.rest-api.api-key-hash")
+    val keyHashStr = context.settings.config.getString("TN.rest-api.api-key-hash")
 
     Seq(
       MatcherApiRoute(

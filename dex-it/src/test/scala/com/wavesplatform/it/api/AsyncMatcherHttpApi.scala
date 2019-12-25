@@ -34,7 +34,7 @@ import scala.util.{Failure, Success, Try}
 
 object AsyncMatcherHttpApi extends Assertions {
 
-  val DefaultMatcherFee: Int = 300000
+  val DefaultMatcherFee: Int = 4000000
 
   def cancelRequest(sender: KeyPair, orderId: String): CancelOrderRequest = {
     val req       = CancelOrderRequest(sender, Some(ByteStr.decodeBase58(orderId).get), None, Array.emptyByteArray)
@@ -50,7 +50,7 @@ object AsyncMatcherHttpApi extends Assertions {
 
   implicit class MatcherAsyncHttpApi(matcherNode: Node) extends NodeAsyncHttpApi(matcherNode) {
 
-    def matcherApiEndpoint: URL = new URL(s"http://localhost:${matcherNode.nodeExternalPort(matcherNode.config.getInt("waves.dex.port"))}")
+    def matcherApiEndpoint: URL = new URL(s"http://localhost:${matcherNode.nodeExternalPort(matcherNode.config.getInt("TN.dex.port"))}")
 
     def matcherGet(path: String,
                    f: RequestBuilder => RequestBuilder = identity,

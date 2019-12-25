@@ -21,7 +21,7 @@ import scala.util.Random
 class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
 
   private val matcherConfig = ConfigFactory.parseString(
-    s"""waves {
+    s"""TN {
        |  dex {
        |    price-assets = ["${Asset1.id()}", "${Asset2.id()}"]
        |    rest-order-limit = 100
@@ -63,9 +63,9 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
           .selfSigned(
             sender = bob,
             assetId = Waves,
-            transfers = traders.map(x => MassTransferTransaction.ParsedTransfer(x.toAddress, 100.waves)).toList,
+            transfers = traders.map(x => MassTransferTransaction.ParsedTransfer(x.toAddress, 100.TN)).toList,
             timestamp = startTs,
-            feeAmount = 0.006.waves,
+            feeAmount = 0.12.TN,
             attachment = Array.emptyByteArray
           )
           .explicitGet()
@@ -86,7 +86,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
               assetId = IssuedAsset(issueTx.id()),
               transfers = traders.map(x => MassTransferTransaction.ParsedTransfer(x.toAddress, sendAmount)).toList,
               timestamp = startTs,
-              feeAmount = 0.006.waves,
+              feeAmount = 0.12.TN,
               attachment = Array.emptyByteArray
             )
             .explicitGet()
@@ -109,7 +109,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
       account <- traders
       pair    <- pairs
       i       <- 1 to 60
-    } yield node.prepareOrder(account, pair, OrderType.SELL, 100000L, 10000L, 0.003.waves, 1, timestamp = ts + i)
+    } yield node.prepareOrder(account, pair, OrderType.SELL, 100000L, 10000L, 0.04.TN, 1, timestamp = ts + i)
 
     val r = Await.result(Future.traverse(orders.grouped(orders.size / 5))(requests), 5.minutes).flatten
     r.foreach {
@@ -139,7 +139,7 @@ object CorrectStatusAfterPlaceTestSuite {
       quantity = Long.MaxValue,
       decimals = 0,
       reissuable = false,
-      fee = 1.waves,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()
@@ -152,7 +152,7 @@ object CorrectStatusAfterPlaceTestSuite {
       quantity = Long.MaxValue,
       decimals = 0,
       reissuable = false,
-      fee = 1.waves,
+      fee = 1000.TN,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()

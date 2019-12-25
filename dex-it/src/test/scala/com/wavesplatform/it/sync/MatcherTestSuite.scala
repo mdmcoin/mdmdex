@@ -19,7 +19,7 @@ import scala.util.Random
 
 class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
   private val aliceSellAmount         = 500
-  private val exTxFee                 = 300000
+  private val exTxFee                 = 4000000
   private val amountAssetName         = "AliceCoin"
   private val AssetQuantity           = 1000
   private val aliceCoinDecimals: Byte = 0
@@ -49,7 +49,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
 
     val aliceWavesPair = AssetPair(IssuedAsset(ByteStr.decodeBase58(aliceAsset).get), Waves)
 
-    val order1         = node.prepareOrder(alice, aliceWavesPair, SELL, aliceSellAmount, 2000.waves, version = orderVersion, timeToLive = 2.minutes)
+    val order1         = node.prepareOrder(alice, aliceWavesPair, SELL, aliceSellAmount, 2000.TN, version = orderVersion, timeToLive = 2.minutes)
     val order1Response = node.placeOrder(order1)
 
     // Bob issues new asset
@@ -76,7 +76,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       markets.amountAssetName shouldBe amountAssetName
       markets.amountAssetInfo shouldBe Some(AssetDecimalsInfo(aliceCoinDecimals))
 
-      markets.priceAssetName shouldBe "WAVES"
+      markets.priceAssetName shouldBe "TN"
       markets.priceAssetInfo shouldBe Some(AssetDecimalsInfo(8))
     }
 
@@ -90,10 +90,11 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         // Alice check that order is correct
         val orders = node.orderBook(aliceWavesPair)
         orders.asks.head.amount shouldBe aliceSellAmount
-        orders.asks.head.price shouldBe 2000.waves
+        orders.asks.head.price shouldBe 2000.TN
       }
 
       "frozen amount should be listed via matcherBalance REST endpoint" in {
+        //TODO: fix test, for some reason it keeps showing 3000000 TN as reservedBalance
         node.reservedBalance(alice) shouldBe Map(aliceAsset -> aliceSellAmount)
         node.reservedBalance(bob) shouldBe Map()
       }
@@ -108,7 +109,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         val aliceBalance   = node.accountBalances(alice.toAddress.toString)._1
 
         // Bob places a buy order
-        val order2 = node.placeOrder(bob, aliceWavesPair, BUY, 200, 2.waves * Order.PriceConstant, matcherFee, orderVersion)
+        val order2 = node.placeOrder(bob, aliceWavesPair, BUY, 200, 2.TN * Order.PriceConstant, matcherFee, orderVersion)
         order2.status shouldBe "OrderAccepted"
 
         node.waitOrderStatus(aliceWavesPair, order1Response.message.id, "PartiallyFilled")
@@ -125,7 +126,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         // Alice checks that part of her order still in the order book
         val orders = node.orderBook(aliceWavesPair)
         orders.asks.head.amount shouldBe 300
-        orders.asks.head.price shouldBe 2000.waves
+        orders.asks.head.price shouldBe 2000.TN
 
         // Alice checks that she sold some assets
         node.assertAssetBalance(alice.toAddress.toString, aliceAsset, 800)
@@ -152,16 +153,16 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
 
       "submitting sell orders should check availability of asset" in {
         // Bob trying to place order on more assets than he has - order rejected
-        val badOrder = node.prepareOrder(bob, aliceWavesPair, SELL, 300, 1900.waves, orderVersion)
+        val badOrder = node.prepareOrder(bob, aliceWavesPair, SELL, 300, 1900.TN, orderVersion)
         node.expectIncorrectOrderPlacement(badOrder, 400, "OrderRejected") should be(true)
 
         // Bob places order on available amount of assets - order accepted
-        val order3 = node.placeOrder(bob, aliceWavesPair, SELL, 150, 1900.waves, matcherFee, orderVersion)
+        val order3 = node.placeOrder(bob, aliceWavesPair, SELL, 150, 1900.TN, matcherFee, orderVersion)
         node.waitOrderStatus(aliceWavesPair, order3.message.id, "Accepted")
 
         // Bob checks that the order in the order book
         val orders = node.orderBook(aliceWavesPair)
-        orders.asks should contain(LevelResponse(150, 1900.waves))
+        orders.asks should contain(LevelResponse(150, 1900.TN))
       }
 
       "buy order should match on few price levels" in {
@@ -171,7 +172,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
 
         // Alice places a buy order
         val order4 =
-          node.placeOrder(alice, aliceWavesPair, BUY, 350, (21.waves / 10.0 * Order.PriceConstant).toLong, matcherFee, orderVersion)
+          node.placeOrder(alice, aliceWavesPair, BUY, 350, (21.TN / 10.0 * Order.PriceConstant).toLong, matcherFee, orderVersion)
         order4.status should be("OrderAccepted")
 
         // Where were 2 sells that should fulfill placed order
@@ -205,12 +206,12 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         orders1.bids.size should be(0)
 
         // Alice places a new sell order on 100
-        val order4 = node.placeOrder(alice, aliceWavesPair, SELL, 100, 2000.waves, matcherFee, orderVersion)
+        val order4 = node.placeOrder(alice, aliceWavesPair, SELL, 100, 2000.TN, matcherFee, orderVersion)
         order4.status should be("OrderAccepted")
 
         // Alice checks that the order is in the order book
         val orders2 = node.orderBook(aliceWavesPair)
-        orders2.asks should contain(LevelResponse(100, 2000.waves))
+        orders2.asks should contain(LevelResponse(100, 2000.TN))
       }
 
       "buy order should execute all open orders and put remaining in order book" in {
@@ -219,14 +220,14 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         val bobBalance     = node.accountBalances(bob.toAddress.toString)._1
 
         // Bob places buy order on amount bigger then left in sell orders
-        val order5 = node.placeOrder(bob, aliceWavesPair, BUY, 130, 2000.waves, matcherFee, orderVersion)
+        val order5 = node.placeOrder(bob, aliceWavesPair, BUY, 130, 2000.TN, matcherFee, orderVersion)
 
         // Check that the order is partially filled
         node.waitOrderStatus(aliceWavesPair, order5.message.id, "PartiallyFilled")
 
         // Check that remaining part of the order is in the order book
         val orders = node.orderBook(aliceWavesPair)
-        orders.bids should contain(LevelResponse(30, 2000.waves))
+        orders.bids should contain(LevelResponse(30, 2000.TN))
 
         // Check balances
         node.waitOrderInBlockchain(order5.message.id)
@@ -244,7 +245,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       }
 
       "request order book for blacklisted pair" in {
-        val f = node.matcherGetStatusCode(s"/matcher/orderbook/$ForbiddenAssetId/WAVES", 404)
+        val f = node.matcherGetStatusCode(s"/matcher/orderbook/$ForbiddenAssetId/TN", 404)
         f.message shouldBe s"The asset $ForbiddenAssetId not found"
       }
 
@@ -255,13 +256,13 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         node.assertAssetBalance(bob.toAddress.toString, bobAsset, someAssetAmount)
         val bobWavesPair = AssetPair(IssuedAsset(ByteStr.decodeBase58(bobAsset).get), Waves)
 
-        def bobOrder = node.prepareOrder(bob, bobWavesPair, SELL, someAssetAmount, 0.005.waves, matcherFee, orderVersion)
+        def bobOrder = node.prepareOrder(bob, bobWavesPair, SELL, someAssetAmount, 0.005.TN, matcherFee, orderVersion)
 
         val order6 = node.placeOrder(bobOrder)
         node.waitOrderStatus(bobWavesPair, order6.message.id, "Accepted")
 
         // Alice wants to buy all Bob's assets for 1 Wave
-        val order7 = node.placeOrder(alice, bobWavesPair, BUY, someAssetAmount, 0.005.waves, matcherFee, orderVersion)
+        val order7 = node.placeOrder(alice, bobWavesPair, BUY, someAssetAmount, 0.005.TN, matcherFee, orderVersion)
         node.waitOrderStatus(bobWavesPair, order7.message.id, "Filled")
 
         node.waitOrderInBlockchain(order7.message.id)
@@ -277,7 +278,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
 
         // Bob wants to sell all own assets for 1 Wave
         def bobOrder =
-          node.prepareOrder(bob, bobWavesPair, SELL, someAssetAmount, 1.waves, matcherFee, orderVersion)
+          node.prepareOrder(bob, bobWavesPair, SELL, someAssetAmount, 1.TN, matcherFee, orderVersion)
 
         val order8 = node.placeOrder(bobOrder)
         node.waitOrderStatus(bobWavesPair, order8.message.id, "Accepted")
@@ -299,10 +300,10 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       }
 
       "market status" in {
-        val ask       = 5.waves
+        val ask       = 5.TN
         val askAmount = 5000000
 
-        val bid       = 10.waves
+        val bid       = 10.TN
         val bidAmount = 10000000
 
         node.placeOrder(bob, bobWavesPair, SELL, askAmount, ask, matcherFee, orderVersion)

@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 class DisableProducerTestSuite extends MatcherSuiteBase {
-  private def matcherConfig = ConfigFactory.parseString(s"""waves.dex.events-queue {
+  private def matcherConfig = ConfigFactory.parseString(s"""TN.dex.events-queue {
        |  local.enable-storing  = no
        |  kafka.producer.enable = no
        |}""".stripMargin)
@@ -35,7 +35,7 @@ class DisableProducerTestSuite extends MatcherSuiteBase {
     "place an order and wait some time" in {
       // Alice places sell order
       val order1 =
-        node.prepareOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, matcherFee, orderVersion, 20.days)
+        node.prepareOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant, matcherFee, orderVersion, 20.days)
 
       node
         .expectIncorrectOrderPlacement(
@@ -47,7 +47,7 @@ class DisableProducerTestSuite extends MatcherSuiteBase {
 
       // Alice places buy order
       val order2 =
-        node.prepareOrder(alice, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, matcherFee, orderVersion, 21.days)
+        node.prepareOrder(alice, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, matcherFee, orderVersion, 21.days)
 
       node
         .expectIncorrectOrderPlacement(
