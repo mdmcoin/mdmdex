@@ -8,7 +8,6 @@ import com.wavesplatform.it.api.AsyncMatcherHttpApi._
 import com.wavesplatform.it.api.UnexpectedStatusCodeException
 import com.wavesplatform.it.async.CorrectStatusAfterPlaceTestSuite._
 import com.wavesplatform.it.sync.config.MatcherPriceAssetConfig._
-import com.wavesplatform.it.util._
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.transaction.assets.IssueTransactionV1
 import com.wavesplatform.transaction.assets.exchange.{AssetPair, Order, OrderType}
@@ -32,13 +31,12 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
        |      }
        |
        |      kafka.consumer {
-       |        buffer-size = 100
+       |        fetch-max-duration = 1s
+       |        max-buffer-size = 100
        |      }
        |    }
        |  }
-       |}
-       |
-       |akka.kafka.consumer.poll-interval = 1s""".stripMargin
+       |}""".stripMargin
   )
 
   private val pairs = Seq(
@@ -139,7 +137,7 @@ object CorrectStatusAfterPlaceTestSuite {
       quantity = Long.MaxValue,
       decimals = 0,
       reissuable = false,
-      fee = 1000.TN,
+      fee = 100000000000L,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()
@@ -152,7 +150,7 @@ object CorrectStatusAfterPlaceTestSuite {
       quantity = Long.MaxValue,
       decimals = 0,
       reissuable = false,
-      fee = 1000.TN,
+      fee = 100000000000L,
       timestamp = System.currentTimeMillis()
     )
     .explicitGet()

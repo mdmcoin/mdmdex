@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
-import akka.pattern.{AskTimeoutException, ask, gracefulStop}
+import akka.pattern.{ask, gracefulStop}
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.wavesplatform.account.{Address, PublicKey}
@@ -51,6 +51,7 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
   ).explicitGet()
 
   private def matcherPublicKey: PublicKey = matcherKeyPair
+  @volatile private var lastProcessedOffset   = -1L
 
   private implicit val as: ActorSystem                 = context.actorSystem
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -98,7 +99,7 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
   }
 
   private def orderBookProps(assetPair: AssetPair, matcherActor: ActorRef): Props = {
-    matchingRulesCache.setCurrentMatchingRuleForNewOrderBook(assetPair, matcherQueue.lastProcessedOffset)
+    matchingRulesCache.setCurrentMatchingRuleForNewOrderBook(assetPair, lastProcessedOffset)
     OrderBookActor.props(
       matcherActor,
       addressActors,
@@ -107,7 +108,6 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
       updateOrderBookCache(assetPair),
       marketStatuses.put(assetPair, _),
       settings,
-      transactionCreator.createTransaction,
       context.time,
       matchingRules = matchingRulesCache.getMatchingRules(assetPair),
       updateCurrentMatchingRules = actualMatchingRule => matchingRulesCache.updateCurrentMatchingRule(assetPair, actualMatchingRule),
@@ -122,7 +122,7 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
 
     case "kafka" =>
       log.info("Events will be stored in Kafka")
-      new KafkaMatcherQueue(settings.eventsQueue.kafka)(materializer)
+      new KafkaMatcherQueue(settings.eventsQueue.kafka)
 
     case x => throw new IllegalArgumentException(s"Unknown queue type: $x")
   }
@@ -148,7 +148,7 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
         assetDecimalsCache.get
       )(o)
       _ <- pairBuilder.validateAssetPair(o.assetPair)
-      _ <- OrderValidator.tickSizeAware(matchingRulesCache.getNormalizedRuleForNextOrder(o.assetPair, matcherQueue.lastProcessedOffset).tickSize)(o)
+      _ <- OrderValidator.tickSizeAware(matchingRulesCache.getNormalizedRuleForNextOrder(o.assetPair, lastProcessedOffset).tickSize)(o)
     } yield o
 
   lazy val matcherApiRoutes: Seq[ApiRoute] = {
@@ -163,14 +163,18 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
         matcherQueue.storeEvent,
         p => Option(orderBooks.get()).flatMap(_.get(p)),
         p => Option(marketStatuses.get(p)),
-        getActualTickSize = assetPair => matchingRulesCache.getDenormalizedRuleForNextOrder(assetPair, matcherQueue.lastProcessedOffset).tickSize,
+        getActualTickSize = { assetPair =>
+          matchingRulesCache
+            .getDenormalizedRuleForNextOrder(assetPair, lastProcessedOffset)
+            .tickSize
+        },
         validateOrder,
         orderBooksSnapshotCache,
         settings,
         () => status.get(),
         db,
         context.time,
-        () => matcherQueue.lastProcessedOffset,
+        () => lastProcessedOffset,
         () => matcherQueue.lastEventOffset,
         ExchangeTransactionCreator.minAccountFee(context.blockchain, matcherPublicKey.toAddress),
         keyHashStr,
@@ -224,6 +228,7 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
                   log.debug(s"Consumed $eventWithMeta")
 
                   self ! eventWithMeta
+                  lastProcessedOffset = eventWithMeta.offset
                   eventWithMeta.event.assetPair
                 }(collection.breakOut)
 
@@ -244,6 +249,11 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
     MatcherActor.name
   )
 
+  context.actorSystem.actorOf(
+    CreateExchangeTransactionActor.props(transactionCreator.createTransaction),
+    CreateExchangeTransactionActor.name
+  )
+
   private lazy val historyRouter = settings.orderHistory.map { orderHistorySettings =>
     context.actorSystem.actorOf(HistoryRouter.props(context.blockchain, settings.postgresConnection, orderHistorySettings), "history-router")
   }
@@ -260,7 +270,6 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
               new AddressActor(
                 address,
                 context.utx.spendableBalance(address, _),
-                5.seconds,
                 context.time,
                 orderDB,
                 id => context.blockchain.filledVolumeAndFee(id) != VolumeAndFee.empty,
@@ -361,16 +370,15 @@ class Matcher(context: Context) extends Extension with ScorexLogging {
   }
 
   private def getLastOffset(deadline: Deadline): Future[QueueEventWithMeta.Offset] = matcherQueue.lastEventOffset.recoverWith {
-    case _: AskTimeoutException =>
+    case _: TimeoutException =>
       if (deadline.isOverdue()) Future.failed(new TimeoutException("Can't get last offset from queue"))
       else getLastOffset(deadline)
   }
 
   private def waitOffsetReached(lastQueueOffset: QueueEventWithMeta.Offset, deadline: Deadline): Future[Unit] = {
     def loop(p: Promise[Unit]): Unit = {
-      val currentOffset = matcherQueue.lastProcessedOffset
-      log.trace(s"offsets: $currentOffset >= $lastQueueOffset, deadline: ${deadline.isOverdue()}")
-      if (currentOffset >= lastQueueOffset) p.success(())
+      log.trace(s"offsets: $lastProcessedOffset >= $lastQueueOffset, deadline: ${deadline.isOverdue()}")
+      if (lastProcessedOffset >= lastQueueOffset) p.success(())
       else if (deadline.isOverdue())
         p.failure(new TimeoutException(s"Can't process all events in ${settings.startEventsProcessingTimeout.toMinutes} minutes"))
       else context.actorSystem.scheduler.scheduleOnce(5.second)(loop(p))

@@ -1,6 +1,6 @@
 package com.wavesplatform.dex.api
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.{ToResponseMarshallable, ToResponseMarshaller}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server
@@ -38,7 +38,6 @@ import kamon.Kamon
 import org.iq80.leveldb.DB
 import play.api.libs.json._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 import scala.util.Success
@@ -64,7 +63,7 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
                            matcherAccountFee: Long,
                            apiKeyHashStr: String,
                            rateCache: RateCache,
-                           validatedAllowedOrderVersions: Set[Byte])(implicit val errorContext: ErrorFormatterContext)
+                           validatedAllowedOrderVersions: Set[Byte])(implicit val errorContext: ErrorFormatterContext, system: ActorSystem)
     extends ApiRoute
     with AuthRoute
     with ScorexLogging {
@@ -72,18 +71,21 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
   import MatcherApiRoute._
   import PathMatchers._
 
+  private implicit val dispatcher                                 = system.dispatchers.lookup("akka.actor.api-dispatcher")
   private implicit val timeout: Timeout                           = matcherSettings.actorResponseTimeout
   private implicit val trm: ToResponseMarshaller[MatcherResponse] = MatcherResponse.toResponseMarshaller
 
   private val timer      = Kamon.timer("matcher.api-requests")
   private val placeTimer = timer.refine("action" -> "place")
 
-  private val rateParsingRejectionsHandler =
+  private def invalidJsonResponse(fields: List[String] = Nil) = complete { InvalidJsonResponse(error.InvalidJson(fields)) }
+
+  private val invalidJsonParsingRejectionsHandler =
     server.RejectionHandler
       .newBuilder()
       .handle {
-        case UnsupportedRequestContentTypeRejection(_) | ValidationRejection(_, Some(_: PlayJsonException)) =>
-          complete { RateError(error.InvalidRateInput) }
+        case ValidationRejection(_, Some(e: PlayJsonException)) => invalidJsonResponse(e.errors.map(_._1.toString).toList)
+        case _: UnsupportedRequestContentTypeRejection          => invalidJsonResponse()
       }
       .result()
 
@@ -91,10 +93,12 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
     getMatcherPublicKey ~ orderBookInfo ~ getSettings ~ getRates ~ getCurrentOffset ~ getLastOffset ~
       getOldestSnapshotOffset ~ getAllSnapshotOffsets ~
       matcherStatusBarrier {
-        getOrderBook ~ marketStatus ~ placeLimitOrder ~ placeMarketOrder ~ getAssetPairAndPublicKeyOrderHistory ~ getPublicKeyOrderHistory ~
-          getAllOrderHistory ~ tradableBalance ~ reservedBalance ~ orderStatus ~
-          historyDelete ~ cancel ~ cancelAll ~ orderbooks ~ orderBookDelete ~ getTransactionsByOrder ~ forceCancelOrder ~
-          upsertRate ~ deleteRate ~ saveSnapshots
+        handleRejections(invalidJsonParsingRejectionsHandler) {
+          getOrderBook ~ marketStatus ~ placeLimitOrder ~ placeMarketOrder ~ getAssetPairAndPublicKeyOrderHistory ~ getPublicKeyOrderHistory ~
+            getAllOrderHistory ~ tradableBalance ~ reservedBalance ~ orderStatus ~
+            historyDelete ~ cancel ~ cancelAll ~ orderbooks ~ orderBookDelete ~ getTransactionsByOrder ~ forceCancelOrder ~
+            upsertRate ~ deleteRate ~ saveSnapshots
+        }
       }
   }
 
@@ -225,22 +229,20 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
   )
   def upsertRate: Route = {
     (path("settings" / "rates" / AssetPM) & put & withAuth) { a =>
-      handleRejections(rateParsingRejectionsHandler) {
-        entity(as[Double]) { rate =>
-          if (rate <= 0) complete { RateError(error.NonPositiveAssetRate) } else
-            withAsset(a) { asset =>
-              complete(
-                if (asset == Waves) RateError(error.WavesImmutableRate)
-                else {
-                  val assetStr = AssetPair.assetIdStr(asset)
-                  rateCache.upsertRate(asset, rate) match {
-                    case None     => StatusCodes.Created -> wrapMessage(s"Rate $rate for the asset $assetStr added")
-                    case Some(pv) => StatusCodes.OK      -> wrapMessage(s"Rate for the asset $assetStr updated, old value = $pv, new value = $rate")
-                  }
+      entity(as[Double]) { rate =>
+        if (rate <= 0) complete { RateError(error.NonPositiveAssetRate) } else
+          withAsset(a) { asset =>
+            complete(
+              if (asset == Waves) RateError(error.WavesImmutableRate)
+              else {
+                val assetStr = AssetPair.assetIdStr(asset)
+                rateCache.upsertRate(asset, rate) match {
+                  case None     => StatusCodes.Created -> wrapMessage(s"Rate $rate for the asset $assetStr added")
+                  case Some(pv) => StatusCodes.OK      -> wrapMessage(s"Rate for the asset $assetStr updated, old value = $pv, new value = $rate")
                 }
-              )
-            }
-        }
+              }
+            )
+          }
       }
     }
   }
@@ -485,6 +487,7 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
           Json.obj(
             "id"        -> id.toString,
             "type"      -> oi.side.toString,
+            "orderType" -> oi.orderType,
             "amount"    -> oi.amount,
             "fee"       -> oi.matcherFee,
             "price"     -> oi.price,

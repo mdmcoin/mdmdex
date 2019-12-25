@@ -64,6 +64,6 @@ class OrderV3TestSuite extends MatcherSuiteBase with NTPTime {
 }
 
 object OrderV3TestSuite {
-  val matcherSettingsOrderV3Allowed: Config = ConfigFactory.parseString("waves.dex { allowed-order-versions = [1, 2, 3] }")
-  val matcherSettingsOrderV3Disabled: Config = ConfigFactory.parseString("waves.dex { allowed-order = [1, 2] }")
+  val matcherSettingsOrderV3Allowed: Config = ConfigFactory.parseString("TN.dex { allowed-order-versions = [1, 2, 3] }")
+  val matcherSettingsOrderV3Disabled: Config = ConfigFactory.parseString("TN.dex { allowed-order-versions = [1, 2] }")
 }

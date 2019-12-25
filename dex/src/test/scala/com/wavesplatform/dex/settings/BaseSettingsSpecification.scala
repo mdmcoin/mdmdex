@@ -11,7 +11,7 @@ import scala.util.Try
 class BaseSettingsSpecification extends FlatSpec{
 
   def getSettingByConfig(conf: Config): Either[String, MatcherSettings] =
-    Try(conf.as[MatcherSettings]("waves.dex")).toEither.leftMap(_.getMessage)
+    Try(conf.as[MatcherSettings]("TN.dex")).toEither.leftMap(_.getMessage)
 
   val correctOrderFeeStr: String =
     s"""
@@ -109,14 +109,14 @@ class BaseSettingsSpecification extends FlatSpec{
          |        topic = "some-events"
          |
          |        consumer {
-         |          buffer-size = 100
-         |          min-backoff = 11s
-         |          max-backoff = 2d
+         |          fetch-max-duration = 10s
+         |          max-buffer-size = 777
+         |          client.foo = 2
          |        }
          |
          |        producer {
          |          enable = no
-         |          buffer-size = 200
+         |          client.bar = 3
          |        }
          |      }
          |    }
