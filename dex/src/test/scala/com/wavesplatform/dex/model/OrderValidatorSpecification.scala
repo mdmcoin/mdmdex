@@ -202,7 +202,7 @@ class OrderValidatorSpecification
 
         val order = Json.fromJson[Order](createOrder(AssetPair(btc, usd), SELL, 100, 3.0).json() ++ Json.obj("matcherFeeAssetId" -> "TN")).get
 
-        validateByMatcherSettings { DynamicSettings(0.003.waves) }(order).leftMap(_.mkMessage(errorContext).text).left.get should include(
+        validateByMatcherSettings { DynamicSettings(0.003.TN) }(order).leftMap(_.mkMessage(errorContext).text).left.get should include(
           """But given "TN" as Base58 string. Remove this field if you want to specify WAVES in JSON"""
         )
       }
@@ -214,7 +214,7 @@ class OrderValidatorSpecification
           val order = createOrder(pairWavesBtc, OrderType.BUY, 500.TN, price = 0.00011162, matcherFee = 1.5.TN, matcherFeeAsset = Waves)
           Seq(AssetType.AMOUNT, AssetType.RECEIVING).foreach { assetType =>
             validateByPercentSettings(assetType) { order } shouldBe 'right
-            validateByPercentSettings(assetType) { order.updateFee(1.49999999.waves) } should produce("FeeNotEnough")
+            validateByPercentSettings(assetType) { order.updateFee(1.49999999.TN) } should produce("FeeNotEnough")
           }
         }
 

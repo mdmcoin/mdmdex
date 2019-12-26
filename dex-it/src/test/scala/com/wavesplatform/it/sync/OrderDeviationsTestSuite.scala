@@ -320,7 +320,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
             400
           )
 
-          node.reservedBalance(alice) shouldBe Map(assetPair.amountAssetStr -> 1000.waves)
+          node.reservedBalance(alice) shouldBe Map(assetPair.amountAssetStr -> 1000.TN)
           Array(alice, bob).foreach(sender => node.cancelAllOrders(sender))
         }
 
@@ -335,7 +335,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
             orderIsOutOfDeviationBounds("8.51", SELL),
             400)
 
-          node.reservedBalance(alice) shouldBe Map(wavesUsdPair.amountAssetStr -> 1000.waves)
+          node.reservedBalance(alice) shouldBe Map(wavesUsdPair.amountAssetStr -> 1000.TN)
           Array(alice, bob).foreach(sender => node.cancelAllOrders(sender))
         }
       }

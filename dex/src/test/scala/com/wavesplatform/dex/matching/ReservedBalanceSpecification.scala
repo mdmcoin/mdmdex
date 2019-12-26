@@ -501,8 +501,8 @@ class ReservedBalanceSpecification
       (BUY, 0.1.TN, 3.usd, WAVES, amtMap(500.TN, 500.usd, 50.eth), amtMap(waves = 0.9.TN, usd = 0.3.usd)), // fee in received asset, received amount < fee
       (BUY, 123.TN, 3.usd, ETH, amtMap(500.TN, 500.usd, 50.eth), amtMap(usd = 369.usd, eth = 1.eth)),         // fee in third asset
       /** SELL, availableForSpending > required by spendable asset  */
-      (SELL, 123.TN, 3.usd, WAVES, amtMap(500.TN, 500.usd, 50.eth), amtMap(waves = 124.waves)), //              fee in spent asset
-      (SELL, 123.TN, 3.usd, USD, amtMap(500.TN, 500.usd, 50.eth), amtMap(waves = 123.waves)), //                fee in received asset
+      (SELL, 123.TN, 3.usd, WAVES, amtMap(500.TN, 500.usd, 50.eth), amtMap(waves = 124.TN)), //              fee in spent asset
+      (SELL, 123.TN, 3.usd, USD, amtMap(500.TN, 500.usd, 50.eth), amtMap(waves = 123.TN)), //                fee in received asset
       (SELL, 0.1.TN, 3.usd, USD, amtMap(500.TN, 500.usd, 50.eth), amtMap(waves = 0.1.TN, usd = 0.7.usd)), // fee in received asset, received amount < fee
       (SELL, 123.TN, 3.usd, ETH, amtMap(500.TN, 500.usd, 50.eth), amtMap(waves = 123.TN, eth = 1.eth)),   // fee in third asset
       /**
@@ -522,8 +522,8 @@ class ReservedBalanceSpecification
         *  - (SELL, 0.1.TN, 3.usd, USD,   amtMap(500.TN, 0.6.usd, 50.eth))  - required 1.usd (marketOrderVolume = 0, only fee required),   balance = 0.6.usd,   received amount = 0.3.usd,   BalanceNotEnough by USD
         *  - (SELL, 123.TN, 3.usd, ETH,   amtMap(500.TN, 500.usd, 0.9.eth)) - required 1.eth,                                              balance = 0.9.eth,   received amount = 0.0.eth,   BalanceNotEnough by ETH
         */
-      (SELL, 123.TN, 3.usd, WAVES, amtMap(100.TN, 500.usd, 50.eth), amtMap(waves = 100.waves)), //                fee in spent asset
-      (SELL, 123.TN, 3.usd, USD, amtMap(100.TN, 500.usd, 50.eth), amtMap(waves = 100.waves)), //                  fee in received asset
+      (SELL, 123.TN, 3.usd, WAVES, amtMap(100.TN, 500.usd, 50.eth), amtMap(waves = 100.TN)), //                fee in spent asset
+      (SELL, 123.TN, 3.usd, USD, amtMap(100.TN, 500.usd, 50.eth), amtMap(waves = 100.TN)), //                  fee in received asset
       (SELL, 0.1.TN, 3.usd, USD, amtMap(0.05.TN, 500.usd, 50.eth), amtMap(waves = 0.05.TN, usd = 0.7.usd)) //  fee in received asset, received amount < fee
     )
   ) { (orderType: OrderType, amount: Long, price: Long, feeAsset: Asset, balance: Map[Asset, Long], reserves: Map[Asset, Long]) =>
@@ -579,8 +579,8 @@ class ReservedBalanceSpecification
       (BUY, 100.TN, 3.usd, WAVES, amtMap(500.TN, 500.usd, 50.eth), 200.TN, 2.usd, amtMap()), // fee in received asset
       (BUY, 100.TN, 3.usd, ETH, amtMap(500.TN, 500.usd, 50.eth), 200.TN, 2.usd, amtMap()),   // fee in third asset
       /** market SELL order PARTIALLY filled, available for spending > required by spendable asset */
-      (SELL, 123.TN, 2.usd, WAVES, amtMap(500.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 23.18699187.waves)), //            fee in spent asset,    WAVES: 123 [r] + 1 [f] - 100 [e] - 100/123 [ef]
-      (SELL, 123.TN, 2.usd, USD, amtMap(500.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 23.waves)),                       // fee in received asset, WAVES: 123 [r] - 100 [e]
+      (SELL, 123.TN, 2.usd, WAVES, amtMap(500.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 23.18699187.TN)), //            fee in spent asset,    WAVES: 123 [r] + 1 [f] - 100 [e] - 100/123 [ef]
+      (SELL, 123.TN, 2.usd, USD, amtMap(500.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 23.TN)),                       // fee in received asset, WAVES: 123 [r] - 100 [e]
       (SELL, 123.TN, 2.usd, ETH, amtMap(500.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 23.TN, eth = 0.18699187.eth)), // fee in third asset,    WAVES: 123 [r] - 100 [e], ETH: 1 [f] - 100/123 [ef]
       /** market SELL order filled, available for spending > required by spendable asset */
       (SELL, 100.TN, 2.usd, WAVES, amtMap(500.TN, 500.usd, 50.eth), 200.TN, 3.usd, amtMap()), // fee in spent asset
@@ -604,12 +604,12 @@ class ReservedBalanceSpecification
       (BUY, 100.TN, 3.usd, WAVES, amtMap(500.TN, 250.usd, 50.eth), 200.TN, 2.usd, amtMap()), // fee in received asset
       (BUY, 100.TN, 3.usd, ETH, amtMap(500.TN, 250.usd, 50.eth), 200.TN, 2.usd, amtMap()),   // fee in third asset
       /** market SELL order PARTIALLY filled, available for spending < required by spendable asset but is enough to cover market amount and fee */
-      (SELL, 123.TN, 2.usd, WAVES, amtMap(110.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 9.18699187.waves)), //             fee in spent asset,    WAVES: 110 [afs] - 100 [e] - 100/123 [ef]
-      (SELL, 123.TN, 2.usd, USD, amtMap(110.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 10.waves)),                       // fee in received asset, WAVES: 110 [afs] - 100 [e]
+      (SELL, 123.TN, 2.usd, WAVES, amtMap(110.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 9.18699187.TN)), //             fee in spent asset,    WAVES: 110 [afs] - 100 [e] - 100/123 [ef]
+      (SELL, 123.TN, 2.usd, USD, amtMap(110.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 10.TN)),                       // fee in received asset, WAVES: 110 [afs] - 100 [e]
       (SELL, 123.TN, 2.usd, ETH, amtMap(110.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 10.TN, eth = 0.18699187.eth)), // fee in third asset,    WAVES: 110 [afs] - 100 [e], USD: 1 [f] - 100/123 [ef]
       /** market SELL order PARTIALLY filled, available for spending < required by spendable asset and NOT enough to cover market amount and fee */
-      (SELL, 123.TN, 2.usd, WAVES, amtMap(100.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 0.00000001.waves)), // fee in spent asset, WAVES: 100 [afs] - 99.19354838 [e*] - 0.80645161 [ef*]
-      (SELL, 123.TN, 2.usd, WAVES, amtMap(90.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 0.00000001.waves)), //  fee in spent asset, WAVES: 90 [afs] - 89.27419354 [e*] - 0.72580645 [ef*]
+      (SELL, 123.TN, 2.usd, WAVES, amtMap(100.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 0.00000001.TN)), // fee in spent asset, WAVES: 100 [afs] - 99.19354838 [e*] - 0.80645161 [ef*]
+      (SELL, 123.TN, 2.usd, WAVES, amtMap(90.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(waves = 0.00000001.TN)), //  fee in spent asset, WAVES: 90 [afs] - 89.27419354 [e*] - 0.72580645 [ef*]
       (SELL, 123.TN, 2.usd, USD, amtMap(90.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap()),                     //        fee in received asset
       (SELL, 123.TN, 2.usd, ETH, amtMap(90.TN, 500.usd, 50.eth), 100.TN, 3.usd, amtMap(eth = 0.26829269.eth)), //        fee in third asset, ETH: 1 [f] - 90/123 [ef]
       /** market SELL order filled, available for spending = required by spendable asset */

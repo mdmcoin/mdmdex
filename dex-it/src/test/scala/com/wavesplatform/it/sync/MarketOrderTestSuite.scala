@@ -142,10 +142,10 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
       node.waitOrderStatusAndAmount(wavesUsdPair, marketOrder.message.id, "Filled", Some(amount))
 
       node.accountBalances(account1.toAddress.toString)._1 should be(amount - calculateFeeValue(amount, feeMode))
-      node.assetBalance(account1.toAddress.toString, UsdId.toString).balance should be(200.usd - price * amount / 1.waves)
+      node.assetBalance(account1.toAddress.toString, UsdId.toString).balance should be(200.usd - price * amount / 1.TN)
 
       node.accountBalances(account2.toAddress.toString)._1 should be(amount - calculateFeeValue(amount, feeMode))
-      node.assetBalance(account2.toAddress.toString, UsdId.toString).balance should be(price * amount / 1.waves)
+      node.assetBalance(account2.toAddress.toString, UsdId.toString).balance should be(price * amount / 1.TN)
 
       def validateHistory(label: String, orders: Seq[OrderHistory]): Unit = withClue(s"$label: ") {
         orders should have size 1
@@ -220,7 +220,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
       orderBook.asks should be(empty)
 
       orderBook.asks.filter(_.price == bestPrice) should be(empty)
-      orderBook.bids.filter(order => order.price == secondPrice && order.amount == 10.waves) should have size 1
+      orderBook.bids.filter(order => order.price == secondPrice && order.amount == 10.TN) should have size 1
       orderBook.bids should have size 2
     }
 
@@ -251,7 +251,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
       }
 
       node.assetBalance(bob.toAddress.toString, UsdId.toString).balance should be(
-        bobUBefore - 0.3.usd * 30.waves / 1.waves - 0.4.usd * 40.waves / 1.waves - 0.5.usd * 50.waves / 1.waves)
+        bobUBefore - 0.3.usd * 30.waves / 1.waves - 0.4.usd * 40.waves / 1.waves - 0.5.usd * 50.waves / 1.TN)
     }
 
     "should be removed from order book when the restriction by tokens count has been reached (SELL)" in {
@@ -281,7 +281,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
       }
 
       node.assetBalance(seller.toAddress.toString, UsdId.toString).balance should be(
-        0.2.usd * 12.waves / 1.waves + 0.3.usd * 12.waves / 1.waves + 0.4.usd * 12.waves / 1.waves)
+        0.2.usd * 12.waves / 1.waves + 0.3.usd * 12.waves / 1.waves + 0.4.usd * 12.waves / 1.TN)
     }
 
     "should be removed from order book when there are no suitable orders by limit of the price (BUY)" in {

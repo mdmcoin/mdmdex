@@ -364,8 +364,8 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       node.assertAssetBalance(alice.toAddress.toString, EthId.toString, aliceEthBalance - 1920L)
       node.assertAssetBalance(matcher.toAddress.toString, EthId.toString, matcherEthBalance + 1920L)
       node.assertAssetBalance(matcher.toAddress.toString, BtcId.toString, matcherBtcBalance + 150L)
-      node.assertBalances(bob.toAddress.toString, bobWavesBalance + 1.waves)
-      node.assertBalances(alice.toAddress.toString, aliceWavesBalance - 1.waves)
+      node.assertBalances(bob.toAddress.toString, bobWavesBalance + 1.TN)
+      node.assertBalances(alice.toAddress.toString, aliceWavesBalance - 1.TN)
       Array(BtcId, EthId)
         .foreach(assetId => node.deleteRate(IssuedAsset(assetId)))
     }
@@ -486,8 +486,8 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           node.assertAssetBalance(matcher.toAddress.toString, EthId.toString, matcherEthBalance + aliceBalanceDiff)
         }
 
-        node.assertBalances(bob.toAddress.toString, bobWavesBalance + 1.waves)
-        node.assertBalances(alice.toAddress.toString, aliceWavesBalance - 1.waves)
+        node.assertBalances(bob.toAddress.toString, bobWavesBalance + 1.TN)
+        node.assertBalances(alice.toAddress.toString, aliceWavesBalance - 1.TN)
 
         node.cancelAllOrders(alice)
         Array(btc, eth).foreach {
@@ -600,7 +600,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       .message
       .id
     node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1.TN, 300))
-    node.reservedBalance(bob) shouldBe Map("TN" -> 1.waves)
+    node.reservedBalance(bob) shouldBe Map("TN" -> 1.TN)
     node.cancelOrder(bob, wavesUsdPair, bobOrderId)
 
     node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceWavesBalance
@@ -720,10 +720,10 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       node.waitOrderProcessed(
         wavesUsdPair,
         node.placeOrder(node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, 1.TN, 100, 0.003.TN, version = 2: Byte)).message.id)
-      node.waitOrderStatusAndAmount(wavesUsdPair, buyOrder, "PartiallyFilled", Some(1.waves))
+      node.waitOrderStatusAndAmount(wavesUsdPair, buyOrder, "PartiallyFilled", Some(1.TN))
 
-      node.accountBalances(alice.toAddress.toString)._1 should be(aliceWavesBefore + 1.waves)
-      node.accountBalances(bob.toAddress.toString)._1 should be(bobWavesBefore - 1.waves - 0.003.waves)
+      node.accountBalances(alice.toAddress.toString)._1 should be(aliceWavesBefore + 1.TN)
+      node.accountBalances(bob.toAddress.toString)._1 should be(bobWavesBefore - 1.waves - 0.003.TN)
 
       node.cancelOrdersForPair(alice, wavesUsdPair)
     }
@@ -739,10 +739,10 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       node.waitOrderProcessed(
         wavesUsdPair,
         node.placeOrder(node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, 1.TN, 100, 0.003.TN, version = 3: Byte)).message.id)
-      node.waitOrderStatusAndAmount(wavesUsdPair, buyOrder, "PartiallyFilled", Some(1.waves))
+      node.waitOrderStatusAndAmount(wavesUsdPair, buyOrder, "PartiallyFilled", Some(1.TN))
 
       node.accountBalances(alice.toAddress.toString)._1 should be(aliceWavesBefore + 1.waves - 1)
-      node.accountBalances(bob.toAddress.toString)._1 should be(bobWavesBefore - 1.waves - 0.003.waves)
+      node.accountBalances(bob.toAddress.toString)._1 should be(bobWavesBefore - 1.waves - 0.003.TN)
 
       node.cancelOrdersForPair(alice, wavesUsdPair)
     }

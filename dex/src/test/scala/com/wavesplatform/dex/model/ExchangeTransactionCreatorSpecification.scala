@@ -202,23 +202,23 @@ class ExchangeTransactionCreatorSpecification
         */
       (1 to 2).foreach { v =>
         s"submitted order version is $v" when {
-          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(100.waves)(1)
-          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(99.99999999.waves)(0)
-          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(50.TN, 50.waves)(0, 0)
-          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(1.TN, 120.waves)(0, 0)
-          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 500.waves)(0, 4)
-          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 50.waves)(0, 2)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(100.TN)(1)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(99.99999999.TN)(0)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(50.TN, 50.TN)(0, 0)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(1.TN, 120.TN)(0, 0)
+          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 500.TN)(0, 4)
+          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 50.TN)(0, 2)
         }
       }
 
       (3 to 3).foreach { v =>
         s"submitted order version is $v" when {
-          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(100.waves)(1)
-          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(99.99999999.waves)(1)
-          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(50.TN, 50.waves)(1, 0)
-          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(1.TN, 120.waves)(1, 0)
-          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 500.waves)(1, 4)
-          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 50.waves)(1, 2)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(100.TN)(1)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(99.99999999.TN)(1)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(50.TN, 50.TN)(1, 0)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(1.TN, 120.TN)(1, 0)
+          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 500.TN)(1, 4)
+          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 50.TN)(1, 2)
         }
       }
     }

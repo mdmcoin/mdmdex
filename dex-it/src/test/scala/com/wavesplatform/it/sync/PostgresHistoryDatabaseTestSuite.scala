@@ -213,8 +213,8 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase {
 
     (1 to ordersCount)
       .foreach { _ =>
-        node.placeOrder(alice, wctUsdPair, BUY, 1.wct, 0.35.price, 0.003.waves)
-        node.placeOrder(bob, wctUsdPair, SELL, 1.wct, 0.35.price, 0.003.waves)
+        node.placeOrder(alice, wctUsdPair, BUY, 1.wct, 0.35.price, 0.003.TN)
+        node.placeOrder(bob, wctUsdPair, SELL, 1.wct, 0.35.price, 0.003.TN)
       }
 
     retry(10, batchLingerMs) {
