@@ -428,7 +428,7 @@ class ReservedBalanceSpecification
     }
 
     def amt(value: Long): Long = asset match {
-      case WAVES => value.waves
+      case WAVES => value.TN
       case USD   => value.usd
       case ETH   => value.eth
       case _     => value
