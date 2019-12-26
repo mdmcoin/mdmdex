@@ -89,7 +89,7 @@ abstract class MatcherSuiteBase
 object MatcherSuiteBase {
   private def baseConfig(topicName: String): Config = kafkaServer.fold(ConfigFactory.empty()) { kafkaServer =>
     ConfigFactory.parseString(s"""
-         |logback.configurationFile=/opt/waves/logback-container.xml
+         |logback.configurationFile=/opt/TN/logback-container.xml
          |
          |TN.dex.events-queue {
          |  type = kafka

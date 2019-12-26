@@ -162,7 +162,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
 
     "changing waves rate" in test(
       { route =>
-        Put(routePath("/settings/rates/WAVES"), rate).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
+        Put(routePath("/settings/rates/TN"), rate).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
           status shouldBe StatusCodes.BadRequest
           val message = (responseAs[JsValue] \ "message").as[JsString]
           message.value shouldEqual s"The rate for WAVES cannot be changed"
@@ -173,7 +173,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
 
     "change rates without api key" in test(
       { route =>
-        Put(routePath("/settings/rates/WAVES"), rate) ~> route ~> check {
+        Put(routePath("/settings/rates/TN"), rate) ~> route ~> check {
           status shouldBe StatusCodes.Forbidden
           val message = (responseAs[JsValue] \ "message").as[JsString]
           message.value shouldEqual "Provided API key is not correct"
@@ -184,7 +184,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
 
     "change rates with wrong api key" in test(
       { route =>
-        Put(routePath("/settings/rates/WAVES"), rate).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
+        Put(routePath("/settings/rates/TN"), rate).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
           status shouldBe StatusCodes.Forbidden
           val message = (responseAs[JsValue] \ "message").as[JsString]
           message.value shouldEqual "Provided API key is not correct"
@@ -195,10 +195,10 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
 
     "deleting waves rate" in test(
       { route =>
-        Delete(routePath("/settings/rates/WAVES")).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
+        Delete(routePath("/settings/rates/TN")).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
           status shouldBe StatusCodes.BadRequest
           val message = (responseAs[JsValue] \ "message").as[JsString]
-          message.value shouldEqual s"The rate for WAVES cannot be changed"
+          message.value shouldEqual s"The rate for TN cannot be changed"
         }
       },
       apiKey
@@ -206,7 +206,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
 
     "delete rates without api key" in test(
       { route =>
-        Delete(routePath("/settings/rates/WAVES")) ~> route ~> check {
+        Delete(routePath("/settings/rates/TN")) ~> route ~> check {
           status shouldBe StatusCodes.Forbidden
           val message = (responseAs[JsValue] \ "message").as[JsString]
           message.value shouldEqual "Provided API key is not correct"
@@ -217,7 +217,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
 
     "delete rates with wrong api key" in test(
       { route =>
-        Delete(routePath("/settings/rates/WAVES")).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
+        Delete(routePath("/settings/rates/TN")).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
           status shouldBe StatusCodes.Forbidden
           val message = (responseAs[JsValue] \ "message").as[JsString]
           message.value shouldEqual "Provided API key is not correct"

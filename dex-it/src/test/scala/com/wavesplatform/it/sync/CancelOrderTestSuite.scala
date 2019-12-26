@@ -32,7 +32,7 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
   override protected def nodeConfigs: Seq[Config] = super.nodeConfigs.map {
     ConfigFactory
       .parseString(
-        s"""waves {
+        s"""TN {
            |  miner.micro-block-interval = 3s
            |  dex {
            |    snapshots-interval = 100000

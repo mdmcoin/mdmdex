@@ -62,8 +62,8 @@ class BaseSettingsSpecification extends FlatSpec{
                          orderRestrictionsStr: String = correctOrderRestrictionsStr,
                          matchingRulesStr: String = correctMatchingRulesStr): Config = {
     val configStr =
-      s"""waves {
-         |  directory = /waves
+      s"""TN {
+         |  directory = /TN
          |  dex {
          |    account = 3Mqjki7bLtMEBRCYeQis39myp9B4cnooDEX
          |    bind-address = 127.0.0.1
