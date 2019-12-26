@@ -224,7 +224,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
         |   min-price  = 0.003
         |   max-price  = 500000
         | },
-        | "ETH-WAVES": {
+        | "ETH-TN": {
         |   step-amount = 0.0001
         |   min-amount  = 0.01
         |   max-amount  = 2000
@@ -283,7 +283,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
         |   step-price = 0.002
         |   min-price  = 0.003
         | },
-        | "ETH-WAVES": {
+        | "ETH-TN": {
         |   step-amount = 0.0001
         |   max-amount  = 2000
         |   max-price  = 10000

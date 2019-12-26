@@ -45,7 +45,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
          |        tick-size    = 12
          |      }
          |    ],
-         |    "$WctId-WAVES": [
+         |    "$WctId-TN": [
          |      {
          |        start-offset = 23
          |        tick-size    = 12
