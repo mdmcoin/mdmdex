@@ -68,7 +68,7 @@ class BaseSettingsSpecification extends FlatSpec{
          |    account = 3Mqjki7bLtMEBRCYeQis39myp9B4cnooDEX
          |    bind-address = 127.0.0.1
          |    port = 6886
-         |    exchange-tx-base-fee = 300000
+         |    exchange-tx-base-fee = 4000000
          |    actor-response-timeout = 11s
          |    snapshots-interval = 999
          |    limit-events-during-recovery = 48879
@@ -78,7 +78,7 @@ class BaseSettingsSpecification extends FlatSpec{
          |    order-books-recovering-timeout = 111s
          |    rest-order-limit = 100
          |    price-assets = [
-         |      WAVES
+         |      TN
          |      8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS
          |      DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J
          |    ]
