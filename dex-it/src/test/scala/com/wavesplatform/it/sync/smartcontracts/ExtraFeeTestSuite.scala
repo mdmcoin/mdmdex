@@ -207,7 +207,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
 
       node.upsertRate(IssuedAsset(ByteStr(Base58.decode(assetWith2Dec))), 4, expectedStatusCode = StatusCodes.Created)
       withClue("with asset pair with different decimals count") {
-        val wavesToAssetWith2DecPair = createAssetPair(assetWith2Dec, "WAVES")
+        val wavesToAssetWith2DecPair = createAssetPair(assetWith2Dec, "TN")
         val bobWavesBalance          = node.accountBalances(bob.toAddress.toString)._1
         val bobAssetBalance          = node.assetBalance(bob.toAddress.toString, assetWith2Dec).balance
         val aliceWavesBalance        = node.accountBalances(alice.toAddress.toString)._1
@@ -262,7 +262,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
           .id
         node.waitOrderInBlockchain(bobOrderId)
 
-        node.reservedBalance(alice) shouldBe Map("WAVES" -> 300.waves * 100L)
+        node.reservedBalance(alice) shouldBe Map("TN" -> 300.waves * 100L)
         node.reservedBalance(bob) shouldBe Map()
         node.accountBalances(bob.toAddress.toString)._1 shouldBe bobWavesBalance + 300.waves * 100L
         node.assetBalance(bob.toAddress.toString, assetWith2Dec).balance shouldBe bobAssetBalance - 10005L

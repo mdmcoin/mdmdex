@@ -170,8 +170,8 @@ class OrderBookSpec extends FreeSpec with PropertyChecks with Matchers with Matc
 
     def normalizedTickSize(tickSize: Double): Price = Normalization.normalizePrice(tickSize, 8, 2)
 
-    val counter   = LimitOrder(createOrder(pairWavesUsd, SELL, 100.waves, 3.15))
-    val submitted = LimitOrder(createOrder(pairWavesUsd, BUY, 100.waves, 3.15))
+    val counter   = LimitOrder(createOrder(pairWavesUsd, SELL, 100.TN, 3.15))
+    val submitted = LimitOrder(createOrder(pairWavesUsd, BUY, 100.TN, 3.15))
 
     val counterTs   = counter.order.timestamp
     val submittedTs = submitted.order.timestamp

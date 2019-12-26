@@ -86,7 +86,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
   }
 
   def assetBalance(owner: KeyPair, assetId: String): Long = {
-    if (assetId == "WAVES")
+    if (assetId == "TN")
       node.accountBalances(owner.toAddress.toString)._1
     else {
       node.assetBalance(owner.toAddress.toString, assetId).balance
@@ -151,7 +151,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     // now there are 2 price levels
     node.orderBook(wctUsdPair).bids.map(_.price) shouldBe Seq(7 * price, 5 * price)
 
-    node.reservedBalance(alice)("WAVES") shouldBe matcherFee * 3
+    node.reservedBalance(alice)("TN") shouldBe matcherFee * 3
     node.reservedBalance(alice)(UsdId.toString) shouldBe amount * 7 * 3 * price / PriceConstant
 
     // price level 5 will be deleted after cancelling of buyOrder3
@@ -160,7 +160,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
 
     node.assertAssetBalance(alice.toAddress.toString, UsdId.toString, aliceUsdBalance)
     node.assertAssetBalance(alice.toAddress.toString, WctId.toString, aliceWctBalance)
-    node.reservedBalance(alice)("WAVES") shouldBe matcherFee * 2
+    node.reservedBalance(alice)("TN") shouldBe matcherFee * 2
     node.reservedBalance(alice)(UsdId.toString) shouldBe amount * 2 * 7 * price / PriceConstant
 
     node.orderBook(wctUsdPair).bids shouldBe Seq(LevelResponse(2 * amount, 7 * price))
@@ -227,7 +227,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
 
     withClue("partially filled order cancellation") {
       node.orderBook(wctUsdPair).bids shouldBe Seq(LevelResponse(amount, 12 * price))
-      node.reservedBalance(alice)("WAVES") shouldBe matcherFee / 2
+      node.reservedBalance(alice)("TN") shouldBe matcherFee / 2
       node.reservedBalance(alice)(UsdId.toString) shouldBe 20 * price * amount / PriceConstant
       node.cancelOrder(alice, wctUsdPair, buyOrder)
       node.reservedBalance(alice) shouldBe Map()
@@ -261,7 +261,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
   }
 
   "Matching orders with different decimals" in {
-    Array((wctUsdPair, amount, price), (wctWavesPair, amount, price * 1000000L), (wavesUsdPair, 1.waves, 100L), (wavesBtcPair, amount, price))
+    Array((wctUsdPair, amount, price), (wctWavesPair, amount, price * 1000000L), (wavesUsdPair, 1.TN, 100L), (wavesBtcPair, amount, price))
       .foreach {
         case (pair: AssetPair, amount: Long, price: Long) =>
           withClue(pair) {
@@ -269,8 +269,8 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
             val bobAmountBalance   = assetBalance(bob, pair.amountAssetStr)
             val alicePriceBalance  = assetBalance(alice, pair.priceAssetStr)
             val bobPriceBalance    = assetBalance(bob, pair.priceAssetStr)
-            val aliceWavesBalance  = assetBalance(alice, "WAVES")
-            val bobWavesBalance    = assetBalance(bob, "WAVES")
+            val aliceWavesBalance  = assetBalance(alice, "TN")
+            val bobWavesBalance    = assetBalance(bob, "TN")
 
             val bestAskOrderId = node.placeOrder(alice, pair, SELL, amount, 17 * price, matcherFee).message.id
             node.orderBook(pair).asks shouldBe Seq(LevelResponse(amount, 24 * price))
@@ -292,8 +292,8 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
                 assetBalance(bob, pair.amountAssetStr) shouldBe bobAmountBalance + amount
                 assetBalance(alice, pair.priceAssetStr) shouldBe alicePriceBalance + 25000L
                 assetBalance(bob, pair.priceAssetStr) shouldBe bobPriceBalance - 25000L
-                assetBalance(alice, "WAVES") shouldBe aliceWavesBalance - matcherFee / 2
-                assetBalance(bob, "WAVES") shouldBe bobWavesBalance - matcherFee
+                assetBalance(alice, "TN") shouldBe aliceWavesBalance - matcherFee / 2
+                assetBalance(bob, "TN") shouldBe bobWavesBalance - matcherFee
               case `wctWavesPair` =>
                 assetBalance(alice, pair.amountAssetStr) shouldBe aliceAmountBalance - amount
                 assetBalance(bob, pair.amountAssetStr) shouldBe bobAmountBalance + amount

@@ -103,9 +103,9 @@ class OrderFixedFeeTestSuite extends MatcherSuiteBase with NTPTime {
             .message
             .id
           node.waitOrderStatus(someWavesPair, aliceOrderIdFill, "Accepted")
-          node.reservedBalance(alice)("WAVES") shouldBe orderAmount * price / 100000000
+          node.reservedBalance(alice)("TN") shouldBe orderAmount * price / 100000000
           node.reservedBalance(alice)(s"$fixedAssetMatcherFeeBase58") shouldBe minMatcherFee - orderAmount
-          node.tradableBalance(alice, someWavesPair)("WAVES") shouldBe aliceWavesBalanceBefore - (orderAmount * price / 100000000)
+          node.tradableBalance(alice, someWavesPair)("TN") shouldBe aliceWavesBalanceBefore - (orderAmount * price / 100000000)
           node.tradableBalance(alice, someWavesPair)(s"$fixedAssetMatcherFeeBase58") shouldBe aliceAssetBalanceBefore - (minMatcherFee - orderAmount)
 
           val bobSellOrderId = node
@@ -228,7 +228,7 @@ class OrderFixedFeeTestSuite extends MatcherSuiteBase with NTPTime {
 }
 
 object OrderFixedFeeTestSuite {
-  def configWithOrderFeeFixed(matcherFeeAssetId: String = "WAVES", minFee: Long): Config = {
+  def configWithOrderFeeFixed(matcherFeeAssetId: String = "TN", minFee: Long): Config = {
     parseString(
       s"""
          |TN.dex {

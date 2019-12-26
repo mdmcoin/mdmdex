@@ -141,7 +141,7 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
 
   "Cancel is rejected" - {
     "when order already cancelled" in {
-      val orderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.waves, 800, matcherFee).message.id
+      val orderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 100.TN, 800, matcherFee).message.id
       node.waitOrderStatus(wavesUsdPair, orderId, "Accepted", 1.minute)
 
       node.cancelOrder(bob, wavesUsdPair, orderId)

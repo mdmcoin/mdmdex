@@ -50,7 +50,7 @@ class MatcherTickerTestSuite extends MatcherSuiteBase {
           .contains(s"TN/${usdWavesPair.amountAssetStr}"))
 
       //TODO: add error message after fix of https://wavesplatform.atlassian.net/browse/NODE-1151
-//      SyncMatcherHttpApi.assertNotFoundAndMessage(node.placeOrder(node, usdWavesPair, OrderType.BUY, 1.waves, 200), "")
+//      SyncMatcherHttpApi.assertNotFoundAndMessage(node.placeOrder(node, usdWavesPair, OrderType.BUY, 1.TN, 200), "")
     }
 
     "issue tokens" in {

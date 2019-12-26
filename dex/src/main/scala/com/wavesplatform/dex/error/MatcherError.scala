@@ -90,8 +90,8 @@ case class UnexpectedFeeAsset(required: Set[Asset], given: Asset)
       order,
       fee,
       unexpected,
-      if (AssetPair.assetIdStr(given) == "WAVES")
-        e"""Required one of the following fee asset: ${'required  -> required}. But given "WAVES" as Base58 string. Remove this field if you want to specify WAVES in JSON"""
+      if (AssetPair.assetIdStr(given) == "TN")
+        e"""Required one of the following fee asset: ${'required  -> required}. But given "TN" as Base58 string. Remove this field if you want to specify WAVES in JSON"""
       else e"Required one of the following fee asset: ${'required -> required}. But given ${'given -> given}"
     )
 

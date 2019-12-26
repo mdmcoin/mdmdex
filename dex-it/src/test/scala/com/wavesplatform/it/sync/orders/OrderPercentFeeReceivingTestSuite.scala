@@ -72,14 +72,14 @@ abstract class OrderPercentFeeReceivingTestSuite(version: Byte, feeAsset: Asset 
             node.assetBalance(alice.toAddress.toString, asset.get.toString).balance >= balance,
             s"Bob doesn't have enough balance in ${asset.get.toString} to make a transfer"
           )
-        node.waitForTransaction(node.broadcastTransfer(alice, account.toAddress.toString, balance, 0.003.waves, asset, None).id)
+        node.waitForTransaction(node.broadcastTransfer(alice, account.toAddress.toString, balance, 0.003.TN, asset, None).id)
       }
     }
     account
   }
 
   def getBalance(account: KeyPair, asset: String): Long = {
-    if (asset.equals("WAVES"))
+    if (asset.equals("TN"))
       node.accountBalances(account.toAddress.toString)._1
     else node.assetBalance(account.toAddress.toString, asset).balance
   }
@@ -110,11 +110,11 @@ abstract class OrderPercentFeeReceivingTestSuite(version: Byte, feeAsset: Asset 
         wavesUsdPair,
         node.placeOrder(accountSeller, wavesUsdPair, SELL, fullyAmountWaves, price, minimalFee, version, feeAsset = IssuedAsset(UsdId)).message.id)
 
-      balancesShouldBe(accountBuyer, fullyAmountWaves -> "WAVES", 0L                          -> UsdId.toString)
-      balancesShouldBe(accountSeller, 0L              -> "WAVES", fullyAmountUsd - minimalFee -> UsdId.toString)
+      balancesShouldBe(accountBuyer, fullyAmountWaves -> "TN", 0L                          -> UsdId.toString)
+      balancesShouldBe(accountSeller, 0L              -> "TN", fullyAmountUsd - minimalFee -> UsdId.toString)
 
-      reservedBalancesShouldBe(accountBuyer, 0L  -> UsdId.toString, 0L -> "WAVES")
-      reservedBalancesShouldBe(accountSeller, 0L -> UsdId.toString, 0L -> "WAVES")
+      reservedBalancesShouldBe(accountBuyer, 0L  -> UsdId.toString, 0L -> "TN")
+      reservedBalancesShouldBe(accountSeller, 0L -> UsdId.toString, 0L -> "TN")
     }
 
     s"users should pay correct fee when fee asset-type = $assetType and order partially filled" in {
@@ -129,11 +129,11 @@ abstract class OrderPercentFeeReceivingTestSuite(version: Byte, feeAsset: Asset 
           .message
           .id)
 
-      balancesShouldBe(accountBuyer, partiallyAmountWaves - (minimalFeeWaves - partiallyFeeWaves) -> "WAVES", partiallyAmountUsd -> UsdId.toString)
-      balancesShouldBe(accountSeller, 0L                                                          -> "WAVES", partiallyAmountUsd -> UsdId.toString)
+      balancesShouldBe(accountBuyer, partiallyAmountWaves - (minimalFeeWaves - partiallyFeeWaves) -> "TN", partiallyAmountUsd -> UsdId.toString)
+      balancesShouldBe(accountSeller, 0L                                                          -> "TN", partiallyAmountUsd -> UsdId.toString)
 
-      reservedBalancesShouldBe(accountBuyer, fullyAmountUsd - partiallyAmountUsd -> UsdId.toString, (minimalFeeWaves - partiallyFeeWaves) -> "WAVES")
-      reservedBalancesShouldBe(accountSeller, 0L                                 -> UsdId.toString, 0L                                    -> "WAVES")
+      reservedBalancesShouldBe(accountBuyer, fullyAmountUsd - partiallyAmountUsd -> UsdId.toString, (minimalFeeWaves - partiallyFeeWaves) -> "TN")
+      reservedBalancesShouldBe(accountSeller, 0L                                 -> UsdId.toString, 0L                                    -> "TN")
 
       node.cancelAllOrders(accountBuyer)
     }
@@ -149,11 +149,11 @@ abstract class OrderPercentFeeReceivingTestSuite(version: Byte, feeAsset: Asset 
         wavesUsdPair,
         node.placeOrder(accountSeller, wavesUsdPair, SELL, fullyAmountWaves, price, tooHighFee, version, feeAsset = IssuedAsset(UsdId)).message.id)
 
-      balancesShouldBe(accountBuyer, fullyAmountWaves -> "WAVES", 0L             -> UsdId.toString)
-      balancesShouldBe(accountSeller, 0L              -> "WAVES", fullyAmountUsd -> UsdId.toString)
+      balancesShouldBe(accountBuyer, fullyAmountWaves -> "TN", 0L             -> UsdId.toString)
+      balancesShouldBe(accountSeller, 0L              -> "TN", fullyAmountUsd -> UsdId.toString)
 
-      reservedBalancesShouldBe(accountBuyer, 0L  -> UsdId.toString, 0L -> "WAVES")
-      reservedBalancesShouldBe(accountSeller, 0L -> UsdId.toString, 0L -> "WAVES")
+      reservedBalancesShouldBe(accountBuyer, 0L  -> UsdId.toString, 0L -> "TN")
+      reservedBalancesShouldBe(accountSeller, 0L -> UsdId.toString, 0L -> "TN")
     }
 
     s"buy order should be rejected if fee less then minimum possible fee when fee asset-type = $assetType" in {

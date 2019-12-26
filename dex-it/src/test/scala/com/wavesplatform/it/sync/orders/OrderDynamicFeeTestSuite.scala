@@ -51,7 +51,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
     txIds.foreach(node.waitForTransaction(_))
   }
 
-  def unexpectedFeeAsset(currentFeeAsset: ByteStr, expectedFeeAsset: String = "WAVES"): String = {
+  def unexpectedFeeAsset(currentFeeAsset: ByteStr, expectedFeeAsset: String = "TN"): String = {
     s"Required one of the following fee asset: ${currentFeeAsset}. But given ${expectedFeeAsset}"
   }
 
@@ -68,7 +68,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = bob,
           pair = wavesBtcPair,
           orderType = OrderType.BUY,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 100L,
           version = 3: Byte,
@@ -82,7 +82,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = bob,
           pair = wavesBtcPair,
           orderType = OrderType.BUY,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 1920L,
           version = 3: Byte,
@@ -100,28 +100,28 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         sender = bob,
         pair = wavesBtcPair,
         orderType = OrderType.SELL,
-        amount = 1.waves,
+        amount = 1.TN,
         price = 50000L,
         fee = 150L,
         version = 3: Byte,
         feeAsset = IssuedAsset(BtcId)
       )
       node.reservedBalance(bob).keys shouldNot contain(BtcId.toString)
-      node.reservedBalance(bob)("WAVES") shouldEqual 100000000L
+      node.reservedBalance(bob)("TN") shouldEqual 100000000L
       node.cancelAllOrders(bob)
 
       node.placeOrder(
         sender = bob,
         pair = wavesBtcPair,
         orderType = OrderType.BUY,
-        amount = 1.waves,
+        amount = 1.TN,
         price = 50000L,
         fee = 150L,
         version = 3: Byte,
         feeAsset = IssuedAsset(BtcId)
       )
       node.reservedBalance(bob)(BtcId.toString) shouldEqual 50150L
-      node.reservedBalance(bob).keys shouldNot contain("WAVES")
+      node.reservedBalance(bob).keys shouldNot contain("TN")
       node.cancelAllOrders(bob)
       node.deleteRate(IssuedAsset(BtcId))
     }
@@ -168,7 +168,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       sender = bob,
       pair = wavesBtcPair,
       orderType = OrderType.BUY,
-      amount = 1.waves,
+      amount = 1.TN,
       price = 50000L,
       fee = 150L,
       version = 3: Byte,
@@ -198,7 +198,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = alice,
           pair = wavesBtcPair,
           orderType = OrderType.SELL,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 1920L,
           version = 3,
@@ -225,7 +225,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = alice,
           pair = wavesBtcPair,
           orderType = OrderType.SELL,
-          amount = 2.waves,
+          amount = 2.TN,
           price = 50000L,
           fee = 1920L,
           version = 3,
@@ -238,7 +238,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         sender = bob,
         pair = wavesBtcPair,
         orderType = OrderType.BUY,
-        amount = 1.waves,
+        amount = 1.TN,
         price = 50000L,
         fee = 150L,
         version = 3: Byte,
@@ -256,7 +256,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = bob,
           pair = wavesBtcPair,
           orderType = OrderType.BUY,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 150L,
           version = 3: Byte,
@@ -281,7 +281,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = bob,
           pair = wavesBtcPair,
           orderType = OrderType.BUY,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 150L,
           version = 3,
@@ -297,7 +297,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = alice,
           pair = wavesBtcPair,
           orderType = OrderType.SELL,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 1920L,
           version = 3,
@@ -331,7 +331,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = bob,
           pair = wavesBtcPair,
           orderType = OrderType.BUY,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 150L,
           version = 3,
@@ -340,14 +340,14 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         .message
         .id
       node.waitOrderStatus(wavesBtcPair, bobOrderId, "Accepted")
-      node.reservedBalance(bob).keys should not contain "WAVES"
+      node.reservedBalance(bob).keys should not contain "TN"
 
       val aliceOrderId = node
         .placeOrder(
           sender = alice,
           pair = wavesBtcPair,
           orderType = OrderType.SELL,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 1920L,
           version = 3,
@@ -383,7 +383,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = bob,
           pair = wavesBtcPair,
           orderType = OrderType.BUY,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 150L,
           version = 3,
@@ -396,7 +396,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = alice,
           pair = wavesBtcPair,
           orderType = OrderType.SELL,
-          amount = 2.waves,
+          amount = 2.TN,
           price = 50000L,
           fee = 1920L,
           version = 3,
@@ -443,7 +443,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
               sender = bob,
               pair = wavesBtcPair,
               orderType = OrderType.BUY,
-              amount = 1.waves,
+              amount = 1.TN,
               price = 50000L,
               fee = 150L,
               version = 3,
@@ -453,7 +453,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
             .id
 
         node.waitOrderStatus(wavesBtcPair, bobOrderId, "Accepted")
-        node.reservedBalance(bob).keys should not contain "WAVES"
+        node.reservedBalance(bob).keys should not contain "TN"
 
         val aliceOrderId =
           node
@@ -509,7 +509,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = bob,
           pair = wavesBtcPair,
           orderType = OrderType.SELL,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 150L,
           version = 3: Byte,
@@ -533,7 +533,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = bob,
           pair = assetPair,
           orderType = OrderType.BUY,
-          amount = 1.waves,
+          amount = 1.TN,
           price = 50000L,
           fee = 150L,
           version = 3,
@@ -546,7 +546,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           sender = alice,
           pair = assetPair,
           orderType = OrderType.SELL,
-          amount = 2.waves,
+          amount = 2.TN,
           price = 50000L,
           fee = 1920L,
           version = 3,
@@ -571,7 +571,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         sender = bob,
         pair = wavesUsdPair,
         orderType = OrderType.SELL,
-        amount = 1.waves,
+        amount = 1.TN,
         price = 300,
         fee = 1L,
         version = 3: Byte,
@@ -591,7 +591,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         sender = bob,
         pair = wavesUsdPair,
         orderType = OrderType.SELL,
-        amount = 1.waves,
+        amount = 1.TN,
         price = 300,
         fee = 1L,
         version = 3: Byte,
@@ -599,8 +599,8 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       )
       .message
       .id
-    node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1.waves, 300))
-    node.reservedBalance(bob) shouldBe Map("WAVES" -> 1.waves)
+    node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1.TN, 300))
+    node.reservedBalance(bob) shouldBe Map("TN" -> 1.waves)
     node.cancelOrder(bob, wavesUsdPair, bobOrderId)
 
     node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceWavesBalance
@@ -612,7 +612,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         sender = alice,
         pair = wavesUsdPair,
         orderType = OrderType.BUY,
-        amount = 1.waves,
+        amount = 1.TN,
         price = 300,
         fee = 1L,
         version = 3: Byte,
@@ -620,14 +620,14 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       )
       .message
       .id
-    node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1.waves, 300))
+    node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1.TN, 300))
     node.reservedBalance(alice) shouldBe Map(UsdId.toString -> 301)
 
     node.placeOrder(
       sender = bob,
       pair = wavesUsdPair,
       orderType = OrderType.SELL,
-      amount = 1.waves,
+      amount = 1.TN,
       price = 300,
       fee = 1L,
       version = 3: Byte,
@@ -654,7 +654,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         val bobUsdBalance = node.assetBalance(bob.toAddress.toString, UsdId.toString).balance
 
         val bobOrderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 425532L, 238, 1, version = 3, feeAsset = wct).message.id
-        val aliceOrderId = node.placeOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 238, baseFee, version = 3).message.id
+        val aliceOrderId = node.placeOrder(alice, wavesUsdPair, OrderType.BUY, 1.TN, 238, baseFee, version = 3).message.id
 
         node.waitOrderStatus(wavesUsdPair, bobOrderId, "Filled")
         node.waitOrderStatus(wavesUsdPair, aliceOrderId, "PartiallyFilled")
@@ -672,7 +672,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         val bobUsdBalance = node.assetBalance(bob.toAddress.toString, UsdId.toString).balance
 
         val bobOrderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 851064L, 238, 1, version = 3, feeAsset = usd).message.id
-        val aliceOrderId = node.placeOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 238, baseFee, version = 3).message.id
+        val aliceOrderId = node.placeOrder(alice, wavesUsdPair, OrderType.BUY, 1.TN, 238, baseFee, version = 3).message.id
 
         node.waitOrderStatus(wavesUsdPair, bobOrderId, "Filled")
         node.waitOrderStatus(wavesUsdPair, aliceOrderId, "PartiallyFilled")
@@ -685,14 +685,14 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       }
 
       withClue("buy order") {
-        node.broadcastTransfer(bob, alice.toAddress.toString, 1, 0.001.waves, Some(WctId.toString), None, waitForTx = true)
+        node.broadcastTransfer(bob, alice.toAddress.toString, 1, 0.001.TN, Some(WctId.toString), None, waitForTx = true)
 
         val aliceWctBalance = node.assetBalance(alice.toAddress.toString, WctId.toString).balance
         val aliceWavesBalance = node.accountBalances(alice.toAddress.toString)._1
         val aliceUsdBalance = node.assetBalance(alice.toAddress.toString, UsdId.toString).balance
 
         val aliceOrderId = node.placeOrder(alice, wavesUsdPair, OrderType.BUY, 851064L, 238, 1, version = 3, feeAsset = wct).message.id
-        val bobOrderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 238, baseFee, version = 3).message.id
+        val bobOrderId = node.placeOrder(bob, wavesUsdPair, OrderType.SELL, 1.TN, 238, baseFee, version = 3).message.id
 
         node.waitOrderStatus(wavesUsdPair, aliceOrderId, "Filled")
         node.waitOrderStatus(wavesUsdPair, bobOrderId, "PartiallyFilled")
@@ -714,12 +714,12 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       val bobWavesBefore = node.accountBalances(bob.toAddress.toString)._1
 
       val buyOrder =
-        node.placeOrder(node.prepareOrder(alice, wavesUsdPair, OrderType.BUY, 1000000000.waves, 100, 0.003.waves, version = 2: Byte)).message.id
+        node.placeOrder(node.prepareOrder(alice, wavesUsdPair, OrderType.BUY, 1000000000.TN, 100, 0.003.TN, version = 2: Byte)).message.id
 
       node.waitOrderProcessed(wavesUsdPair, buyOrder)
       node.waitOrderProcessed(
         wavesUsdPair,
-        node.placeOrder(node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 100, 0.003.waves, version = 2: Byte)).message.id)
+        node.placeOrder(node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, 1.TN, 100, 0.003.TN, version = 2: Byte)).message.id)
       node.waitOrderStatusAndAmount(wavesUsdPair, buyOrder, "PartiallyFilled", Some(1.waves))
 
       node.accountBalances(alice.toAddress.toString)._1 should be(aliceWavesBefore + 1.waves)
@@ -733,12 +733,12 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
       val bobWavesBefore = node.accountBalances(bob.toAddress.toString)._1
 
       val buyOrder =
-        node.placeOrder(node.prepareOrder(alice, wavesUsdPair, OrderType.BUY, 1000000000.waves, 100, 0.003.waves, version = 3: Byte)).message.id
+        node.placeOrder(node.prepareOrder(alice, wavesUsdPair, OrderType.BUY, 1000000000.TN, 100, 0.003.TN, version = 3: Byte)).message.id
 
       node.waitOrderProcessed(wavesUsdPair, buyOrder)
       node.waitOrderProcessed(
         wavesUsdPair,
-        node.placeOrder(node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 100, 0.003.waves, version = 3: Byte)).message.id)
+        node.placeOrder(node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, 1.TN, 100, 0.003.TN, version = 3: Byte)).message.id)
       node.waitOrderStatusAndAmount(wavesUsdPair, buyOrder, "PartiallyFilled", Some(1.waves))
 
       node.accountBalances(alice.toAddress.toString)._1 should be(aliceWavesBefore + 1.waves - 1)
@@ -755,8 +755,8 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         val aliceBtcBalance = node.assetBalance(alice.toAddress.toString, BtcId.toString).balance
         val aliceWavesBalance = node.accountBalances(alice.toAddress.toString)._1
 
-        val aliceOrderId = node.placeOrder(alice, wavesBtcPair, OrderType.SELL, 100.waves, 10591, 1, version = 3, feeAsset = btc).message.id
-        val bobOrderId = node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 50.waves, 10591, baseFee, version = 3).message.id
+        val aliceOrderId = node.placeOrder(alice, wavesBtcPair, OrderType.SELL, 100.TN, 10591, 1, version = 3, feeAsset = btc).message.id
+        val bobOrderId = node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 50.TN, 10591, baseFee, version = 3).message.id
 
         node.waitOrderStatus(wavesBtcPair, aliceOrderId, "PartiallyFilled")
         node.waitOrderStatus(wavesBtcPair, bobOrderId, "Filled")
@@ -765,7 +765,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         node.assetBalance(alice.toAddress.toString, BtcId.toString).balance shouldBe aliceBtcBalance + 529549
         node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceWavesBalance - 50.waves
 
-        val anotherBobOrderId = node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 50.waves, 10591, baseFee, version = 3).message.id
+        val anotherBobOrderId = node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 50.TN, 10591, baseFee, version = 3).message.id
         node.waitOrderInBlockchain(anotherBobOrderId)
         node.waitOrderInBlockchain(aliceOrderId)
 
@@ -778,8 +778,8 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         val aliceBtcBalance = node.assetBalance(alice.toAddress.toString, BtcId.toString).balance
         val aliceWavesBalance = node.accountBalances(alice.toAddress.toString)._1
 
-        val aliceOrderId = node.placeOrder(alice, wavesBtcPair, OrderType.SELL, 100.waves, 10591, 1, version = 3, feeAsset = usd).message.id
-        val bobOrderId = node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 50.waves, 10591, baseFee, version = 3).message.id
+        val aliceOrderId = node.placeOrder(alice, wavesBtcPair, OrderType.SELL, 100.TN, 10591, 1, version = 3, feeAsset = usd).message.id
+        val bobOrderId = node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 50.TN, 10591, baseFee, version = 3).message.id
 
         node.waitOrderStatus(wavesBtcPair, aliceOrderId, "PartiallyFilled")
         node.waitOrderStatus(wavesBtcPair, bobOrderId, "Filled")
@@ -789,7 +789,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         node.assetBalance(alice.toAddress.toString, BtcId.toString).balance shouldBe aliceBtcBalance + 529550
         node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceWavesBalance - 50.waves
 
-        val anotherBobOrderId = node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 50.waves, 10591, baseFee, version = 3).message.id
+        val anotherBobOrderId = node.placeOrder(bob, wavesBtcPair, OrderType.BUY, 50.TN, 10591, baseFee, version = 3).message.id
         node.waitOrderInBlockchain(anotherBobOrderId)
         node.waitOrderInBlockchain(aliceOrderId)
 
@@ -823,7 +823,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
             )
             .message
             .id
-          node.reservedBalance(alice) shouldBe Map("WAVES" -> 100)
+          node.reservedBalance(alice) shouldBe Map("TN" -> 100)
 
           node.placeOrder(
             sender = bob,
@@ -864,7 +864,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
             )
             .message
             .id
-          node.reservedBalance(alice) shouldBe Map(EthId.toString -> 7, "WAVES" -> 3)
+          node.reservedBalance(alice) shouldBe Map(EthId.toString -> 7, "TN" -> 3)
 
           node.placeOrder(
             sender = bob,
@@ -905,7 +905,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
             )
             .message
             .id
-          node.reservedBalance(alice) shouldBe Map("WAVES" -> 200)
+          node.reservedBalance(alice) shouldBe Map("TN" -> 200)
 
           node.placeOrder(
             sender = bob,
@@ -923,7 +923,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           node.accountBalances(bob.toAddress.toString)._1 shouldBe bobBalance + 100
           node.assetBalance(alice.toAddress.toString, EthId.toString).balance shouldBe aliceEthBalance + 90
           node.assetBalance(bob.toAddress.toString, EthId.toString).balance shouldBe bobEthBalance - 110
-          node.reservedBalance(alice) shouldBe Map("WAVES" -> 100)
+          node.reservedBalance(alice) shouldBe Map("TN" -> 100)
           node.reservedBalance(bob) shouldBe empty
 
           node.cancelOrder(alice, ethWavesPair, aliceOrderId)
@@ -948,7 +948,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
         }
       }
 
-      val transferId = node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.005.waves, Some(EthId.toString), None).id
+      val transferId = node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.005.TN, Some(EthId.toString), None).id
       node.waitForTransaction(transferId)
 
 
@@ -970,7 +970,7 @@ class OrderDynamicFeeTestSuite extends MatcherSuiteBase {
           )
           .message
           .id
-        node.reservedBalance(alice) shouldBe Map("WAVES" -> 200, BtcId.toString -> 20)
+        node.reservedBalance(alice) shouldBe Map("TN" -> 200, BtcId.toString -> 20)
         node.cancelOrder(alice, ethWavesPair, orderId)
         node.reservedBalance(alice) shouldBe empty
       }

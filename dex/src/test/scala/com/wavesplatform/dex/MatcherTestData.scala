@@ -51,7 +51,7 @@ trait MatcherTestData extends NTPTime { _: Suite =>
   val rateCache: RateCache                  = RateCache.inMem unsafeTap { _.upsertRate(usd, 3.7) } unsafeTap { _.upsertRate(btc, 0.00011167) }
 
   implicit class DoubleOps(value: Double) {
-    val waves, btc, eth = Normalization.normalizeAmountAndFee(value, 8)
+    val TN, btc, eth = Normalization.normalizeAmountAndFee(value, 8)
     val usd: Long       = Normalization.normalizeAmountAndFee(value, 2)
   }
 
@@ -74,7 +74,7 @@ trait MatcherTestData extends NTPTime { _: Suite =>
                   orderType: OrderType,
                   amount: Long,
                   price: Double,
-                  matcherFee: Long = 0.003.waves,
+                  matcherFee: Long = 0.003.TN,
                   version: Byte = 3,
                   matcherFeeAsset: Asset = Waves): Order = {
     Order(

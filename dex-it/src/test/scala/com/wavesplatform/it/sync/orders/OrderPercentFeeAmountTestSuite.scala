@@ -102,7 +102,7 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends MatcherSuit
             node.assetBalance(alice.toAddress.toString, asset.get.toString).balance >= balance,
             s"Alice doesn't have enough balance in ${asset.get.toString} to make a transfer"
           )
-        node.waitForTransaction(node.broadcastTransfer(alice, account.toAddress.toString, balance, 0.003.waves, asset, None).id)
+        node.waitForTransaction(node.broadcastTransfer(alice, account.toAddress.toString, balance, 0.003.TN, asset, None).id)
       }
     }
     account
@@ -111,7 +111,7 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends MatcherSuit
   def balancesShouldBe(account: KeyPair, balances: (Long, String)*): Unit = {
 
     def getBalance(account: KeyPair, asset: String): Long = {
-      if (asset.equals("WAVES"))
+      if (asset.equals("TN"))
         node.accountBalances(account.toAddress.toString)._1
       else node.assetBalance(account.toAddress.toString, asset).balance
     }
@@ -141,11 +141,11 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends MatcherSuit
       node.waitOrderProcessed(wavesUsdPair,
                               node.placeOrder(accountSeller, wavesUsdPair, SELL, fullyAmountWaves, price, minimalFee, version).message.id)
 
-      balancesShouldBe(accountBuyer, fullyAmountWaves - minimalFee -> "WAVES", 0L             -> UsdId.toString)
-      balancesShouldBe(accountSeller, 0L                           -> "WAVES", fullyAmountUsd -> UsdId.toString)
+      balancesShouldBe(accountBuyer, fullyAmountWaves - minimalFee -> "TN", 0L             -> UsdId.toString)
+      balancesShouldBe(accountSeller, 0L                           -> "TN", fullyAmountUsd -> UsdId.toString)
 
-      reservedBalancesShouldBe(accountBuyer, 0L  -> UsdId.toString, 0L -> "WAVES")
-      reservedBalancesShouldBe(accountSeller, 0L -> UsdId.toString, 0L -> "WAVES")
+      reservedBalancesShouldBe(accountBuyer, 0L  -> UsdId.toString, 0L -> "TN")
+      reservedBalancesShouldBe(accountSeller, 0L -> UsdId.toString, 0L -> "TN")
     }
 
     s"users should pay correct fee when fee asset-type = $assetType and order partially filled" in {
@@ -156,11 +156,11 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends MatcherSuit
       node.waitOrderProcessed(wavesUsdPair,
                               node.placeOrder(accountSeller, wavesUsdPair, SELL, partiallyAmountWaves, price, minimalFee, version).message.id)
 
-      balancesShouldBe(accountBuyer, partiallyAmountWaves - partiallyFeeWaves -> "WAVES", partiallyAmountUsd -> UsdId.toString)
-      balancesShouldBe(accountSeller, 0L                                      -> "WAVES", partiallyAmountUsd -> UsdId.toString)
+      balancesShouldBe(accountBuyer, partiallyAmountWaves - partiallyFeeWaves -> "TN", partiallyAmountUsd -> UsdId.toString)
+      balancesShouldBe(accountSeller, 0L                                      -> "TN", partiallyAmountUsd -> UsdId.toString)
 
-      reservedBalancesShouldBe(accountBuyer, partiallyAmountUsd -> UsdId.toString, 0L -> "WAVES")
-      reservedBalancesShouldBe(accountSeller, 0L                -> UsdId.toString, 0L -> "WAVES")
+      reservedBalancesShouldBe(accountBuyer, partiallyAmountUsd -> UsdId.toString, 0L -> "TN")
+      reservedBalancesShouldBe(accountSeller, 0L                -> UsdId.toString, 0L -> "TN")
 
       node.cancelAllOrders(accountBuyer)
       node.cancelAllOrders(accountSeller)
@@ -177,8 +177,8 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends MatcherSuit
                                 .message
                                 .id)
 
-      balancesShouldBe(accountBuyer, fullyAmountWaves - minimalFee -> "WAVES", 0L             -> UsdId.toString)
-      balancesShouldBe(accountSeller, 1.waves                      -> "WAVES", fullyAmountUsd -> UsdId.toString)
+      balancesShouldBe(accountBuyer, fullyAmountWaves - minimalFee -> "TN", 0L             -> UsdId.toString)
+      balancesShouldBe(accountSeller, 1.waves                      -> "TN", fullyAmountUsd -> UsdId.toString)
     }
 
     s"buy order should be rejected if fee less then minimum possible fee when fee asset-type = $assetType" in {

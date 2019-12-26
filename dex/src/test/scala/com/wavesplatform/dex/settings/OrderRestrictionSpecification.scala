@@ -23,7 +23,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
       """.stripMargin
     getSettingByConfig(configStr(emptyPairSettings)).explicitGet().orderRestrictions shouldBe
       Map(
-        AssetPair.createAssetPair("WAVES", "BTC").get ->
+        AssetPair.createAssetPair("TN", "BTC").get ->
           OrderRestrictionsSettings(
             stepAmount = OrderRestrictionsSettings.Default.stepAmount,
             minAmount = OrderRestrictionsSettings.Default.minAmount,
@@ -166,7 +166,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
     withClue("nonempty correct") {
       getSettingByConfig(configStr(nonEmptyCorrect)).explicitGet().orderRestrictions shouldBe
         Map(
-          AssetPair.createAssetPair("WAVES", "BTC").get ->
+          AssetPair.createAssetPair("TN", "BTC").get ->
             OrderRestrictionsSettings(
               stepAmount = 0.001,
               minAmount = 0.001,
@@ -202,7 +202,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
     withClue("one full pair settings") {
       getSettingByConfig(configStr(oneFullPairSettings)).explicitGet().orderRestrictions shouldBe
         Map(
-          AssetPair.createAssetPair("WAVES", "BTC").get ->
+          AssetPair.createAssetPair("TN", "BTC").get ->
             OrderRestrictionsSettings(
               stepAmount = 0.001,
               minAmount = 0.001,
@@ -245,7 +245,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
     withClue("some full pair settings") {
       getSettingByConfig(configStr(someFullPairSettings)).explicitGet().orderRestrictions shouldBe
         Map(
-          AssetPair.createAssetPair("WAVES", "BTC").get ->
+          AssetPair.createAssetPair("TN", "BTC").get ->
             OrderRestrictionsSettings(
               stepAmount = 0.001,
               minAmount = 0.001,
@@ -254,7 +254,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
               minPrice = 0.003,
               maxPrice = 500000
             ),
-          AssetPair.createAssetPair("ETH", "WAVES").get ->
+          AssetPair.createAssetPair("ETH", "TN").get ->
             OrderRestrictionsSettings(
               stepAmount = 0.0001,
               minAmount = 0.01,
@@ -293,7 +293,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
     withClue("some full pair settings") {
       getSettingByConfig(configStr(setAndDefaultMix)).explicitGet().orderRestrictions shouldBe
         Map(
-          AssetPair.createAssetPair("WAVES", "BTC").get ->
+          AssetPair.createAssetPair("TN", "BTC").get ->
             OrderRestrictionsSettings(
               stepAmount = OrderRestrictionsSettings.Default.stepAmount,
               minAmount = 0.001,
@@ -302,7 +302,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
               minPrice = 0.003,
               maxPrice = OrderRestrictionsSettings.Default.maxPrice
             ),
-          AssetPair.createAssetPair("ETH", "WAVES").get ->
+          AssetPair.createAssetPair("ETH", "TN").get ->
             OrderRestrictionsSettings(
               stepAmount = 0.0001,
               minAmount = OrderRestrictionsSettings.Default.minAmount,

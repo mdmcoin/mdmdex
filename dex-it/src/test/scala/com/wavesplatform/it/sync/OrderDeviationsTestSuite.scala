@@ -78,7 +78,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
     super.beforeAll()
     Array(IssueBtcTx, IssueEthTx, IssueUsdTx).foreach(issueTx => node.waitForTransaction(node.broadcastRequest(issueTx.json()).id))
     Array(scriptAsset, anotherScriptAsset).foreach(asset =>
-      node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.005.waves, Some(asset), None, waitForTx = true))
+      node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.005.TN, Some(asset), None, waitForTx = true))
   }
 
   def orderIsOutOfDeviationBounds(price: String, orderType: OrderType): String = {
@@ -105,7 +105,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
 
   def priceAssetBalance(owner: KeyPair, assetPair: AssetPair): Long = {
     val priceAsset = assetPair.priceAssetStr
-    if (priceAsset == "WAVES")
+    if (priceAsset == "TN")
       node.accountBalances(owner.toAddress.toString)._1
     else {
       node.assetBalance(owner.toAddress.toString, priceAsset).balance
@@ -114,7 +114,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
 
   def amountAssetBalance(owner: KeyPair, assetPair: AssetPair): Long = {
     val amountAsset = assetPair.amountAssetStr
-    if (amountAsset == "WAVES")
+    if (amountAsset == "TN")
       node.accountBalances(owner.toAddress.toString)._1
     else {
       node.assetBalance(owner.toAddress.toString, amountAsset).balance
@@ -125,19 +125,19 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
     "in deviation bounds" in {
       for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
         val bestAskOrderId =
-          node.placeOrder(alice, assetPair, SELL, 2000.waves, 500000, 4 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(alice, assetPair, SELL, 2000.TN, 500000, 4 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
         val bestBidOrderId =
-          node.placeOrder(bob, assetPair, BUY, 2000.waves, 300000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(bob, assetPair, BUY, 2000.TN, 300000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
 
         Array(bestAskOrderId, bestBidOrderId).foreach(orderId => node.waitOrderStatus(assetPair, orderId, expectedStatus = "Accepted"))
-        node.orderBook(assetPair).asks shouldBe List(LevelResponse(2000.waves, 500000))
-        node.orderBook(assetPair).bids shouldBe List(LevelResponse(2000.waves, 300000))
+        node.orderBook(assetPair).asks shouldBe List(LevelResponse(2000.TN, 500000))
+        node.orderBook(assetPair).bids shouldBe List(LevelResponse(2000.TN, 300000))
 
         Array(90000 -> "Accepted", 800000 -> "Filled").foreach {
           case (price, status) =>
             node.waitOrderStatus(
               assetPair,
-              node.placeOrder(bob, assetPair, BUY, 1000.waves, price, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id,
+              node.placeOrder(bob, assetPair, BUY, 1000.TN, price, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id,
               expectedStatus = status)
         }
         node.waitOrderInBlockchain(bestAskOrderId)
@@ -149,19 +149,19 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
 
       withClue("in usd") {
         val bestAskOrderId =
-          node.placeOrder(bob, wavesUsdPair, SELL, 2000.waves, 500, 4 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+          node.placeOrder(bob, wavesUsdPair, SELL, 2000.TN, 500, 4 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
         val bestBidOrderId =
-          node.placeOrder(alice, wavesUsdPair, BUY, 2000.waves, 300, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+          node.placeOrder(alice, wavesUsdPair, BUY, 2000.TN, 300, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
 
         Array(bestAskOrderId, bestBidOrderId).foreach(orderId => node.waitOrderStatus(wavesUsdPair, orderId, expectedStatus = "Accepted"))
-        node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(2000.waves, 500))
-        node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(2000.waves, 300))
+        node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(2000.TN, 500))
+        node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(2000.TN, 300))
 
         Array(90 -> "Accepted", 800 -> "Filled").foreach {
           case (price, status) =>
             node.waitOrderStatus(
               wavesUsdPair,
-              node.placeOrder(alice, wavesUsdPair, BUY, 1000.waves, price, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id,
+              node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, price, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id,
               expectedStatus = status
             )
         }
@@ -177,14 +177,14 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
       "-- too low" in {
         for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
           val bestBidOrderId =
-            node.placeOrder(bob, assetPair, BUY, 1000.waves, 300000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+            node.placeOrder(bob, assetPair, BUY, 1000.TN, 300000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
           node.waitOrderStatus(assetPair, bestBidOrderId, expectedStatus = "Accepted")
-          node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.waves, 300000))
+          node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.TN, 300000))
 
           node.reservedBalance(bob)(assetPair.priceAssetStr) shouldBe 300600000L
 
           assertBadRequestAndMessage(
-            node.placeOrder(bob, assetPair, BUY, 1000.waves, 89999, matcherFee, version = 3, feeAsset = assetPair.priceAsset),
+            node.placeOrder(bob, assetPair, BUY, 1000.TN, 89999, matcherFee, version = 3, feeAsset = assetPair.priceAsset),
             orderIsOutOfDeviationBounds("0.00089999", BUY),
             400
           )
@@ -195,14 +195,14 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
 
         withClue("in usd") {
           val bestBidOrderId =
-            node.placeOrder(bob, wavesUsdPair, BUY, 1000.waves, 300, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+            node.placeOrder(bob, wavesUsdPair, BUY, 1000.TN, 300, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
           node.waitOrderStatus(wavesUsdPair, bestBidOrderId, expectedStatus = "Accepted")
-          node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.waves, 300))
+          node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.TN, 300))
 
           node.reservedBalance(bob)(wavesUsdPair.priceAssetStr) shouldBe 300600L
 
           assertBadRequestAndMessage(
-            node.placeOrder(bob, wavesUsdPair, BUY, 1000.waves, 89, matcherFee, version = 3, feeAsset = wavesUsdPair.priceAsset),
+            node.placeOrder(bob, wavesUsdPair, BUY, 1000.TN, 89, matcherFee, version = 3, feeAsset = wavesUsdPair.priceAsset),
             orderIsOutOfDeviationBounds("0.89", BUY),
             400)
 
@@ -214,12 +214,12 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
       "-- too high" in {
         for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
           val bestAskOrderId =
-            node.placeOrder(alice, assetPair, SELL, 1000.waves, 500000, 4 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+            node.placeOrder(alice, assetPair, SELL, 1000.TN, 500000, 4 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
           node.waitOrderStatus(assetPair, bestAskOrderId, expectedStatus = "Accepted")
-          node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.waves, 500000))
+          node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.TN, 500000))
 
           assertBadRequestAndMessage(
-            node.placeOrder(bob, assetPair, BUY, 1000.waves, 800001, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset),
+            node.placeOrder(bob, assetPair, BUY, 1000.TN, 800001, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset),
             orderIsOutOfDeviationBounds("0.00800001", BUY),
             400
           )
@@ -229,12 +229,12 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
         }
         withClue("in usd") {
           val bestAskOrderId =
-            node.placeOrder(bob, wavesUsdPair, SELL, 1000.waves, 500, 4 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+            node.placeOrder(bob, wavesUsdPair, SELL, 1000.TN, 500, 4 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
           node.waitOrderStatus(wavesUsdPair, bestAskOrderId, expectedStatus = "Accepted")
-          node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.waves, 500))
+          node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.TN, 500))
 
           assertBadRequestAndMessage(
-            node.placeOrder(alice, wavesUsdPair, BUY, 1000.waves, 801, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset),
+            node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, 801, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset),
             orderIsOutOfDeviationBounds("8.01", BUY),
             400)
 
@@ -249,19 +249,19 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
     "in deviation bounds" in {
       for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
         val bestAskOrderId =
-          node.placeOrder(alice, assetPair, SELL, 2000.waves, 500000, 4 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(alice, assetPair, SELL, 2000.TN, 500000, 4 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
         val bestBidOrderId =
-          node.placeOrder(bob, assetPair, BUY, 2000.waves, 300000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(bob, assetPair, BUY, 2000.TN, 300000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
 
         Array(bestAskOrderId, bestBidOrderId).foreach(orderId => node.waitOrderStatus(assetPair, orderId, expectedStatus = "Accepted"))
-        node.orderBook(assetPair).asks shouldBe List(LevelResponse(2000.waves, 500000))
-        node.orderBook(assetPair).bids shouldBe List(LevelResponse(2000.waves, 300000))
+        node.orderBook(assetPair).asks shouldBe List(LevelResponse(2000.TN, 500000))
+        node.orderBook(assetPair).bids shouldBe List(LevelResponse(2000.TN, 300000))
 
         Array(850000 -> "Accepted", 120000 -> "Filled").foreach {
           case (price, status) =>
             node.waitOrderStatus(
               assetPair,
-              node.placeOrder(alice, assetPair, SELL, 1000.waves, price, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id,
+              node.placeOrder(alice, assetPair, SELL, 1000.TN, price, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id,
               expectedStatus = status
             )
         }
@@ -277,12 +277,12 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
       "-- too low" in {
         for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
           val bestBidOrderId =
-            node.placeOrder(bob, assetPair, BUY, 1000.waves, 300000, matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+            node.placeOrder(bob, assetPair, BUY, 1000.TN, 300000, matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
           node.waitOrderStatus(assetPair, bestBidOrderId, expectedStatus = "Accepted")
-          node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.waves, 300000))
+          node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.TN, 300000))
 
           assertBadRequestAndMessage(
-            node.placeOrder(alice, assetPair, SELL, 1000.waves, 119999, matcherFee, version = 3, feeAsset = assetPair.priceAsset),
+            node.placeOrder(alice, assetPair, SELL, 1000.TN, 119999, matcherFee, version = 3, feeAsset = assetPair.priceAsset),
             orderIsOutOfDeviationBounds("0.00119999", SELL),
             400
           )
@@ -293,12 +293,12 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
 
         withClue("in usd") {
           val bestBidOrderId =
-            node.placeOrder(bob, wavesUsdPair, BUY, 1000.waves, 300, 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+            node.placeOrder(bob, wavesUsdPair, BUY, 1000.TN, 300, 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
           node.waitOrderStatus(wavesUsdPair, bestBidOrderId, expectedStatus = "Accepted")
-          node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.waves, 300))
+          node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.TN, 300))
 
           assertBadRequestAndMessage(
-            node.placeOrder(alice, wavesUsdPair, SELL, 1000.waves, 119, 300, version = 3, feeAsset = wavesUsdPair.priceAsset),
+            node.placeOrder(alice, wavesUsdPair, SELL, 1000.TN, 119, 300, version = 3, feeAsset = wavesUsdPair.priceAsset),
             orderIsOutOfDeviationBounds("1.19", SELL),
             400)
 
@@ -310,12 +310,12 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
       "-- too high" in {
         for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
           val bestAskOrderId =
-            node.placeOrder(alice, assetPair, SELL, 1000.waves, 500000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+            node.placeOrder(alice, assetPair, SELL, 1000.TN, 500000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
           node.waitOrderStatus(assetPair, bestAskOrderId, expectedStatus = "Accepted")
-          node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.waves, 500000))
+          node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.TN, 500000))
 
           assertBadRequestAndMessage(
-            node.placeOrder(alice, assetPair, SELL, 1000.waves, 850001, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset),
+            node.placeOrder(alice, assetPair, SELL, 1000.TN, 850001, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset),
             orderIsOutOfDeviationBounds("0.00850001", SELL),
             400
           )
@@ -326,12 +326,12 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
 
         withClue("in usd") {
           val bestAskOrderId =
-            node.placeOrder(alice, wavesUsdPair, SELL, 1000.waves, 500, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+            node.placeOrder(alice, wavesUsdPair, SELL, 1000.TN, 500, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
           node.waitOrderStatus(wavesUsdPair, bestAskOrderId, expectedStatus = "Accepted")
-          node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.waves, 500))
+          node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.TN, 500))
 
           assertBadRequestAndMessage(
-            node.placeOrder(alice, wavesUsdPair, SELL, 1000.waves, 851, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset),
+            node.placeOrder(alice, wavesUsdPair, SELL, 1000.TN, 851, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset),
             orderIsOutOfDeviationBounds("8.51", SELL),
             400)
 
@@ -346,21 +346,21 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
     "in deviation bounds" in {
       for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
         val bestAskOrderId =
-          node.placeOrder(alice, assetPair, SELL, 1000.waves, 600000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(alice, assetPair, SELL, 1000.TN, 600000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
         node.waitOrderStatus(assetPair, bestAskOrderId, expectedStatus = "Accepted")
-        node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.waves, 600000))
+        node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.TN, 600000))
 
         val bobOrderId =
-          node.placeOrder(bob, assetPair, BUY, 1000.waves, 800000, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(bob, assetPair, BUY, 1000.TN, 800000, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
         node.waitOrderStatus(assetPair, bobOrderId, expectedStatus = "Filled")
 
         val bestBidOrderId =
-          node.placeOrder(bob, assetPair, BUY, 1000.waves, 700000, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(bob, assetPair, BUY, 1000.TN, 700000, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
         node.waitOrderStatus(assetPair, bestBidOrderId, expectedStatus = "Accepted")
-        node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.waves, 700000))
+        node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.TN, 700000))
 
         val aliceOrderId =
-          node.placeOrder(alice, assetPair, SELL, 1000.waves, 600000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(alice, assetPair, SELL, 1000.TN, 600000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
         node.waitOrderStatus(assetPair, aliceOrderId, expectedStatus = "Filled")
 
         Array(alice, bob).foreach(sender => node.cancelAllOrders(sender))
@@ -368,21 +368,21 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
 
       withClue("in usd") {
         val bestAskOrderId =
-          node.placeOrder(bob, wavesUsdPair, SELL, 1000.waves, 600, 600, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+          node.placeOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 600, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
         node.waitOrderStatus(wavesUsdPair, bestAskOrderId, expectedStatus = "Accepted")
-        node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.waves, 600))
+        node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.TN, 600))
 
         val bobOrderId =
-          node.placeOrder(alice, wavesUsdPair, BUY, 1000.waves, 800, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+          node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, 800, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
         node.waitOrderStatus(wavesUsdPair, bobOrderId, expectedStatus = "Filled")
 
         val bestBidOrderId =
-          node.placeOrder(alice, wavesUsdPair, BUY, 1000.waves, 700, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+          node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, 700, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
         node.waitOrderStatus(wavesUsdPair, bestBidOrderId, expectedStatus = "Accepted")
-        node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.waves, 700))
+        node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.TN, 700))
 
         val aliceOrderId =
-          node.placeOrder(bob, wavesUsdPair, SELL, 1000.waves, 600, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+          node.placeOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
         node.waitOrderStatus(wavesUsdPair, aliceOrderId, expectedStatus = "Filled")
 
         Array(alice, bob).foreach(sender => node.cancelAllOrders(sender))
@@ -392,24 +392,24 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
     "out of deviation bounds" in {
       for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
         val bestAskOrderId =
-          node.placeOrder(alice, assetPair, SELL, 1000.waves, 600000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(alice, assetPair, SELL, 1000.TN, 600000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
         node.waitOrderStatus(assetPair, bestAskOrderId, expectedStatus = "Accepted")
-        node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.waves, 600000))
+        node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.TN, 600000))
 
         assertBadRequestAndMessage(
-          node.placeOrder(bob, assetPair, BUY, 1000.waves, 300000, 359999, version = 3, feeAsset = assetPair.priceAsset).message.id,
+          node.placeOrder(bob, assetPair, BUY, 1000.TN, 300000, 359999, version = 3, feeAsset = assetPair.priceAsset).message.id,
           feeIsOutOfDeviationBounds("0.00359999", assetPair.priceAssetStr, BUY),
           400
         )
         node.cancelOrder(alice, assetPair, bestAskOrderId)
 
         val bestBidOrderId =
-          node.placeOrder(bob, assetPair, BUY, 1000.waves, 1200000, 4 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
+          node.placeOrder(bob, assetPair, BUY, 1000.TN, 1200000, 4 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
         node.waitOrderStatus(assetPair, bestBidOrderId, expectedStatus = "Accepted")
-        node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.waves, 1200000))
+        node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.TN, 1200000))
 
         assertBadRequestAndMessage(
-          node.placeOrder(alice, assetPair, SELL, 1000.waves, 600000, 719999, version = 3, feeAsset = assetPair.priceAsset).message.id,
+          node.placeOrder(alice, assetPair, SELL, 1000.TN, 600000, 719999, version = 3, feeAsset = assetPair.priceAsset).message.id,
           feeIsOutOfDeviationBounds("0.00719999", assetPair.priceAssetStr, SELL),
           400
         )
@@ -419,24 +419,24 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
 
       withClue("in isd") {
         val bestAskOrderId =
-          node.placeOrder(bob, wavesUsdPair, SELL, 1000.waves, 600, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+          node.placeOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
         node.waitOrderStatus(wavesUsdPair, bestAskOrderId, expectedStatus = "Accepted")
-        node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.waves, 600))
+        node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.TN, 600))
 
         assertBadRequestAndMessage(
-          node.placeOrder(alice, wavesUsdPair, BUY, 1000.waves, 300, 359, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id,
+          node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, 300, 359, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id,
           feeIsOutOfDeviationBounds("3.59", wavesUsdPair.priceAssetStr, BUY),
           400
         )
         node.cancelOrder(bob, wavesUsdPair, bestAskOrderId)
 
         val bestBidOrderId =
-          node.placeOrder(alice, wavesUsdPair, BUY, 1000.waves, 1200, 4 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
+          node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, 1200, 4 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
         node.waitOrderStatus(wavesUsdPair, bestBidOrderId, expectedStatus = "Accepted")
-        node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.waves, 1200))
+        node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.TN, 1200))
 
         assertBadRequestAndMessage(
-          node.placeOrder(bob, wavesUsdPair, SELL, 1000.waves, 600, 719, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id,
+          node.placeOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 719, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id,
           feeIsOutOfDeviationBounds("7.19", wavesUsdPair.priceAssetStr, SELL),
           400
         )

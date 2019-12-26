@@ -297,8 +297,8 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
 
       val creationTime = System.currentTimeMillis
 
-      node.placeOrder(node.prepareOrder(alice, wavesUsdPair, SELL, 200.waves, marketPrice, fixedFee))
-      node.placeOrder(node.prepareOrder(bob, wavesUsdPair, BUY, 1.waves, marketPrice, fixedFee * 2, creationTime = creationTime))
+      node.placeOrder(node.prepareOrder(alice, wavesUsdPair, SELL, 200.TN, marketPrice, fixedFee))
+      node.placeOrder(node.prepareOrder(bob, wavesUsdPair, BUY, 1.TN, marketPrice, fixedFee * 2, creationTime = creationTime))
       node.waitOrderProcessed(
         wavesUsdPair,
         node
@@ -358,7 +358,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
 
       val total = node.orderBook(wavesUsdPair).bids.map(_.amount).sum
 
-      node.waitOrderProcessed(wavesUsdPair, node.placeMarketOrder(alice, wavesUsdPair, BUY, total + 1000.waves, price, fixedFee).message.id)
+      node.waitOrderProcessed(wavesUsdPair, node.placeMarketOrder(alice, wavesUsdPair, BUY, total + 1000.TN, price, fixedFee).message.id)
     }
 
     "should be accepted if user doesn't have enough Waves to pay fee, but he take waves from order result " in {
@@ -388,7 +388,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
         1.waves -> 3.usd,
       )
 
-      assertBadRequestAndMessage(node.placeMarketOrder(bob, wavesUsdPair, BUY, 3.waves, 2.usd, fixedFee), tooLowPrice("buy", "2"))
+      assertBadRequestAndMessage(node.placeMarketOrder(bob, wavesUsdPair, BUY, 3.TN, 2.usd, fixedFee), tooLowPrice("buy", "2"))
     }
 
     "should be rejected if the price is too high for completely filling by current opened orders (SELL)" in {
