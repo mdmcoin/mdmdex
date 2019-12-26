@@ -421,7 +421,7 @@ class ReservedBalanceSpecification
     }
 
     def toStringWUE: String = asset match {
-      case WAVES => "WAVES"
+      case WAVES => "TN"
       case USD   => "USD"
       case ETH   => "ETH"
       case _     => "wtf"

@@ -160,12 +160,12 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
       rateCache
     )
 
-    "changing waves rate" in test(
+    "changing TN rate" in test(
       { route =>
         Put(routePath("/settings/rates/TN"), rate).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
           status shouldBe StatusCodes.BadRequest
           val message = (responseAs[JsValue] \ "message").as[JsString]
-          message.value shouldEqual s"The rate for WAVES cannot be changed"
+          message.value shouldEqual s"The rate for TN cannot be changed"
         }
       },
       apiKey
@@ -193,7 +193,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with RequestGen with Pat
       "wrongApiKey"
     )
 
-    "deleting waves rate" in test(
+    "deleting TN rate" in test(
       { route =>
         Delete(routePath("/settings/rates/TN")).withHeaders(RawHeader("X-API-KEY", apiKey)) ~> route ~> check {
           status shouldBe StatusCodes.BadRequest
