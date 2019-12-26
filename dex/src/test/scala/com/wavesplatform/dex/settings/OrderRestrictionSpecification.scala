@@ -17,7 +17,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
   "Empty pair settings" should "be validated by default" in {
     val emptyPairSettings =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         | }
         |}
       """.stripMargin
@@ -39,7 +39,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
     withClue("negative and String values") {
       def testTemplate(setting: String, value: String): String =
         s"""order-restrictions = {
-           | "WAVES-BTC": {
+           | "TN-BTC": {
            |   $setting = $value
            | }
            |}
@@ -47,10 +47,10 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
       for (s <- Array("min-amount", "max-amount", "step-amount", "min-price", "max-price", "step-price")) {
         Array("0", "-5", "-100", "-1", "-0.11", "-512.123", "-100000000", "-1000000000000000").foreach(v =>
           getSettingByConfig(configStr(testTemplate(s, v))) should
-            produce(s"Invalid setting order-restrictions value: Invalid setting order-restrictions.WAVES-BTC.$s value: $v (required 0 < value)"))
+            produce(s"Invalid setting order-restrictions value: Invalid setting order-restrictions.TN-BTC.$s value: $v (required 0 < value)"))
         Array(-0.0001, -0.000000001, -0.0000000000000000000001, -15.345, -1234.1234152416346134).foreach(v =>
           getSettingByConfig(configStr(testTemplate(s, v.toString))) should
-            produce(s"Invalid setting order-restrictions value: Invalid setting order-restrictions.WAVES-BTC.$s value: $v (required 0 < value)"))
+            produce(s"Invalid setting order-restrictions value: Invalid setting order-restrictions.TN-BTC.$s value: $v (required 0 < value)"))
       }
     }
 
@@ -59,7 +59,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
     withClue("min-amount > max-amount") {
       def testTemplate(minAmount: String, maxAmount: String): String =
         s"""order-restrictions = {
-           | "WAVES-BTC": {
+           | "TN-BTC": {
            |   min-amount = $minAmount
            |   max-amount = $maxAmount
            | }
@@ -67,13 +67,13 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
       """.stripMargin
       for (v <- testMinMaxArray) {
         getSettingByConfig(configStr(testTemplate(v._1, v._2))) should
-          produce("Invalid setting order-restrictions value: Required order-restrictions.WAVES-BTC.min-amount < order-restrictions.WAVES-BTC.max-amount")
+          produce("Invalid setting order-restrictions value: Required order-restrictions.TN-BTC.min-amount < order-restrictions.TN-BTC.max-amount")
       }
     }
     withClue("min-price > max-price") {
       def testTemplate(minPrice: String, maxPrice: String): String =
         s"""order-restrictions = {
-           | "WAVES-BTC": {
+           | "TN-BTC": {
            |   min-price = $minPrice
            |   max-price = $maxPrice
            | }
@@ -81,7 +81,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
       """.stripMargin
       for (v <- testMinMaxArray) {
         getSettingByConfig(configStr(testTemplate(v._1, v._2))) should
-          produce("Invalid setting order-restrictions value: Required order-restrictions.WAVES-BTC.min-price < order-restrictions.WAVES-BTC.max-price")
+          produce("Invalid setting order-restrictions value: Required order-restrictions.TN-BTC.min-price < order-restrictions.TN-BTC.max-price")
       }
     }
 
@@ -101,7 +101,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
   "Incorrect values" should "produce errors" in {
     val incorrectPairAndStepAmount =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         |   step-amount = -0.013
         |   min-amount  = 0.001
         |   max-amount  = 1000000
@@ -117,13 +117,13 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
     withClue("incorrect pair and step amount") {
       getSettingByConfig(configStr(incorrectPairAndStepAmount)) should produce(
         "Invalid setting order-restrictions value: Can't parse asset pair 'ETH-;;;', " +
-          "Invalid setting order-restrictions.WAVES-BTC.step-amount value: -0.013 (required 0 < value)"
+          "Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value)"
       )
     }
 
     val someIncorrectValues =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         |   step-amount = -0.013
         |   min-amount  = 0.001
         |   max-amount  = 1000000
@@ -139,7 +139,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
       getSettingByConfig(configStr(someIncorrectValues)) should produce(
         "Invalid setting order-restrictions value: Can't parse asset pair 'ETH-;;;', " +
           "Invalid setting order-restrictions.ETH-;;;.min-amount value: -0.05 (required 0 < value), " +
-          "Invalid setting order-restrictions.WAVES-BTC.step-amount value: -0.013 (required 0 < value)"
+          "Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value)"
       )
     }
   }
@@ -150,7 +150,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
 
     val nonEmptyCorrect =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         |   step-amount = 0.001
         |   min-amount  = 0.001
         |   max-amount  = 1000000
@@ -189,7 +189,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
 
     val oneFullPairSettings =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         |   step-amount = 0.001
         |   min-amount  = 0.001
         |   max-amount  = 1000000
@@ -216,7 +216,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
 
     val someFullPairSettings =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         |   step-amount = 0.001
         |   min-amount  = 0.001
         |   max-amount  = 1000000
@@ -277,7 +277,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
 
     val setAndDefaultMix =
       """order-restrictions = {
-        | "WAVES-BTC": {
+        | "TN-BTC": {
         |   min-amount  = 0.001
         |   max-amount  = 1000000
         |   step-price = 0.002

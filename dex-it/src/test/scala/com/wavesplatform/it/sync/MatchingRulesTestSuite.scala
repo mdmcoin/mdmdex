@@ -51,13 +51,13 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
          |        tick-size    = 12
          |      }
          |    ],
-         |    "WAVES-$BtcId": [
+         |    "TN-$BtcId": [
          |      {
          |        start-offset = 23
          |        tick-size    = 12
          |      }
          |    ],
-         |    "WAVES-$UsdId": [
+         |    "TN-$UsdId": [
          |      {
          |        start-offset = 23
          |        tick-size    = 12

@@ -96,7 +96,7 @@ class TradeBalanceAndRoundingTestSuite extends MatcherSuiteBase {
       node.reservedBalance(alice) shouldBe empty
     }
 
-    "check waves-usd tradable balance" in {
+    "check TN-usd tradable balance" in {
       val orderHistory = node.fullOrderHistory(bob)
       orderHistory.size should be(1)
 

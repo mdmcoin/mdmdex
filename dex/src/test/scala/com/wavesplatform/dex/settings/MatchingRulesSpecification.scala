@@ -15,7 +15,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
   "Start offsets" should "be sorted in ascending order" in {
     def matchingRulesSettings(matchingRules: String): String =
       s"""matching-rules = {
-        |  "WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+        |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
         |    $matchingRules
         |  ]
         |}
@@ -44,7 +44,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
   it can "not be negative" in {
     def matchingRulesSettings(startOffset: String): String =
       s"""matching-rules = {
-         |  "WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+         |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
          |    {
          |      start-offset = $startOffset
          |      tick-size    = 0.002
@@ -63,7 +63,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
   it can "be zero" in {
     val zeroStartOffsetRule =
       """matching-rules = {
-        |  "WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+        |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
         |    {
         |      start-offset = 0
         |      tick-size    = 0.002
@@ -76,7 +76,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
         |}
       """.stripMargin
     getSettingByConfig(configStr(zeroStartOffsetRule)).explicitGet().matchingRules shouldBe Map(
-      AssetPair.fromString("WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
+      AssetPair.fromString("TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
         NonEmptyList[DenormalizedMatchingRule](
           DenormalizedMatchingRule(0, 0.002),
           List(
@@ -89,7 +89,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
   it should "be positive" in {
     val nonEmptyCorrect =
       """matching-rules = {
-        |  "WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+        |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
         |    {
         |      start-offset = 100
         |      tick-size    = 0.002
@@ -108,7 +108,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
 
     withClue("nonempty correct") {
       getSettingByConfig(configStr(nonEmptyCorrect)).explicitGet().matchingRules shouldBe Map(
-        AssetPair.fromString("WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
+        AssetPair.fromString("TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
           NonEmptyList[DenormalizedMatchingRule](
             DenormalizedMatchingRule(100L, 0.002),
             List(
@@ -122,7 +122,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
   "tick size" should "be positive" in {
     def matchingRulesSettings(tickSize: String): String =
       s"""matching-rules = {
-         |  "WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+         |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
          |    {
          |      start-offset = 100
          |      tick-size    = $tickSize
@@ -145,7 +145,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
   it can "be positive and fractional" in {
     def matchingRulesSettings(tickSize: String): String =
       s"""matching-rules = {
-         |  "WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+         |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
          |    {
          |      start-offset = 100
          |      tick-size    = $tickSize
@@ -157,7 +157,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
       0.1D, 0.00000001D, 0.00000000000001D, 12.123D, 123.1231213124234234D, 123123123123123.14234234234234234234D)
     for (tickSize <- tickSizes) {
       getSettingByConfig(configStr(matchingRulesSettings(tickSize.toString))).explicitGet().matchingRules shouldBe Map(
-        AssetPair.fromString("WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
+        AssetPair.fromString("TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
           NonEmptyList[DenormalizedMatchingRule](
             DenormalizedMatchingRule(100L, tickSize),
             List()
@@ -169,7 +169,7 @@ class MatchingRulesSpecification extends BaseSettingsSpecification with Matchers
   "Matching rules" can "not be empty" in {
     val emptyTickSize =
       s"""matching-rules = {
-         |  "WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+         |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
          |  ]
          |}
       """.stripMargin
