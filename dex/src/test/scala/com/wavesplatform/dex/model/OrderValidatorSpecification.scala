@@ -259,7 +259,7 @@ class OrderValidatorSpecification
       "matcherFee is not enough (blockchain aware)" in {
 
         def validateFeeByBlockchain(priceAssetScript: Option[Script] = None, matcherScript: Option[Script] = None): Order => Result[Order] = {
-          validateByBlockchain { DynamicSettings(0.003.waves) }(priceAssetScript = priceAssetScript,
+          validateByBlockchain { DynamicSettings(0.04.waves) }(priceAssetScript = priceAssetScript,
                                                                 matcherAccountScript = matcherScript,
                                                                 rateCache = rateCache)
         }
