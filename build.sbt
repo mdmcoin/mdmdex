@@ -6,7 +6,7 @@ import sbt.internal.inc.ReflectUtilities
 
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
-def nodeVersionTag: String = "v1.1.7"
+def nodeVersionTag: String = "v1.1.8"
 
 lazy val node = ProjectRef(uri(s"git://github.com/BlackTurtle123/TurtleNetwork.git#$nodeVersionTag"), "node")
 
