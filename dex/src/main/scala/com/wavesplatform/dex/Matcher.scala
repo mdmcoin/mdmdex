@@ -301,11 +301,6 @@ class Matcher(settings: MatcherSettings)(implicit val actorSystem: ActorSystem) 
       MatcherActor.name
     )
 
-  context.actorSystem.actorOf(
-    CreateExchangeTransactionActor.props(transactionCreator.createTransaction),
-    CreateExchangeTransactionActor.name
-  )
-
   private lazy val historyRouter = settings.orderHistory.map { orderHistorySettings =>
     actorSystem.actorOf(HistoryRouter.props(assetsCache.unsafeGetDecimals, settings.postgresConnection, orderHistorySettings), "history-router")
   }
