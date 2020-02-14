@@ -18,8 +18,25 @@ jobs:
       docker images
     displayName: 'Build docker and show'
 
-  - script: 'sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  test'
-    displayName: 'Run tests '
+  - script: 'sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  dex-it/test'
+    displayName: 'Run docker tests '
+
+  - task: PublishTestResults@2
+    displayName: 'Publish Test Results target/test-reports/*.xml copy'
+    inputs:
+      testResultsFiles: 'target/test-reports/*.xml'
+    condition: succeededOrFailed()
+
+- job: CheckPR
+- job: Default
+  timeoutInMinutes: 360
+  pool:
+    name: Hosted Ubuntu 1604
+
+  steps:
+
+  - script: 'sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  checkPR'
+    displayName: 'Run checkPR tests '
 
   - task: PublishTestResults@2
     displayName: 'Publish Test Results target/test-reports/*.xml copy'
