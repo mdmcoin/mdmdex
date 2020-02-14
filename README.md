@@ -229,7 +229,7 @@ To run:
 
     ```hocon
     # ... here many lines of your DEX's configuration
-    waves.dex {
+    TN.dex {
       root-directory = "/full/path/to/base/dex/directory"
       # rest-api.bind-address = "0.0.0.0" # uncomment this line to accept connections from any host
 
