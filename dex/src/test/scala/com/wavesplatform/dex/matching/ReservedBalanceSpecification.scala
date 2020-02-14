@@ -93,7 +93,7 @@ class ReservedBalanceSpecification
 
   private val ignoreSpendableBalanceChanges: Subject[SpendableBalanceChanges, SpendableBalanceChanges] = Subject.empty[SpendableBalanceChanges]
 
-  private val pair: AssetPair      = AssetPair(mkAssetId("WAVES"), mkAssetId("USD"))
+  private val pair: AssetPair      = AssetPair(mkAssetId("TN"), mkAssetId("USD"))
   private var oh: OrderHistoryStub = new OrderHistoryStub(system, ntpTime)
 
   private val addressDir = system.actorOf(
