@@ -28,7 +28,6 @@ jobs:
     condition: succeededOrFailed()
 
 - job: CheckPR
-- job: Default
   timeoutInMinutes: 360
   pool:
     name: Hosted Ubuntu 1604
