@@ -43,9 +43,9 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
 
     broadcastAndAwait(asset0Tx, asset1Tx, asset2Tx, assetWith2DecTx, feeAssetTx, falseFeeAssetTx, IssueBtcTx)
     broadcastAndAwait(
-      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset0, 0.005.waves),
-      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset1, 0.009.waves),
-      mkTransfer(bob, alice, defaultAssetQuantity / 2, asset2, 0.005.waves)
+      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset0, 0.005.TN),
+      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset1, 0.009.TN),
+      mkTransfer(bob, alice, defaultAssetQuantity / 2, asset2, 0.005.TN)
     )
     broadcastAndAwait(mkSetAccountScript(alice, trueScript))
 

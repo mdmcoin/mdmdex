@@ -337,7 +337,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
             orderIsOutOfDeviationBounds("8.51", SELL)
           )
 
-          dex1.api.reservedBalance(alice) shouldBe Map(wavesUsdPair.amountAsset -> 1000.waves)
+          dex1.api.reservedBalance(alice) shouldBe Map(wavesUsdPair.amountAsset -> 1000.TN)
 
           cancelAll(alice, bob)
         }

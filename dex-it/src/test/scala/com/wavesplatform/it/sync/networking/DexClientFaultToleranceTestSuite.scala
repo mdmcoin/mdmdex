@@ -33,7 +33,7 @@ class DexClientFaultToleranceTestSuite extends MatcherSuiteBase with HasToxiProx
 
   "DEXClient should works correctly despite of the short connection losses" in {
 
-    val aliceBuyOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 300)
+    val aliceBuyOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.TN, 300)
 
     lazy val alice2BobTransferTx = mkTransfer(alice, bob, amount = wavesNode1.api.balance(alice, usd), asset = usd)
     lazy val bob2AliceTransferTx = mkTransfer(bob, alice, amount = wavesNode1.api.balance(bob, usd), asset = usd)
@@ -63,8 +63,8 @@ class DexClientFaultToleranceTestSuite extends MatcherSuiteBase with HasToxiProx
     // also works for the cases when nodes are disconnected from the network (not stopped),
     // in these cases some delays after disconnections are required
 
-    val aliceBuyOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 300)
-    val bobBuyOrder   = mkOrder(bob, wavesUsdPair, OrderType.BUY, 1.waves, 300)
+    val aliceBuyOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.TN, 300)
+    val bobBuyOrder   = mkOrder(bob, wavesUsdPair, OrderType.BUY, 1.TN, 300)
 
     lazy val alice2BobTransferTx = mkTransfer(alice, bob, amount = wavesNode2.api.balance(alice, usd), asset = usd)
     lazy val bob2AliceTransferTx = mkTransfer(bob, alice, amount = wavesNode1.api.balance(bob, usd), asset = usd)
@@ -112,7 +112,7 @@ class DexClientFaultToleranceTestSuite extends MatcherSuiteBase with HasToxiProx
   }
 
   "DEXClient should correctly handle gRPC errors" in {
-    val order = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 300)
+    val order = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.TN, 300)
 
     wavesNode1.disconnectFromNetwork()
 

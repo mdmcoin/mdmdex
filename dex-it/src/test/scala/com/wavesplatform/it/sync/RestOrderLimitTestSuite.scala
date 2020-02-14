@@ -47,23 +47,23 @@ class RestOrderLimitTestSuite extends MatcherSuiteBase {
 
     info("'fullOrderHistory' and 'ordersByAddress' (activeOnly=false) must return no more 'rest-order-limit' orders")
 
-    val active0    = mkOrder(alice, alicePair, SELL, 1, 15.waves, ts = now)
-    val active1    = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 1)
-    val partial1   = mkOrder(alice, alicePair, SELL, 2, 9.waves, ts = now + 2)
-    val filled1    = mkOrder(alice, alicePair, SELL, 1, 8.waves, ts = now + 3)
-    val cancelled1 = mkOrder(alice, alicePair, SELL, 1, 11.waves, ts = now + 4)
-    val active2    = mkOrder(alice, bobPair, BUY, 1, 2.waves, ts = now + 5)
-    val filled2    = mkOrder(alice, bobPair, BUY, 1, 4.waves, ts = now + 6)
-    val partial2   = mkOrder(alice, bobPair, BUY, 2, 3.waves, ts = now + 7)
-    val cancelled2 = mkOrder(alice, bobPair, BUY, 1, 2.waves, ts = now + 8)
+    val active0    = mkOrder(alice, alicePair, SELL, 1, 15.TN, ts = now)
+    val active1    = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 1)
+    val partial1   = mkOrder(alice, alicePair, SELL, 2, 9.TN, ts = now + 2)
+    val filled1    = mkOrder(alice, alicePair, SELL, 1, 8.TN, ts = now + 3)
+    val cancelled1 = mkOrder(alice, alicePair, SELL, 1, 11.TN, ts = now + 4)
+    val active2    = mkOrder(alice, bobPair, BUY, 1, 2.TN, ts = now + 5)
+    val filled2    = mkOrder(alice, bobPair, BUY, 1, 4.TN, ts = now + 6)
+    val partial2   = mkOrder(alice, bobPair, BUY, 2, 3.TN, ts = now + 7)
+    val cancelled2 = mkOrder(alice, bobPair, BUY, 1, 2.TN, ts = now + 8)
     List(active0, active1, partial1, filled1, cancelled1, active2, filled2, partial2, cancelled2).foreach(dex1.api.place)
 
     // orders for matching Alice's orders
     List(
-      mkOrder(bob, alicePair, BUY, 1, 8.waves, ts = now + 9), // fill filled1
-      mkOrder(bob, alicePair, BUY, 1, 9.waves, ts = now + 10), // part fill partial1
-      mkOrder(bob, bobPair, SELL, 1, 4.waves, ts = now + 11), // fill filled2
-      mkOrder(bob, bobPair, SELL, 1, 3.waves, ts = now + 12) // part fill partial2
+      mkOrder(bob, alicePair, BUY, 1, 8.TN, ts = now + 9), // fill filled1
+      mkOrder(bob, alicePair, BUY, 1, 9.TN, ts = now + 10), // part fill partial1
+      mkOrder(bob, bobPair, SELL, 1, 4.TN, ts = now + 11), // fill filled2
+      mkOrder(bob, bobPair, SELL, 1, 3.TN, ts = now + 12) // part fill partial2
     ).foreach(dex1.api.place)
 
     dex1.api.cancel(alice, cancelled1)

@@ -51,7 +51,7 @@ class TradersTestSuite extends MatcherSuiteBase {
 
       trickyBobWavesPairWB58.key shouldBe AssetPair(wct, Waves).key
 
-      val trickyBobOrderWB58 = mkOrder(bob, trickyBobWavesPairWB58, OrderType.BUY, 1, 10.waves * Order.PriceConstant)
+      val trickyBobOrderWB58 = mkOrder(bob, trickyBobWavesPairWB58, OrderType.BUY, 1, 10.TN * Order.PriceConstant)
       dex1.api.tryPlace(trickyBobOrderWB58) should failWith(9440512) // OrderInvalidSignature
 
       val trickyBobWavesPairWS = AssetPair(

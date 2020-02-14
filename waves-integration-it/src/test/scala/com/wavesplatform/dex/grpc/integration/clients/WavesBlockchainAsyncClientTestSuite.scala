@@ -237,7 +237,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       }
 
       withClue("run script") {
-        val pair       = AssetPair.createAssetPair(toVanilla(issueTx.getId).toString, "WAVES").get
+        val pair       = AssetPair.createAssetPair(toVanilla(issueTx.getId).toString, "TN").get
         val exchangeTx = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcherFee = 1.waves, matcher = matcher)
 
         wait(client.runScript(IssuedAsset(issueTx.getId), exchangeTx)) shouldBe RunScriptResult.Allowed
@@ -254,7 +254,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       val receiver = KeyPair("receiver".getBytes(StandardCharsets.UTF_8))
 
       withClue("transfer") {
-        broadcastAndAwait(mkTransfer(alice, receiver, 5.waves, Waves))
+        broadcastAndAwait(mkTransfer(alice, receiver, 5.TN, Waves))
       }
 
       withClue("set script") {
@@ -284,16 +284,16 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
     val carol = mkKeyPair("carol")
 
     broadcastAndAwait(
-      mkTransfer(bob, carol, 10.waves, Waves),
+      mkTransfer(bob, carol, 10.TN, Waves),
       mkTransfer(alice, carol, 1.usd, usd),
       mkTransfer(bob, carol, 1.btc, btc)
     )
 
-    wavesNode1.api.broadcast(mkTransfer(carol, bob, 1.waves, Waves))
+    wavesNode1.api.broadcast(mkTransfer(carol, bob, 1.TN, Waves))
 
     wait(client allAssetsSpendableBalance carol) should matchTo(
       Map[Asset, Long](
-        Waves -> (10.waves - 1.waves - minFee),
+        Waves -> (10.TN - 1.TN - minFee),
         usd   -> 1.usd,
         btc   -> 1.btc
       )

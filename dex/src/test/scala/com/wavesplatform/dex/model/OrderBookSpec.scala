@@ -307,7 +307,7 @@ class OrderBookSpec
   }
 
   "partially execute order with zero fee remaining part" in {
-    val ord1 = sell(pair, 1500.waves, 0.0006999)
+    val ord1 = sell(pair, 1500.TN, 0.0006999)
     val ord2 = sell(pair, 3075248828L, 0.00067634)
     val ord3 = buy(pair, 3075363900L, 0.00073697)
 
@@ -328,9 +328,9 @@ class OrderBookSpec
 
   "partially execute order with price > 1 and zero fee remaining part " in {
     val pair = AssetPair(IssuedAsset(ByteStr("BTC".getBytes)), IssuedAsset(ByteStr("USD".getBytes)))
-    val ord1 = sell(pair, 0.1.waves, 1850)
-    val ord2 = sell(pair, 0.01.waves, 1840)
-    val ord3 = buy(pair, 0.0100001.waves, 2000)
+    val ord1 = sell(pair, 0.1.TN, 1850)
+    val ord2 = sell(pair, 0.01.TN, 1840)
+    val ord3 = buy(pair, 0.0100001.TN, 2000)
 
     val ob = OrderBook.empty()
 

@@ -28,7 +28,7 @@ class WavesBlockchainCachingClientSpecification extends AnyWordSpecLike with Mat
     "cache balances after calling of allBalanceAssetsSpendableBalance method" in {
 
       val senderBalance: Map[Asset, Long] = Map(
-        Waves -> 100.waves,
+        Waves -> 100.TN,
         eth   -> 50.eth,
         btc   -> 10.btc,
       )
@@ -65,7 +65,7 @@ class WavesBlockchainCachingClientSpecification extends AnyWordSpecLike with Mat
       }
 
       withClue("With cached balance method spendableBalance should not produce error\n") {
-        awaitResult { cachingClient.spendableBalance(senderKeyPair, Waves) } shouldBe 100.waves
+        awaitResult { cachingClient.spendableBalance(senderKeyPair, Waves) } shouldBe 100.TN
         awaitResult { cachingClient.spendableBalance(senderKeyPair, eth) } shouldBe 50.eth
         awaitResult { cachingClient.spendableBalance(senderKeyPair, btc) } shouldBe 10.btc
       }

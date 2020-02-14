@@ -59,7 +59,7 @@ class MatcherTickerTestSuite extends MatcherSuiteBase {
 //          .contains(s"WAVES/${usdWavesPair.amountAssetStr}"))
 
       //TODO: add error message after fix of https://wavesplatform.atlassian.net/browse/NODE-1151
-//      SyncMatcherHttpApi.assertNotFoundAndMessage(dex1.api.place(mkOrder(node,usdWavesPair, OrderType.BUY, 1.waves, 200), ""))
+//      SyncMatcherHttpApi.assertNotFoundAndMessage(dex1.api.place(mkOrder(node,usdWavesPair, OrderType.BUY, 1.TN, 200), ""))
     }
 
     val bidPrice  = 200

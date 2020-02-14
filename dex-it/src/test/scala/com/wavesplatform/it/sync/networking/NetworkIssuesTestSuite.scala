@@ -85,8 +85,8 @@ class NetworkIssuesTestSuite extends MatcherSuiteBase with HasToxiProxy {
 
   private def makeAndMatchOrders(): Unit = {
     for (i <- 1 to 5) {
-      val o1 = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, i * 300)
-      val o2 = mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, i * 300)
+      val o1 = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.TN, i * 300)
+      val o2 = mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.TN, i * 300)
       dex1.api.place(o1)
       dex1.api.place(o2)
     }

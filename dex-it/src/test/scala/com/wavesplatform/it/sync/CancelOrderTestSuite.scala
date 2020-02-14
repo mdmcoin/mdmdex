@@ -69,11 +69,11 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
       val ordersPerAccount = 200
 
       val accounts = (1 to totalAccounts).map(i => KeyPair(ByteStr(s"account-test-$i".getBytes(StandardCharsets.UTF_8)))).toList
-      broadcastAndAwait(mkMassTransfer(alice, Waves, accounts.map(account => new Transfer(account.toAddress, 1000.waves))))
+      broadcastAndAwait(mkMassTransfer(alice, Waves, accounts.map(account => new Transfer(account.toAddress, 1000.TN))))
 
       def place(account: KeyPair, startPrice: Long, numOrders: Int): Future[Unit] = {
         val futures = (1 to numOrders).map { i =>
-          dex1.asyncApi.place(mkOrder(account, wavesUsdPair, OrderType.SELL, 1.waves, startPrice + i)) // version 2
+          dex1.asyncApi.place(mkOrder(account, wavesUsdPair, OrderType.SELL, 1.TN, startPrice + i)) // version 2
         }
 
         Future.sequence(futures).map(_ => ())
@@ -238,6 +238,6 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
     }
   }
 
-  private def mkBobOrder                        = mkOrder(bob, wavesUsdPair, OrderType.SELL, 100.waves, 800)
-  private def mkBobOrders(assetPair: AssetPair) = (1 to 5).map(i => mkOrder(bob, assetPair, OrderType.SELL, 100.waves + i, 400)).toList
+  private def mkBobOrder                        = mkOrder(bob, wavesUsdPair, OrderType.SELL, 100.TN, 800)
+  private def mkBobOrders(assetPair: AssetPair) = (1 to 5).map(i => mkOrder(bob, assetPair, OrderType.SELL, 100.TN + i, 400)).toList
 }

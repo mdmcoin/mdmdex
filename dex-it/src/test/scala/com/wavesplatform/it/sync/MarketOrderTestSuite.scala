@@ -182,9 +182,9 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
       val bestPrice   = 0.3.usd
 
       placeOrders(alice, wavesUsdPair, SELL)(
-        50.waves -> 0.33.usd,
-        10.waves -> bestPrice,
-        25.waves -> 0.35.usd,
+        50.TN -> 0.33.usd,
+        10.TN -> bestPrice,
+        25.TN -> 0.35.usd,
       )
 
       val marketOrder = mkOrder(bob, wavesUsdPair, BUY, amount, marketPrice, fixedFee)
@@ -208,9 +208,9 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
       val secondPrice = 0.79.usd
 
       placeOrders(alice, wavesUsdPair, BUY)(
-        10.waves -> bestPrice,
-        50.waves -> 0.78.usd,
-        25.waves -> secondPrice,
+        10.TN -> bestPrice,
+        50.TN -> 0.78.usd,
+        25.TN -> secondPrice,
       )
 
       val marketOrder = mkOrder(bob, wavesUsdPair, SELL, amount, marketPrice, fixedFee)
@@ -268,9 +268,9 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
       val seller = createAccountWithBalance(ordersAmount -> Waves, fixedFee -> Waves)
 
       placeOrders(buyer, wavesUsdPair, BUY)(
-        12.waves -> 0.2.usd,
-        12.waves -> 0.3.usd,
-        12.waves -> 0.4.usd,
+        12.TN -> 0.2.usd,
+        12.TN -> 0.3.usd,
+        12.TN -> 0.4.usd,
       )
 
       val marketOrder = mkOrder(seller, wavesUsdPair, SELL, marketOrderAmount, marketPrice, fixedFee)
@@ -355,10 +355,10 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
     val price = 0.4.usd
 
     "should be accepted if there is no way to fill it completely (sum of all orders in order book < amount of market order" in {
-      placeOrders(bob, wavesUsdPair, SELL)(100.waves -> price)
+      placeOrders(bob, wavesUsdPair, SELL)(100.TN -> price)
 
       val total       = dex1.api.orderBook(wavesUsdPair).bids.map(_.amount).sum
-      val marketOrder = mkOrder(alice, wavesUsdPair, BUY, total + 1000.waves, price, fixedFee)
+      val marketOrder = mkOrder(alice, wavesUsdPair, BUY, total + 1000.TN, price, fixedFee)
 
       dex1.api.placeMarket(marketOrder)
       waitForOrderAtNode(marketOrder)
@@ -384,9 +384,9 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
 
     "should be rejected if the price is too low for completely filling by current opened orders (BUY)" in {
       placeOrders(alice, wavesUsdPair, SELL)(
-        1.waves -> 1.usd,
-        1.waves -> 2.usd,
-        1.waves -> 3.usd,
+        1.TN -> 1.usd,
+        1.TN -> 2.usd,
+        1.TN -> 3.usd,
       )
 
       dex1.api.tryPlaceMarket(mkOrder(bob, wavesUsdPair, BUY, 3.TN, 2.usd, fixedFee)) should failWith(

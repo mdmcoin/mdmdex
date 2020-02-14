@@ -182,10 +182,10 @@ class ExchangeTransactionCreatorSpecification
 
     "create transactions with correct buy/sell matcher fees when order fee settings changes" in {
 
-      val maker = LimitOrder(createOrder(wavesUsdPair, SELL, 10.waves, 3.00, 0.003.waves)) // was placed when order-fee was DynamicSettings(0.003.waves, 0.003.waves)
-      val taker = LimitOrder(createOrder(wavesUsdPair, BUY, 10.waves, 3.00, 0.005.waves))
+      val maker = LimitOrder(createOrder(wavesUsdPair, SELL, 10.TN, 3.00, 0.003.TN)) // was placed when order-fee was DynamicSettings(0.003.TN, 0.003.TN)
+      val taker = LimitOrder(createOrder(wavesUsdPair, BUY, 10.TN, 3.00, 0.005.TN))
 
-      val ofs      = DynamicSettings(0.001.waves, 0.005.waves)
+      val ofs      = DynamicSettings(0.001.TN, 0.005.TN)
       val tc       = getExchangeTransactionCreator(orderFeeSettings = ofs)
       val (mf, tf) = Matcher.getMakerTakerFee(ofs)(taker, maker)
       val oe       = OrderExecuted(taker, maker, System.currentTimeMillis(), tf, mf)
@@ -193,8 +193,8 @@ class ExchangeTransactionCreatorSpecification
       val tx = tc.createTransaction(oe)
 
       tx shouldBe 'right
-      tx.explicitGet().sellMatcherFee shouldBe 0.0006.waves
-      tx.explicitGet().buyMatcherFee shouldBe 0.005.waves
+      tx.explicitGet().sellMatcherFee shouldBe 0.0006.TN
+      tx.explicitGet().buyMatcherFee shouldBe 0.005.TN
     }
   }
 }

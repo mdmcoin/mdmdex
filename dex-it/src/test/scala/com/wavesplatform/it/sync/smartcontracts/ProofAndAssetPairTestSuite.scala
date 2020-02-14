@@ -369,7 +369,7 @@ class ProofAndAssetPairTestSuite extends MatcherSuiteBase {
 
       "place order and then set contract" - {
         for ((contract, i) <- Seq(sc2, sc7, sc8, sc9).zip(Seq(2, 7, 8, 9))) s"$i" in {
-          val aliceOrd1 = mkOrder(alice, predefAssetPair, OrderType.BUY, 100, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2)
+          val aliceOrd1 = mkOrder(alice, predefAssetPair, OrderType.BUY, 100, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2)
           placeAndAwaitAtDex(aliceOrd1)
 
           val aliceOrd2 = mkOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 2)

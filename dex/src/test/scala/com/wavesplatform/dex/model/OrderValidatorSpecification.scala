@@ -153,9 +153,9 @@ class OrderValidatorSpecification
               ov(
                 buy(
                   AssetPair(amountAsset, Waves),
-                  10.waves,
+                  10.TN,
                   price,
-                  matcherFee = Some(0.04.waves),
+                  matcherFee = Some(0.04.TN),
                   sender = Some(sender)
                 )
               )
@@ -213,7 +213,7 @@ class OrderValidatorSpecification
 
         val order = Json.fromJson[Order](createOrder(AssetPair(btc, usd), SELL, 100, 3.0).json() ++ Json.obj("matcherFeeAssetId" -> "TN")).get
 
-        validateByMatcherSettings { DynamicSettings.symmetric(0.003.waves) }(order).left.get.message.text should include(
+        validateByMatcherSettings { DynamicSettings.symmetric(0.003.TN) }(order).left.get.message.text should include(
           """But given "TN" as Base58 string. Remove this field if you want to specify TN in JSON"""
         )
       }
@@ -608,8 +608,8 @@ class OrderValidatorSpecification
       "matcherFee is too small according to rate of fee asset" in {
 
         val rateCache: RateCache                   = RateCache.inMem
-        val validateByRate: Order => Result[Order] = validateByMatcherSettings(DynamicSettings.symmetric(0.003.waves), rateCache = rateCache)
-        val order: Order                           = createOrder(wavesUsdPair, BUY, 1.waves, 3.00, 0.01.usd, feeAsset = usd)
+        val validateByRate: Order => Result[Order] = validateByMatcherSettings(DynamicSettings.symmetric(0.003.TN), rateCache = rateCache)
+        val order: Order                           = createOrder(wavesUsdPair, BUY, 1.TN, 3.00, 0.01.usd, feeAsset = usd)
 
         withClue("USD rate = 3.33, fee should be >= 0.01 usd\n") {
           rateCache.upsertRate(usd, 3.33)
