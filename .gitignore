@@ -3,6 +3,7 @@
 .ensime
 .ensime_cache/
 *.iml
+.metals
 
 # scala build folders and files
 target
@@ -38,6 +39,4 @@ Dockerfile
 # logs
 *.log
 
-package
-!src/package
 native

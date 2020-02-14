@@ -1,21 +1,19 @@
-import WavesExtensionDockerPlugin.autoImport._
+import DexItDockerKeys._
 
-enablePlugins(WavesExtensionDockerPlugin, ItTestPlugin)
+enablePlugins(DexItDockerPlugin, ItTestPlugin)
 
 description := "DEX integration tests"
-libraryDependencies ++= Dependencies.itTest
 
-docker := docker.dependsOn(buildNodeContainer).value
+libraryDependencies ++= Dependencies.Module.dexIt
+
+// this image hasn't a config file
+docker := docker.dependsOn(LocalProject("waves-integration-it") / docker).value
 inTask(docker)(
   Seq(
-    imageNames := Seq(ImageName("com.wavesplatform/dex-it")),
-    exposedPorts := Set(6886),
+    imageNames := Seq(ImageName("com.wavesplatform/dex-it:latest")),
+    exposedPorts += 6886,
     additionalFiles ++= Seq(
-      (LocalProject("dex") / Universal / stage).value,
-      (Test / resourceDirectory).value / "template.conf",
-      (Test / resourceDirectory).value / "logback-container.xml",
-      (Test / sourceDirectory).value / "container" / "wallet"
+      (Test / resourceDirectory).value / "dex-servers" / "logback-container.xml"
     )
-  ))
-
-javaOptions in Test += s"-Dlogback.configurationFile=${(Test / resourceDirectory).value / "logback-test.xml"}"
+  )
+)

@@ -1,92 +1,55 @@
 package com.wavesplatform.it.sync.smartcontracts
 
-import akka.http.scaladsl.model.StatusCodes
 import com.typesafe.config.{Config, ConfigFactory}
-import com.wavesplatform.common.state.ByteStr
-import com.wavesplatform.common.utils.{Base58, Base64, EitherExt2}
+import com.wavesplatform.dex.domain.asset.Asset.Waves
+import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
+import com.wavesplatform.dex.it.test.Scripts
+import com.wavesplatform.dex.it.waves.MkWavesEntities.IssueResults
 import com.wavesplatform.it.MatcherSuiteBase
-import com.wavesplatform.it.api.SyncHttpApi._
-import com.wavesplatform.it.api.SyncMatcherHttpApi._
-import com.wavesplatform.it.sync.config.MatcherPriceAssetConfig._
-import com.wavesplatform.lang.directives.values.{Expression, V1}
-import com.wavesplatform.lang.script.v1.ExprScript
-import com.wavesplatform.lang.utils.compilerContext
-import com.wavesplatform.lang.v1.compiler.ExpressionCompiler
-import com.wavesplatform.lang.v1.parser.Parser
-import com.wavesplatform.transaction.Asset.IssuedAsset
-import com.wavesplatform.transaction.assets.exchange.OrderType.{BUY, SELL}
-import fastparse.core.Parsed
+import com.wavesplatform.it.config.DexTestConfig._
 
 class ExtraFeeTestSuite extends MatcherSuiteBase {
 
-  private def createBoolScript(code: String) = {
-    val Parsed.Success(expr, _) = Parser.parseExpr(code).get
-    ExprScript(ExpressionCompiler(compilerContext(V1, Expression, isAssetScript = false), expr).explicitGet()._1).explicitGet()
-  }
-
-  val trueScript = Some(Base64.encode(createBoolScript("true").bytes.apply)) //TODO добавить типовые проверки в скрипт
-  val falseScript = Some(Base64.encode(createBoolScript("false").bytes.apply))
-  val amount      = 1L
-  val price       = 100000000L
-
-  // set smart account
-  setContract(Some("true"), alice)
-
-  // issue one simple and three smart assets
-  val asset0: String = node
-    .broadcastIssue(alice, "Asset0", "Test", defaultAssetQuantity, 0, reissuable = false, smartIssueFee, None)
-    .id
-  val asset1: String = node
-    .broadcastIssue(alice, "SmartAsset1", "Test", defaultAssetQuantity, 0, reissuable = false, smartIssueFee, trueScript)
-    .id
-  val asset2: String = node
-    .broadcastIssue(bob, "SmartAsset2", "Test", defaultAssetQuantity, 0, reissuable = false, smartIssueFee, trueScript)
-    .id
-  val assetWith2Dec: String = node
-    .broadcastIssue(bob, "SmartAsset3", "Smart asset with 2 decimals", defaultAssetQuantity, 2, reissuable = false, smartIssueFee, trueScript)
-    .id
-  val feeAsset: ByteStr = ByteStr(Base58.decode(node
-    .broadcastIssue(bob, "FeeSmartAsset", "Test", defaultAssetQuantity, 8, reissuable = false, smartIssueFee, trueScript)
-    .id))
-  val falseFeeAsset: ByteStr = ByteStr(Base58.decode(node
-    .broadcastIssue(bob, "FeeSmartAsset", "Test", defaultAssetQuantity, 8, reissuable = false, smartIssueFee, falseScript)
-    .id))
-  Seq(asset0, asset1, asset2, feeAsset.toString).foreach(node.waitForTransaction(_))
-
-  // distribute
-  {
-
-    val xs = Seq(
-      node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.06.TN, Some(asset0), None).id,
-      node.broadcastTransfer(alice, bob.toAddress.toString, defaultAssetQuantity / 2, 0.1.TN, Some(asset1), None).id,
-      node.broadcastTransfer(bob, alice.toAddress.toString, defaultAssetQuantity / 2, 0.06.TN, Some(asset2), None).id
-    )
-    xs.foreach(node.waitForTransaction(_))
-
-    val txIds = Seq(IssueBtcTx).map(_.json()).map(node.broadcastRequest(_).id)
-    txIds.foreach(node.waitForTransaction(_))
-  }
-
-  override protected def nodeConfigs: Seq[Config] = {
-
-    val orderFeeSettingsStr =
-      s"""
-         |TN.dex {
-         |  allowed-order-versions = [1, 2, 3]
-         |  order-fee {
-         |    mode = dynamic
-         |    dynamic {
-         |      base-fee = $tradeFee
-         |    }
-         |  }
-         |}
+  override protected def dexInitialSuiteConfig: Config =
+    ConfigFactory.parseString(
+      s"""TN.dex.order-fee.-1 {
+       |  mode = dynamic
+       |  dynamic {
+       |    base-maker-fee = $tradeFee
+       |    base-taker-fee = $tradeFee
+       |  }
+       |}
        """.stripMargin
-
-    super.nodeConfigs.map(
-      ConfigFactory
-        .parseString(orderFeeSettingsStr)
-        .withFallback
     )
+
+  private val trueScript  = Option(Scripts.alwaysTrue)
+  private val falseScript = Option(Scripts.alwaysFalse)
+  private val amount      = 1L
+  private val price       = 100000000L
+
+  private val IssueResults(asset0Tx, _, asset0)     = mkIssueExtended(alice, "Asset0", defaultAssetQuantity, 0, smartIssueFee)
+  private val IssueResults(asset1Tx, _, asset1)     = mkIssueExtended(alice, "SmartAsset1", defaultAssetQuantity, 0, smartIssueFee, trueScript)
+  private val IssueResults(asset2Tx, _, asset2)     = mkIssueExtended(bob, "SmartAsset2", defaultAssetQuantity, 0, smartIssueFee, trueScript)
+  private val IssueResults(feeAssetTx, _, feeAsset) = mkIssueExtended(bob, "FeeSmartAsset", defaultAssetQuantity, 8, smartIssueFee, trueScript)
+
+  private val IssueResults(assetWith2DecTx, assetWith2DecId, assetWith2Dec) =
+    mkIssueExtended(bob, "SmartAsset3", defaultAssetQuantity, 2, smartIssueFee, trueScript)
+
+  private val IssueResults(falseFeeAssetTx, falseFeeAssetId, falseFeeAsset) =
+    mkIssueExtended(bob, "FeeSmartAsset", defaultAssetQuantity, 8, smartIssueFee, falseScript)
+
+  override protected def beforeAll(): Unit = {
+    wavesNode1.start()
+
+    broadcastAndAwait(asset0Tx, asset1Tx, asset2Tx, assetWith2DecTx, feeAssetTx, falseFeeAssetTx, IssueBtcTx)
+    broadcastAndAwait(
+      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset0, 0.005.waves),
+      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset1, 0.009.waves),
+      mkTransfer(bob, alice, defaultAssetQuantity / 2, asset2, 0.005.waves)
+    )
+    broadcastAndAwait(mkSetAccountScript(alice, trueScript))
+
+    dex1.start()
   }
 
   "When matcher executes orders" - {
@@ -94,51 +57,49 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
       "then fee should be 0.04 + 0.04 (for Smart Asset only, not Smart Account)" in {
         val oneSmartPair = createAssetPair(asset0, asset1)
 
-        val aliceInitBalance = node.accountBalances(alice.toAddress.toString)._1
-        val bobInitBalance = node.accountBalances(bob.toAddress.toString)._1
-        val matcherInitBalance = node.accountBalances(matcher.toAddress.toString)._1
+        val aliceInitBalance   = wavesNode1.api.balance(alice, Waves)
+        val bobInitBalance     = wavesNode1.api.balance(bob, Waves)
+        val matcherInitBalance = wavesNode1.api.balance(matcher, Waves)
 
         val expectedFee = tradeFee + smartFee // 1 x "smart asset"
-        val invalidFee = expectedFee - 1
+        val invalidFee  = expectedFee - 1
 
-        node.expectRejectedOrderPlacement(
-          alice,
-          oneSmartPair,
-          SELL,
-          amount,
-          price,
-          invalidFee,
-          2,
-          expectedMessage = Some("Required 0.08 TN as fee for this order, but given 0.07999999 TN")
-        )
+        dex1.api.tryPlace(mkOrder(alice, oneSmartPair, SELL, amount, price, invalidFee, version = 2)) should failWith(
+          9441542, // FeeNotEnough
+          "Required 0.007 TN as fee for this order, but given 0.00699999 TN")
 
-        val counter = node.placeOrder(alice, oneSmartPair, SELL, amount, price, expectedFee, 2).message.id
-        node.waitOrderStatus(oneSmartPair, counter, "Accepted")
+        placeAndAwaitAtDex(mkOrder(alice, oneSmartPair, SELL, amount, price, expectedFee, version = 2))
 
         info("expected fee should be reserved")
-        node.reservedBalance(alice)("TN") shouldBe expectedFee
+        dex1.api.reservedBalance(alice)(Waves) shouldBe expectedFee
 
-        val submitted = node.placeOrder(bob, oneSmartPair, BUY, amount, price, expectedFee, 2).message.id
-        node.waitOrderInBlockchain(submitted)
+        val submitted = mkOrder(bob, oneSmartPair, BUY, amount, price, expectedFee, version = 2)
+        dex1.api.place(submitted)
+        waitForOrderAtNode(submitted)
 
-        node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceInitBalance - expectedFee
-        node.accountBalances(bob.toAddress.toString)._1 shouldBe bobInitBalance - expectedFee
-        node.accountBalances(matcher.toAddress.toString)._1 shouldBe matcherInitBalance + expectedFee
+        eventually {
+          wavesNode1.api.balance(alice, Waves) shouldBe aliceInitBalance - expectedFee
+          wavesNode1.api.balance(bob, Waves) shouldBe bobInitBalance - expectedFee
+          wavesNode1.api.balance(matcher, Waves) shouldBe matcherInitBalance + expectedFee
+        }
       }
     }
 
     "with one Smart Account, two Smart Assets and scripted Matcher" - {
       "then fee should be 0.04 + (0.04 * 2) + 0.004 (for Smart Assets and Matcher Script)" - {
         "and total fee should be divided proportionally with partial filling" in {
-          setContract(Some("true"), matcher)
+          broadcastAndAwait(mkSetAccountScript(matcher, trueScript))
+
+          dex1.restart() // matcher caches knowledge about it's script during start
 
           val bothSmartPair = createAssetPair(asset1, asset2)
 
-          val aliceInitBalance = node.accountBalances(alice.toAddress.toString)._1
-          val bobInitBalance = node.accountBalances(bob.toAddress.toString)._1
-          val matcherInitBalance = node.accountBalances(matcher.toAddress.toString)._1
+          val aliceInitBalance   = wavesNode1.api.balance(alice, Waves)
+          val bobInitBalance     = wavesNode1.api.balance(bob, Waves)
+          val matcherInitBalance = wavesNode1.api.balance(matcher, Waves)
 
           val expectedFee = tradeFee + 2 * smartFee + smartFee // 2 x "smart asset" and 1 x "matcher script"
+<<<<<<< HEAD
           val invalidFee = expectedFee - 1
 
           node.expectRejectedOrderPlacement(
@@ -150,20 +111,33 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
             invalidFee,
             2,
             expectedMessage = Some("Required 0.16 TN as fee for this order, but given 0.15999999 TN")
+=======
+          val invalidFee  = expectedFee - 1
+
+          dex1.api.tryPlace(mkOrder(alice, bothSmartPair, SELL, amount, price, invalidFee, version = 2)) should failWith(
+            9441542, // FeeNotEnough
+            "Required 0.015 WAVES as fee for this order, but given 0.01499999 WAVES"
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
           )
 
-          val counter = node.placeOrder(alice, bothSmartPair, SELL, amount, price, expectedFee, 2).message.id
-          node.waitOrderStatus(bothSmartPair, counter, "Accepted")
+          placeAndAwaitAtDex(mkOrder(alice, bothSmartPair, SELL, amount, price, expectedFee, version = 2))
 
           info("expected fee should be reserved")
+<<<<<<< HEAD
           node.reservedBalance(alice)("TN") shouldBe expectedFee
+=======
+          dex1.api.reservedBalance(alice)(Waves) shouldBe expectedFee
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 
-          val submitted = node.placeOrder(bob, bothSmartPair, BUY, amount, price, expectedFee, 2).message.id
-          node.waitOrderInBlockchain(submitted)
+          val submitted = mkOrder(bob, bothSmartPair, BUY, amount, price, expectedFee, version = 2)
+          dex1.api.place(submitted)
+          waitForOrderAtNode(submitted)
 
-          node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceInitBalance - expectedFee
-          node.accountBalances(bob.toAddress.toString)._1 shouldBe bobInitBalance - expectedFee
-          node.accountBalances(matcher.toAddress.toString)._1 shouldBe matcherInitBalance + expectedFee
+          eventually {
+            wavesNode1.api.balance(alice, Waves) shouldBe aliceInitBalance - expectedFee
+            wavesNode1.api.balance(bob, Waves) shouldBe bobInitBalance - expectedFee
+            wavesNode1.api.balance(matcher, Waves) shouldBe matcherInitBalance + expectedFee
+          }
         }
       }
     }
@@ -171,42 +145,35 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
     "with non-waves asset fee with one Smart Account and one Smart Asset" in {
       val oneSmartPair = createAssetPair(asset0, asset1)
 
-      val bobInitBalance     = node.assetBalance(bob.toAddress.toString, feeAsset.toString).balance
-      val matcherInitBalance = node.assetBalance(matcher.toAddress.toString, feeAsset.toString).balance
+      val bobInitBalance     = wavesNode1.api.balance(bob, feeAsset)
+      val matcherInitBalance = wavesNode1.api.balance(matcher, feeAsset)
       val feeAssetRate       = 0.0005
-      node.upsertRate(IssuedAsset(feeAsset), feeAssetRate, expectedStatusCode = StatusCodes.Created)
-      node.upsertRate(IssuedAsset(BtcId), feeAssetRate, expectedStatusCode = StatusCodes.Created)
+
+      dex1.api.upsertRate(feeAsset, feeAssetRate)
+      dex1.api.upsertRate(btc, feeAssetRate)
 
       withClue("with same decimals count of assets in pair") {
+
         val expectedWavesFee = tradeFee + smartFee + smartFee // 1 x "smart asset" and 1 x "matcher script"
         val expectedFee      = 550L                           // 1 x "smart asset" and 1 x "matcher script"
-        val counter = node
-          .placeOrder(
-            sender = bob,
-            pair = oneSmartPair,
-            orderType = SELL,
-            amount = amount,
-            price = price,
-            fee = expectedFee,
-            version = 3,
-            feeAsset = IssuedAsset(feeAsset)
-          )
-          .message
-          .id
-        node.waitOrderStatus(oneSmartPair, counter, "Accepted")
+
+        placeAndAwaitAtDex(mkOrder(bob, oneSmartPair, SELL, amount, price, expectedFee, version = 3, feeAsset = feeAsset))
 
         info("expected fee should be reserved")
-        node.reservedBalance(bob)(feeAsset.toString) shouldBe expectedFee
+        dex1.api.reservedBalance(bob)(feeAsset) shouldBe expectedFee
 
-        val submitted = node.placeOrder(alice, oneSmartPair, BUY, amount, price, expectedWavesFee, 2).message.id
-        node.waitOrderInBlockchain(submitted)
+        val submitted = mkOrder(alice, oneSmartPair, BUY, amount, price, expectedWavesFee, version = 2)
+        dex1.api.place(submitted)
+        waitForOrderAtNode(submitted)
 
-        node.assertAssetBalance(bob.toAddress.toString, feeAsset.toString, bobInitBalance - expectedFee)
-        node.assertAssetBalance(matcher.toAddress.toString, feeAsset.toString, matcherInitBalance + expectedFee)
+        eventually {
+          wavesNode1.api.balance(bob, feeAsset) shouldBe (bobInitBalance - expectedFee)
+          wavesNode1.api.balance(matcher, feeAsset) shouldBe (matcherInitBalance + expectedFee)
+        }
       }
 
-      node.upsertRate(IssuedAsset(ByteStr(Base58.decode(assetWith2Dec))), 4, expectedStatusCode = StatusCodes.Created)
       withClue("with asset pair with different decimals count") {
+<<<<<<< HEAD
         val wavesToAssetWith2DecPair = createAssetPair(assetWith2Dec, "TN")
         val bobWavesBalance          = node.accountBalances(bob.toAddress.toString)._1
         val bobAssetBalance          = node.assetBalance(bob.toAddress.toString, assetWith2Dec).balance
@@ -289,26 +256,65 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         node.assetBalance(bob.toAddress.toString, assetWith2Dec).balance shouldBe bobAssetBalance - 2 * 10005L
         node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceWavesBalance - 2 * 300.waves * 100L
         node.assetBalance(alice.toAddress.toString, assetWith2Dec).balance shouldBe aliceAssetBalance + 2 * 9998L
+=======
+
+        dex1.api.upsertRate(assetWith2Dec, 4)
+
+        val asset2WithDecWavesPair = createAssetPair(assetWith2Dec, Waves)
+
+        val bobWavesBalance   = wavesNode1.api.balance(bob, Waves)
+        val bobAssetBalance   = wavesNode1.api.balance(bob, assetWith2Dec)
+        val aliceWavesBalance = wavesNode1.api.balance(alice, Waves)
+        val aliceAssetBalance = wavesNode1.api.balance(alice, assetWith2Dec)
+
+        dex1.api.tryPlace(mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 4, feeAsset = assetWith2Dec)) should failWith(
+          9441542, // FeeNotEnough
+          s"Required 0.05 $assetWith2DecId as fee for this order, but given 0.04 $assetWith2DecId"
+        )
+
+        wavesNode1.api.balance(bob, Waves) shouldBe bobWavesBalance
+        wavesNode1.api.balance(bob, assetWith2Dec) shouldBe bobAssetBalance
+        wavesNode1.api.balance(alice, Waves) shouldBe aliceWavesBalance
+        wavesNode1.api.balance(alice, assetWith2Dec) shouldBe aliceAssetBalance
+
+        val bobOrder = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 5, feeAsset = assetWith2Dec)
+        dex1.api.place(bobOrder)
+        dex1.api.reservedBalance(bob)(assetWith2Dec) shouldBe 10005L
+
+        val aliceOrder = mkOrder(alice, asset2WithDecWavesPair, BUY, 20000L, 300.waves * 1000000L, 5, feeAsset = assetWith2Dec)
+        dex1.api.place(aliceOrder)
+        waitForOrderAtNode(bobOrder)
+
+        dex1.api.reservedBalance(alice)(Waves) shouldBe (300.waves * 100L)
+        dex1.api.reservedBalance(bob) shouldBe Map()
+
+        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 300.waves * 100L)
+        wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 10005L)
+        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 300.waves * 100L)
+        wavesNode1.api.balance(alice, assetWith2Dec) shouldBe (aliceAssetBalance + 9998L)
+
+        val anotherBobOrderId = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 5, assetWith2Dec)
+        dex1.api.place(anotherBobOrderId)
+        waitForOrderAtNode(anotherBobOrderId)
+
+        dex1.api.reservedBalance(alice) shouldBe Map()
+        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 2 * 300.waves * 100L)
+        wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 2 * 10005L)
+        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 2 * 300.waves * 100L)
+        wavesNode1.api.balance(alice, assetWith2Dec) shouldBe (aliceAssetBalance + 2 * 9998L)
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
       }
     }
+  }
 
-    "with asset fee assigned false script" in {
-      val oneSmartPair = createAssetPair(asset0, asset1)
-      val feeAssetRate = 0.0005
-      node.upsertRate(IssuedAsset(falseFeeAsset), feeAssetRate, expectedStatusCode = StatusCodes.Created)
-      assertBadRequestAndResponse(
-        node.placeOrder(
-          sender = bob,
-          pair = oneSmartPair,
-          orderType = SELL,
-          amount = amount,
-          price = price,
-          fee = 550,
-          version = 3,
-          feeAsset = IssuedAsset(falseFeeAsset)
-        ),
-        s"The asset's script of $falseFeeAsset rejected the order"
-      )
-    }
+  "with asset fee assigned false script" in {
+    val oneSmartPair = createAssetPair(asset0, asset1)
+    val feeAssetRate = 0.0005
+
+    dex1.api.upsertRate(falseFeeAsset, feeAssetRate)
+
+    dex1.api.tryPlace(mkOrder(bob, oneSmartPair, SELL, amount, price, 550, version = 3, feeAsset = falseFeeAsset)) should failWith(
+      11536130, // AssetScriptDeniedOrder
+      s"The asset's script of $falseFeeAssetId rejected the order")
   }
 }

@@ -1,14 +1,13 @@
 package com.wavesplatform.dex.settings
 
-import cats.implicits._
+import cats.syntax.either._
 import com.typesafe.config.{Config, ConfigFactory}
-import com.wavesplatform.settings.loadConfig
-import org.scalatest.FlatSpec
 import net.ceedubs.ficus.Ficus._
+import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.util.Try
 
-class BaseSettingsSpecification extends FlatSpec{
+class BaseSettingsSpecification extends AnyFlatSpec {
 
   def getSettingByConfig(conf: Config): Either[String, MatcherSettings] =
     Try(conf.as[MatcherSettings]("TN.dex")).toEither.leftMap(_.getMessage)
@@ -16,17 +15,20 @@ class BaseSettingsSpecification extends FlatSpec{
   val correctOrderFeeStr: String =
     s"""
        |order-fee {
-       |  mode = percent
-       |  dynamic {
-       |    base-fee = 300000
-       |  }
-       |  fixed {
-       |    asset = WAVES
-       |    min-fee = 300000
-       |  }
-       |  percent {
-       |    asset-type = amount
-       |    min-fee = 0.1
+       |  -1: {
+       |    mode = percent
+       |    dynamic {
+       |      base-maker-fee = 200000
+       |      base-maker-fee = 700000
+       |    }
+       |    fixed {
+       |      asset = WAVES
+       |      min-fee = 300000
+       |    }
+       |    percent {
+       |      asset-type = amount
+       |      min-fee = 0.1
+       |    }
        |  }
        |}
        """.stripMargin
@@ -65,9 +67,32 @@ class BaseSettingsSpecification extends FlatSpec{
       s"""TN {
          |  directory = /TN
          |  dex {
-         |    account = 3Mqjki7bLtMEBRCYeQis39myp9B4cnooDEX
-         |    bind-address = 127.0.0.1
-         |    port = 6886
+         |    account-storage {
+         |      type = "in-mem"
+         |      in-mem.seed-in-base64 = "c3lrYWJsZXlhdA=="
+         |    }
+         |    rest-api {
+         |      address = 127.1.2.3
+         |      port = 6880
+         |      api-key-hash = foobarhash
+         |      cors = no
+         |      api-key-different-host = no
+         |    }
+         |    waves-blockchain-client {
+         |      grpc {
+         |        target = "127.1.2.9:6333"
+         |        max-hedged-attempts = 9
+         |        max-retry-attempts = 13
+         |        keep-alive-without-calls = false
+         |        keep-alive-time = 8s
+         |        keep-alive-timeout = 11s
+         |        idle-timeout = 20s
+         |        channel-options {
+         |          connect-timeout = 99s
+         |        }
+         |      }
+         |      default-caches-expiration = 101ms
+         |    }
          |    exchange-tx-base-fee = 4000000
          |    actor-response-timeout = 11s
          |    snapshots-interval = 999
@@ -82,7 +107,7 @@ class BaseSettingsSpecification extends FlatSpec{
          |      8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS
          |      DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J
          |    ]
-         |    blacklisted-assets = ["a"]
+         |    blacklisted-assets = ["AbunLGErT5ctzVN8MVjb4Ad9YgjpubB8Hqb17VxzfAck"]
          |    blacklisted-names = ["b"]
          |    blacklisted-addresses = [
          |      3N5CBq8NYBMBU3UVS3rfMgaQEpjZrkWcBAD
@@ -94,7 +119,6 @@ class BaseSettingsSpecification extends FlatSpec{
          |      depth-ranges = [1, 5, 333]
          |      default-depth = 5
          |    }
-         |    balance-watching-buffer-interval = 33s
          |    events-queue {
          |      type = "kafka"
          |

@@ -5,7 +5,6 @@ import CommonSettings.autoImport.network
 import Hashes.mk
 import com.typesafe.sbt.GitPlugin.autoImport.git
 import com.typesafe.sbt.SbtNativePackager.Universal
-import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.debian.DebianPlugin.autoImport.Debian
 import com.typesafe.sbt.packager.debian.JDebPackaging
 import com.typesafe.sbt.packager.universal.UniversalDeployPlugin
@@ -41,7 +40,9 @@ object ReleasePlugin extends AutoPlugin {
             Def.task {
               // Don't forget to update "artifactExtensions" if there is a new artifact
               val artifacts = Seq(
-                (LocalProject("dex") / Universal / packageZipTarball).value,
+                (LocalProject("waves-ext") / Universal / packageBin).value,
+                (LocalProject("waves-ext") / Debian / packageBin).value,
+                (LocalProject("dex") / Universal / packageBin).value,
                 (LocalProject("dex") / Debian / packageBin).value
               )
 
@@ -49,16 +50,17 @@ object ReleasePlugin extends AutoPlugin {
               artifacts
                 .map(_.toPath)
                 .foreach { source =>
-                  Files.move(source, destDir.resolve(source.getFileName))
+                  val dest = destDir.resolve(source.getFileName)
+                  if (!dest.toFile.isFile) Files.move(source, dest)
                 }
             }
           )
           .value,
         genDocs := Def.taskDyn {
-          val configFile = (Compile / baseDirectory).value / "_local" / "mainnet.sample.conf" // Actually doesn't matter for this task
-          streams.value.log.info(s"${configFile.getAbsolutePath} gen-docs ${(Compile / releaseDirectory).value}")
+          val outputDirectory = (Compile / releaseDirectory).value
+          streams.value.log.info(s"Saving documentation to $outputDirectory")
           (LocalProject("dex") / Compile / runMain)
-            .toTask(s" com.wavesplatform.dex.doc.DocGeneratorApp ${(Compile / releaseDirectory).value}")
+            .toTask(s" com.wavesplatform.dex.WavesDexCli create-documentation --output-directory $outputDirectory")
         }.value,
         writeReleaseNotes := {
           val runner           = git.runner.value

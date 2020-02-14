@@ -1,17 +1,23 @@
 package com.wavesplatform.dex.model
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import com.wavesplatform.account.Address
-import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.dex.AddressActor
 import com.wavesplatform.dex.db.TestOrderDB
+import com.wavesplatform.dex.domain.account.Address
+import com.wavesplatform.dex.domain.asset.Asset
+import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.error.ErrorFormatterContext
 import com.wavesplatform.dex.queue.QueueEventWithMeta
-import com.wavesplatform.utils.Time
+import com.wavesplatform.dex.time.Time
 
 import scala.collection.mutable
 import scala.concurrent.Future
 
 class OrderHistoryStub(system: ActorSystem, time: Time) {
+  private implicit val efc = new ErrorFormatterContext {
+    override def assetDecimals(asset: Asset): Int = 8
+  }
+
   private val refs   = mutable.AnyRefMap.empty[Address, ActorRef]
   private val orders = mutable.AnyRefMap.empty[ByteStr, Address]
 
@@ -22,11 +28,15 @@ class OrderHistoryStub(system: ActorSystem, time: Time) {
         Props(
           new AddressActor(
             ao.order.sender,
+<<<<<<< HEAD
             _ => 0L,
+=======
+            _ => Future.successful(0L),
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
             time,
             new TestOrderDB(100),
-            _ => false,
-            e => Future.successful(Some(QueueEventWithMeta(0, 0, e))),
+            _ => Future.successful(false),
+            e => Future.successful { Some(QueueEventWithMeta(0, 0, e)) },
             _ => OrderBook.AggregatedSnapshot(),
             true
           )

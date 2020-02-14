@@ -1,11 +1,11 @@
 package com.wavesplatform.dex.meta
 
-import com.wavesplatform.account.{Address, PublicKey}
-import com.wavesplatform.common.state.ByteStr
-import com.wavesplatform.features.BlockchainFeature
-import com.wavesplatform.transaction.Asset
-import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
-import com.wavesplatform.transaction.assets.exchange.{AssetPair, Order, OrderV3}
+import com.wavesplatform.dex.domain.account.{Address, PublicKey}
+import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.domain.feature.BlockchainFeature
+import com.wavesplatform.dex.domain.order.{Order, OrderV3}
 import shapeless._
 
 import scala.reflect.ClassTag
@@ -39,7 +39,7 @@ object Sample {
   implicit def hList[H, T <: HList](implicit hSample: Lazy[Sample[H]], tSample: Sample[T]): Sample[H :: T] =
     mk(hSample.value.sample :: tSample.sample)
 
-  implicit val cNil: Sample[CNil] = mk(throw new Exception("Imposibru!"))
+  implicit val cNil: Sample[CNil] = mk(throw new Exception("Impossibru!"))
   implicit def coProduct[H, T <: Coproduct, L <: Nat](
       implicit
       hSample: Lazy[Sample[H]],
@@ -51,11 +51,12 @@ object Sample {
   implicit val short: Sample[Short]             = mk(2)
   implicit val int: Sample[Int]                 = mk(4)
   implicit val long: Sample[Long]               = mk(5)
-  implicit val double: Sample[Double]           = mk(6)
+  implicit val double: Sample[Double]           = mk(6.1)
+  implicit val decimal: Sample[BigDecimal]      = mk(BigDecimal(7.2))
   implicit val string: Sample[String]           = mk("some string")
-  implicit val asset: Sample[Asset]             = mk(Waves)
+  implicit val asset: Sample[Asset]             = mk(IssuedAsset(ByteStr.decodeBase58("Co11Tbj83TeZCnuXrZQwv6Bs4XG2sm1vGQiQ4FLDjJWs").get))
   implicit val byteStr: Sample[ByteStr]         = mk("byteStr".getBytes)
-  implicit val issuedAsset: Sample[IssuedAsset] = mk(IssuedAsset(ByteStr("asset".getBytes)))
+  implicit val issuedAsset: Sample[IssuedAsset] = mk(IssuedAsset(ByteStr.decodeBase58("Emn8cyGDFgnLCKLTXqVWhKJARhtR2muBUuZaSmqNzDfn").get))
   implicit val assetPair: Sample[AssetPair]     = mk(AssetPair(issuedAsset.sample, asset.sample))
   implicit val address: Sample[Address]         = mk(Address.createUnsafe("address".getBytes))
   implicit val publicKey: Sample[PublicKey]     = mk(PublicKey(Sample[ByteStr]))

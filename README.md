@@ -34,7 +34,8 @@ homebrew is preferable choice. You can install java and sbt with:
 
 ```
 brew tap AdoptOpenJDK/openjdk
-brew cask install adoptopenjdk8 sbt@1
+brew cask install adoptopenjdk8
+brew install sbt
 ```
 
 **Windows**:
@@ -69,7 +70,7 @@ git clone git@github.com:wavesplatform/dex.git waves-dex
 cd waves-dex
 ```
 
-**NOTE**: the directory name must not be "dex" if you work in IntelliJ IDEA, see [Known issues](#10-known-issues).
+**NOTE**: the directory name must not be "dex" if you work in IntelliJ IDEA, see [Known issues](#9-known-issues).
 
 ## 3. Compilation and unit tests
 
@@ -116,17 +117,43 @@ sbt -Dnetwork=testnet packageAll
 
 ## 6. Installing and running
 
-Note, that the configuration [changes](#7-configuration) are required before run the Node with DEX.
+The DEX server runs as a separate service and communicates with a DEX extension on the Node. So:
 
-### DEB
+1. First of all, you need an installed Node.
+2. Then you need to install a DEX extension to the Node and update its configuration. This is a bridge between the DEX server and the Node.
+3. Next you should install DEX server and properly configure it.
+4. Run the Node, wait until it will be up with the network.
+5. Run the DEX.
 
-1. You need to install [Node with DEB](https://docs.wavesplatform.com/en/waves-full-node/how-to-install-a-node/on-ubuntu.html).
-2. Then you can install DEX: `sudo dpkg -i deb-artifact.deb`
+### 6.1. Node installation
 
-### TGZ
+See instructions in their [documentation](https://docs.wavesplatform.com/en/waves-node/how-to-install-a-node/how-to-install-a-node.html).
 
-To install just extract DEX's tgz artifact to the directory with Node's jar.
-To run:
+### 6.2. DEX extension installation and configuration 
+
+Artifacts of DEX extension have names like:
+* `waves-dex-extension{supported-network}_{version}.deb` for DEB artifact. `{supported-network}` is empty for MainNet;
+* `waves-dex-extension-{version}.zip` for ZIP artifact;
+
+#### a. 📦 Installation through DEB
+
+> If the Node installed from DEB
+
+Run: `sudo dpkg -i deb-artifact.deb` 
+
+The extension will be automatically installed to the Node.
+
+#### b. 🗜 Installation through ZIP
+
+> If the Node is running manually.
+> Note, if you installed Node from a DEB package, DEX will be removed after update.
+
+To install a DEX extension from ZIP file:
+
+1. Copy the archive to the directory with Node's JAR
+2. Extract the archive. Its files will be added to the existed directories.
+
+To run the Node with DEX extension use following commands:
 
 *Debian/Ubuntu/macOS*:
 
@@ -140,25 +167,80 @@ java <your_JVM_options> -cp "/absolute_path_to_fat_jar/waves-all.jar:/absolute_p
 java <your_JVM_options> -cp "/absolute_path_to_fat_jar/waves-all.jar;/absolute_path_to_fat_jar/lib/*" com.wavesplatform.Application /path/to/config.conf
 ```
 
-## 7. Configuration
+#### 📃 Configration of DEX extension
 
-Update your configuration to enable DEX:
+Add lines to the Node's configuration:
 
 ```hocon
-# ... here many lines of your Node's configuration
- 
-TN.extensions = [
-  "com.wavesplatform.dex.Matcher"
-  # ... here may be other extensions
-]
- 
+TN.extensions += "com.wavesplatform.dex.grpc.integration.DEXExtension"
+
 TN.dex {
-  account = "3Q5GKPLkxXcEwGv6d57v8aksTjh1igHNNDd" # This account must be known at the Node, e.g. created through POST /addresses
-  # bind-address = "0.0.0.0" # uncomment this line to accept connections from any host
+  # gRPC integration settings for Waves Node
+  grpc.integration {
+    host = "127.0.0.1" # "0.0.0.0" if the DEX server connects to the DEX extension from other machine 
+    port = 6887
+  }
 }
+````
+
+### 6.3. DEX server installation and configuration
+
+Artifacts of DEX extension have names like `waves-dex{version}.{deb|zip}`.
+
+#### a. 📦 Installation through DEB
+
+Run: `sudo dpkg -i deb-artifact.deb`
+
+The DEX server will be installed. Note, the service will not start. You should update the configuration (see below) and then start the service:
+* If you are using `system.d` (used on Ubuntu since 15.04): `sudo systemctl start waves-dex`
+* If you are using `init.d`: `sudo /etc/init.d/waves-dex`
+
+If it is a fresh install, configurations were copied to `/etc/waves-dex`.
+
+#### b. 🗜 Installation through ZIP
+
+To install a DEX server from ZIP file:
+ 
+1. Extract it
+2. There are sample configurations:
+
+    * doc/main.conf is a sample DEX server configuration;
+    * doc/logback.xml is a sample logging configuration.
+    
+    Copy them to a directory with production configurations. 
+
+To run:
+
+*Debian/Ubuntu/macOS*:
+
+```
+/path/to/dex/directory/bin/waves-dex -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
 ```
 
-## 8. Running an extension project locally during development
+*Windows*:
+
+```
+/path/to/dex/directory/bin/waves-dex.bat -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
+```
+
+#### 📃 Configuration of DEX server
+
+1. There is an example of configuration in the "doc" directory. You need to update the DEX's server configuration or create a new one in (for example, conf/dex.conf):
+
+    ```hocon
+    # ... here many lines of your DEX's configuration
+    waves.dex {
+      root-directory = "/full/path/to/base/dex/directory"
+      # rest-api.bind-address = "0.0.0.0" # uncomment this line to accept connections from any host
+
+      # host:port of DEX extension gRPC server
+      waves-blockchain-client.grpc.target = "127.0.0.1:6887"
+    }
+    ```
+
+2. Generate an [account storage](#81-generating-account-storage) and update your configuration.
+
+## 7. Running an extension project locally during development
 
 ### SBT
 
@@ -182,17 +264,57 @@ sbt "dex/run /path/to/configuration"
 
 All files will be stored in `_local/runtime/mainnet`, including logs in the `log/` directory.
 
-## 9. Useful commands
+## 8. CLI
 
-In SBT.
+We have CLI tools accompanying to DEX server. Run `waves-dex-cli` to see a full documentation. The CLI functionality includes:
 
-### Generate documentation
+* Generating an account storage (required to run DEX server);
+* Generating an account seed by base seed, and printing useful information about it;
+* Generating an API key;
+* And so on.
+
+If you want to run CLI from SBT, use the following template:
+
+```bash
+dex/runMain com.wavesplatform.dex.WavesDexCli here-your-arguments
+```
+
+### 8.1. Generating account storage
+
+Example:
+
+```bash
+./bin/waves-dex-cli create-account-storage --address-scheme W --seed-format base64 --account-nonce 3 --output-directory /var/lib/waves-dex
+```
+
+here:
+
+* `W` is mainnet;
+* `--account-nonce 3` - we suppose you will provide a base seed and DEX server should use the fourth account of it (numeration starts with 0). 
+  If you will provide an account seed, don't specify this option;
+* `--output-directory` - where the `account.dat` file will be stored.
+
+After running this command you will see where your `account.dat` was saved and which settings do you have to add to the DEX server configuration.
+Note, the shown settings contain a placeholder for your raw password, insert a real password to your configuration! 
+
+### 8.2. Generating API key
+
+Example:
+
+```bash
+./bin/waves-dex-cli com.wavesplatform.dex.WavesDexCli create-api-key --api-key "integration-test-rest-api"
+```
+
+An output:
 
 ```
-sbt "dex/runMain com.wavesplatform.dex.MatcherTool /path/to/config gen-docs /path/to/output/docs/dir"
+Your API Key: 7L6GpLHhA5KyJTAVc8WFHwEcyTY8fC8rRbyMCiFnM4i
+Don't forget to update your settings:
+
+waves.dex.rest-api.api-key-hash = "7L6GpLHhA5KyJTAVc8WFHwEcyTY8fC8rRbyMCiFnM4i"
 ```
 
-## 10. Known issues
+## 9. Known issues
 
 ### Common
 
@@ -225,34 +347,41 @@ sbt "dex/runMain com.wavesplatform.dex.MatcherTool /path/to/config gen-docs /pat
 
 2. The root directory name must not be "dex" (or other module name): https://youtrack.jetbrains.com/issue/SCL-15210
 
-## 11. Production recommendations
+3. If the "dex" project disappeared after "Reimport All sbt Projects":
 
-Recommended sections for your logback.xml
+   1. Close the project
+   2. Delete the ".idea" subdirectory of the project's directory
+   3. Open it again in IntelliJ IDEA
 
-```xml
-<logger name="com.wavesplatform.network" level="OFF"/>
-<logger name="com.wavesplatform.api.http" level="OFF"/>
-<logger name="com.wavesplatform.mining.MinerImpl" level="DEBUG"/>
-<logger name="com.wavesplatform.utx.UtxPoolImpl" level="TRACE"/>
-<logger name="com.wavesplatform.matcher.market.OrderBookActor" level="INFO"/>
-<logger name="com.wavesplatform.matcher.market.MatcherActor" level="TRACE"/>
-<logger name="com.wavesplatform.transaction.smart" level="OFF"/>
+4. Can't test Cli hides passwords in IntelliJ IDEA and sbt. `System.console` is inaccessible in IDE, so we created a
+   fallback (and unsafe) way to read passwords. This is a known [issue](https://youtrack.jetbrains.net/issue/IDEA-18814).
+   To test Cli how it will work for users:
+   
+   1. Copy a command from the IntelliJ IDEA's "Run" tab
+   2. Remove `javaagent` option
+   3. Paste this into a terminal and run
 
-<logger name="scorex.api.http" level="OFF"/>
-<logger name="io.netty" level="INFO"/>
-<logger name="io.swagger" level="INFO"/>
-<logger name="org.asynchttpclient" level="INFO"/>
-<logger name="org.apache.kafka" level="INFO"/>
-<logger name="kamon.influxdb.CustomInfluxDBReporter" level="INFO"/>
-```
+5. IDE can't find Waves Node's classes in `waves-ext`. Download required artifacts manually: `sbt waves-ext/downloadWavesNodeArtifacts` and 
+   then reload SBT configuration in IDE.
+
+## 10. Production recommendations
 
 ### Kafka's queue
 
+<<<<<<< HEAD
+### Kafka's queue
+
+=======
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 If all of these points are true:
 
 1. You are using Kafka queue
 2. Have a lot of Place and Cancel requests
+<<<<<<< HEAD
 3. You face an issues when Consumer or Producer can't connect to Kafka
+=======
+3. You face issues when Consumer or Producer can't connect to Kafka
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 
 There are recommendations for the OS-related system the DEX server runs on.
 Note, it is not recommended to change this options if you aren't face the issue.
@@ -271,7 +400,11 @@ Note, it is not recommended to change this options if you aren't face the issue.
     sudo sysctl -p
     ```
 
+<<<<<<< HEAD
 ## 12. Contributor notes
+=======
+## 11. Contributor notes
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 
 ### Branches
 
@@ -318,11 +451,3 @@ A new release is tagged to the commit in a `master` branch. If there is a bug:
 
   3. Click on publish.
   4. Update the errors' documentation in Wiki.
-
-# Acknowledgement
-
-[<img src="https://www.yourkit.com/images/yklogo.png">](http://www.yourkit.com/java/profiler/index.jsp)  
-We use YourKit full-featured Java Profiler to make Waves node faster. YourKit, LLC is the creator of innovative and intelligent tools for profiling Java and .NET applications.    
-Take a look at YourKit's leading software products: 
-<a href="http://www.yourkit.com/java/profiler/index.jsp">YourKit Java Profiler</a> and
-<a href="http://www.yourkit.com/.net/profiler/index.jsp">YourKit .NET Profiler</a>.

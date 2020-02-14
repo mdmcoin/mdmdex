@@ -2,10 +2,10 @@ package com.wavesplatform.dex.model
 
 import java.nio.ByteBuffer
 
+import com.wavesplatform.dex.domain.asset.Asset.Waves
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.order.{Order, OrderType}
 import com.wavesplatform.dex.util.Codecs.ByteBufferExt
-import com.wavesplatform.transaction.Asset
-import com.wavesplatform.transaction.Asset.Waves
-import com.wavesplatform.transaction.assets.exchange.{AssetPair, OrderType}
 
 trait OrderInfo[+S <: OrderStatus] {
   def version: Byte
@@ -13,7 +13,7 @@ trait OrderInfo[+S <: OrderStatus] {
   def amount: Long
   def price: Long
   def matcherFee: Long
-  def matcherFeeAssetId: Asset
+  def feeAsset: Asset
   def timestamp: Long
   def status: S
   def assetPair: AssetPair
@@ -26,6 +26,9 @@ object OrderInfo {
   def v1[S <: OrderStatus](side: OrderType, amount: Long, price: Long, timestamp: Long, status: S, assetPair: AssetPair): OrderInfo[S] =
     Impl(1, side, amount, price, 4000000L, Waves, timestamp, status, assetPair, AcceptedOrderType.Limit)
 
+  def v2[S <: OrderStatus](order: Order, status: S): OrderInfo[S] =
+    v2(order.orderType, order.amount, order.price, order.matcherFee, order.feeAsset, order.timestamp, status, order.assetPair)
+
   def v2[S <: OrderStatus](side: OrderType,
                            amount: Long,
                            price: Long,
@@ -36,6 +39,26 @@ object OrderInfo {
                            assetPair: AssetPair): OrderInfo[S] =
     Impl(2, side, amount, price, matcherFee, matcherFeeAssetId, timestamp, status, assetPair, AcceptedOrderType.Limit)
 
+<<<<<<< HEAD
+=======
+  def v3[S <: OrderStatus](ao: AcceptedOrder, status: S): OrderInfo[S] = {
+    import ao.order
+    val acceptedOrderType = if (ao.isLimit) AcceptedOrderType.Limit else AcceptedOrderType.Market
+    v3(order.orderType,
+       order.amount,
+       order.price,
+       order.matcherFee,
+       order.feeAsset,
+       order.timestamp,
+       status,
+       order.assetPair,
+       acceptedOrderType)
+  }
+
+  def v3[S <: OrderStatus](order: Order, status: S, orderType: AcceptedOrderType): OrderInfo[S] =
+    v3(order.orderType, order.amount, order.price, order.matcherFee, order.feeAsset, order.timestamp, status, order.assetPair, orderType)
+
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
   def v3[S <: OrderStatus](side: OrderType,
                            amount: Long,
                            price: Long,
@@ -52,7 +75,7 @@ object OrderInfo {
                                              amount: Long,
                                              price: Long,
                                              matcherFee: Long,
-                                             matcherFeeAssetId: Asset,
+                                             feeAsset: Asset,
                                              timestamp: Long,
                                              status: S,
                                              assetPair: AssetPair,
@@ -106,7 +129,11 @@ object OrderInfo {
   }
 
   private def encodeVersioned(version: Byte, size: Int, oi: FinalOrderInfo): ByteBuffer =
+<<<<<<< HEAD
     // DON'T WRITE BYTES "oi.matcherFeeAssetId.byteRepr" to the buffer. It works another way :(
+=======
+    // DON'T WRITE BYTES "oi.feeAsset.byteRepr" to the buffer. It works another way :(
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
     ByteBuffer
       .allocate(size)
       .put(version)
@@ -114,7 +141,7 @@ object OrderInfo {
       .putLong(oi.amount)
       .putLong(oi.price)
       .putLong(oi.matcherFee)
-      .putAssetId(oi.matcherFeeAssetId)
+      .putAssetId(oi.feeAsset)
       .putLong(oi.timestamp)
       .putFinalOrderStatus(version, oi.status)
       .putAssetId(oi.assetPair.amountAsset)
@@ -123,7 +150,11 @@ object OrderInfo {
   private def encodeV2(oi: FinalOrderInfo): Array[Byte] =
     encodeVersioned(
       version = 2: Byte,
+<<<<<<< HEAD
       size = 51 + oi.matcherFeeAssetId.byteRepr.length + oi.assetPair.bytes.length,
+=======
+      size = 51 + oi.feeAsset.byteRepr.length + oi.assetPair.bytes.length,
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
       oi = oi
     ).array()
 
@@ -148,7 +179,11 @@ object OrderInfo {
   private def encodeV3(oi: FinalOrderInfo): Array[Byte] =
     encodeVersioned(
       version = 3: Byte,
+<<<<<<< HEAD
       size = 52 + oi.matcherFeeAssetId.byteRepr.length + oi.assetPair.bytes.length,
+=======
+      size = 52 + oi.feeAsset.byteRepr.length + oi.assetPair.bytes.length,
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
       oi = oi
     ).putAcceptedOrderType(oi.orderType)
       .array()

@@ -1,13 +1,15 @@
 package com.wavesplatform.dex.api
 
-import com.wavesplatform.common.state.ByteStr
-import com.wavesplatform.database.DBExt
-import com.wavesplatform.dex._
+import com.wavesplatform.dex.MatcherKeys
+import com.wavesplatform.dex.db.leveldb.DBExt
+import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.domain.order.Order
+import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
 import com.wavesplatform.dex.model.OrderInfo.FinalOrderInfo
-import com.wavesplatform.transaction.assets.exchange.{ExchangeTransaction, Order}
 import org.iq80.leveldb.DB
 
 object DBUtils {
+
   def order(db: DB, orderId: ByteStr): Option[Order]              = db.get(MatcherKeys.order(orderId))
   def orderInfo(db: DB, orderId: ByteStr): Option[FinalOrderInfo] = db.get(MatcherKeys.orderInfo(orderId))
 

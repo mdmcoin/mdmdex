@@ -1,10 +1,11 @@
 package com.wavesplatform.dex.queue
 
 import com.google.common.primitives.Longs
-import com.wavesplatform.common.state.ByteStr
-import com.wavesplatform.crypto.DigestSize
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.domain.crypto.DigestSize
+import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.model.{LimitOrder, MarketOrder}
-import com.wavesplatform.transaction.assets.exchange.{AssetPair, Order}
 
 sealed trait QueueEvent extends Product with Serializable {
   def assetPair: AssetPair
@@ -22,6 +23,15 @@ object QueueEvent {
 
   case class Canceled(assetPair: AssetPair, orderId: Order.Id) extends QueueEvent
   case class OrderBookDeleted(assetPair: AssetPair)            extends QueueEvent
+
+  implicit final class Ops(val self: QueueEvent) extends AnyVal {
+    def assets: Set[Asset] = self match {
+      case x: Placed           => x.assetPair.assets + x.limitOrder.order.feeAsset
+      case x: PlacedMarket     => x.assetPair.assets + x.marketOrder.order.feeAsset
+      case x: Canceled         => x.assetPair.assets
+      case x: OrderBookDeleted => x.assetPair.assets
+    }
+  }
 
   def toBytes(x: QueueEvent): Array[Byte] = x match {
     case Placed(lo)                   => (1: Byte) +: lo.order.version +: lo.order.bytes()

@@ -1,278 +1,272 @@
 package com.wavesplatform.it.sync
 
-import akka.http.scaladsl.model.StatusCodes
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.domain.account.KeyPair
+import com.wavesplatform.dex.domain.asset.Asset.Waves
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.model.Normalization
+import com.wavesplatform.dex.domain.order.OrderType._
+import com.wavesplatform.dex.it.api.responses.dex._
 import com.wavesplatform.it.MatcherSuiteBase
-import com.wavesplatform.it.api.SyncHttpApi._
-import com.wavesplatform.it.api.SyncMatcherHttpApi._
-import com.wavesplatform.it.sync.config.MatcherPriceAssetConfig._
-import com.wavesplatform.transaction.Asset.Waves
-import com.wavesplatform.transaction.assets.exchange.OrderType.{BUY, SELL}
+import org.scalatest.prop.TableDrivenPropertyChecks
 
 import scala.math.BigDecimal.RoundingMode.CEILING
 
-class OrderHistoryTestSuite extends MatcherSuiteBase {
-  override protected def nodeConfigs: Seq[Config] =
-    super.nodeConfigs.map(
-      ConfigFactory
-        .parseString("TN.dex.allowed-order-versions = [1, 2, 3]")
-        .withFallback
-    )
+class OrderHistoryTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
+
+  override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId" ]""")
 
   override protected def beforeAll(): Unit = {
-    super.beforeAll()
-
-    Seq(IssueUsdTx, IssueWctTx, IssueEthTx, IssueBtcTx).foreach { tx =>
-      node.waitForTransaction { node.broadcastRequest(tx.json.value).id }
-    }
+    wavesNode1.start()
+    broadcastAndAwait(IssueUsdTx, IssueWctTx, IssueEthTx)
+    dex1.start()
+    dex1.api.upsertRate(eth, 0.005)
   }
 
-  "Order history should save fee info" in {
+  implicit class DoubleOps(value: Double) {
+    val wct, usd: Long = Normalization.normalizeAmountAndFee(value, 2)
+    val eth, btc: Long = Normalization.normalizeAmountAndFee(value, 8)
+
+    val price: Long         = Normalization.normalizePrice(value, 2, 2)
+    val wctUsdPrice: Long   = Normalization.normalizePrice(value, 2, 2)
+    val wavesUsdPrice: Long = Normalization.normalizePrice(value, 8, 2)
+  }
+
+  "Order history should save fee info" - {
     val feeAsset = eth
-    node.upsertRate(feeAsset, 0.005, expectedStatusCode = StatusCodes.Created)
 
-    withClue("in placed and cancelled order") {
-      val aliceOrderId = node.placeOrder(alice, wctUsdPair, BUY, 1.wct, 1.price, matcherFee, version = 3).message.id
-      node.orderStatus(aliceOrderId, wctUsdPair).filledFee shouldBe None
-      for (activeOnly <- Array(true, false)) {
-        Array(node.orderHistoryByPair(alice, wctUsdPair, activeOnly),
-              node.ordersByAddress(alice, activeOnly),
-              node.fullOrderHistory(alice, Some(activeOnly))).foreach(
-          orderbookHistory => {
-            val orderbook = orderbookHistory.find(_.id == aliceOrderId).get
-            orderbook.fee shouldBe matcherFee
-            orderbook.filledFee shouldBe 0
-            orderbook.feeAsset shouldBe Waves
+    "in placed and cancelled order" - {
+      List[(Byte, Asset)](
+        (1, Waves),
+        (2, Waves),
+        (3, Waves),
+        (3, eth)
+      ).foreach {
+        case (version, feeAsset) =>
+          s"version=$version, asset=$feeAsset" in {
+            val order   = mkOrder(alice, wctUsdPair, BUY, 1.wct, 1.price, matcherFee = matcherFee, feeAsset = feeAsset, version = version)
+            val orderId = order.id()
+            dex1.api.place(order)
+            dex1.api.orderStatus(order).filledFee shouldBe None
+
+            for {
+              activeOnly       <- List(true, false).map(Option(_))
+              orderBookHistory <- orderHistory(alice, wctUsdPair, activeOnly)
+            } yield {
+              val item = orderBookHistory.find(_.id == orderId).get
+              item.fee shouldBe matcherFee
+              item.filledFee shouldBe 0
+              item.feeAsset shouldBe feeAsset
+            }
+
+            dex1.api.cancel(alice, order)
+
+            orderHistory(alice, wctUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+              val item = orderBookHistory.find(_.id == orderId).get
+              item.fee shouldBe matcherFee
+              item.filledFee shouldBe 0
+              item.feeAsset shouldBe feeAsset
+            }
+
+            orderHistory(alice, wctUsdPair, activeOnly = Some(true)).foreach {
+              _.find(_.id == orderId) shouldBe None
+            }
           }
-        )
       }
-      node.cancelOrder(alice, wctUsdPair, aliceOrderId)
-      Array(node.orderHistoryByPair(alice, wctUsdPair), node.ordersByAddress(alice, activeOnly = false), node.fullOrderHistory(alice)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == aliceOrderId).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe 0
-          orderbook.feeAsset shouldBe Waves
-        }
-      )
-      Array(node.orderHistoryByPair(alice, wctUsdPair, activeOnly = true),
-            node.ordersByAddress(alice, activeOnly = true),
-            node.activeOrderHistory(alice)).foreach(orderbookHistory => orderbookHistory.find(_.id == aliceOrderId) shouldBe None)
     }
 
-    withClue("in placed and cancelled orderV3") {
-      val aliceOrderV3Id = node.placeOrder(alice, wctUsdPair, BUY, 1.wct, 1.price, matcherFee, version = 3, feeAsset = feeAsset).message.id
-      node.orderStatus(aliceOrderV3Id, wctUsdPair).filledFee shouldBe None
-      for (activeOnly <- Array(true, false)) {
-        Array(node.orderHistoryByPair(alice, wctUsdPair, activeOnly),
-              node.ordersByAddress(alice, activeOnly),
-              node.fullOrderHistory(alice, Some(activeOnly))).foreach(
-          orderbookHistory => {
-            val orderbook = orderbookHistory.find(_.id == aliceOrderV3Id).get
-            orderbook.fee shouldBe matcherFee
-            orderbook.filledFee shouldBe 0
-            orderbook.feeAsset shouldBe feeAsset
-          }
-        )
+    "in filled orders of different versions" in {
+      val aliceOrder   = mkOrder(alice, wctUsdPair, BUY, 1.wct, 1.price, matcherFee = matcherFee, feeAsset = feeAsset)
+      val aliceOrderId = aliceOrder.id()
+      dex1.api.place(aliceOrder)
+
+      val bobOrder   = mkOrder(bob, wctUsdPair, SELL, 1.wct, 1.price, matcherFee = matcherFee)
+      val bobOrderId = bobOrder.id()
+      dex1.api.place(bobOrder)
+
+      waitForOrderAtNode(aliceOrder)
+
+      List(bobOrder, aliceOrder).foreach(order => dex1.api.orderStatus(order).filledFee shouldBe Some(matcherFee))
+
+      orderHistory(alice, wctUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == aliceOrderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe matcherFee
+        item.feeAsset shouldBe feeAsset
       }
-      node.cancelOrder(alice, wctUsdPair, aliceOrderV3Id)
-      Array(node.orderHistoryByPair(alice, wctUsdPair), node.ordersByAddress(alice, activeOnly = false), node.fullOrderHistory(alice)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == aliceOrderV3Id).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe 0
-          orderbook.feeAsset shouldBe feeAsset
-        }
-      )
-      Array(node.orderHistoryByPair(alice, wctUsdPair, activeOnly = true),
-            node.ordersByAddress(alice, activeOnly = true),
-            node.activeOrderHistory(alice)).foreach(
-        orderbookHistory => orderbookHistory.find(_.id == aliceOrderV3Id) shouldBe None
-      )
-    }
 
-    withClue("in filled orders of different versions") {
-      val aliceOrderV3Id = node.placeOrder(alice, wctUsdPair, BUY, 1.wct, 1.price, matcherFee, version = 3, feeAsset = feeAsset).message.id
-      val bobOrderId     = node.placeOrder(bob, wctUsdPair, SELL, 1.wct, 1.price, matcherFee).message.id
-      node.waitOrderInBlockchain(aliceOrderV3Id)
-      Array(bobOrderId, aliceOrderV3Id).foreach((id: String) => node.orderStatus(id, wctUsdPair).filledFee shouldBe Some(matcherFee))
-      Array(node.orderHistoryByPair(alice, wctUsdPair), node.ordersByAddress(alice, activeOnly = false), node.fullOrderHistory(alice)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == aliceOrderV3Id).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe matcherFee
-          orderbook.feeAsset shouldBe feeAsset
-        }
-      )
-      Array(node.orderHistoryByPair(bob, wctUsdPair), node.ordersByAddress(bob, activeOnly = false), node.fullOrderHistory(bob)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == bobOrderId).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe matcherFee
-          orderbook.feeAsset shouldBe Waves
-        }
-      )
-      Array(node.orderHistoryByPair(alice, wctUsdPair, activeOnly = true),
-            node.ordersByAddress(alice, activeOnly = true),
-            node.activeOrderHistory(alice)).foreach(
-        orderbookHistory => orderbookHistory.find(_.id == aliceOrderV3Id) shouldBe None
-      )
-    }
-
-    withClue("in partially filled and cancelled orders") {
-      val aliceOrderV3Id = node.placeOrder(alice, wctUsdPair, BUY, 2.wct, 1.price, matcherFee).message.id
-      val bobOrderId     = node.placeOrder(bob, wctUsdPair, SELL, 1.wct, 1.price, matcherFee).message.id
-      node.waitOrderInBlockchain(aliceOrderV3Id)
-      node.orderStatus(aliceOrderV3Id, wctUsdPair).filledFee shouldBe Some(matcherFee / 2)
-      node.orderStatus(bobOrderId, wctUsdPair).filledFee shouldBe Some(matcherFee)
-      for (activeOnly <- Array(true, false)) {
-        Array(node.orderHistoryByPair(alice, wctUsdPair, activeOnly),
-              node.ordersByAddress(alice, activeOnly),
-              node.fullOrderHistory(alice, Some(activeOnly))).foreach(
-          orderbookHistory => {
-            val orderbook = orderbookHistory.find(_.id == aliceOrderV3Id).get
-            orderbook.fee shouldBe matcherFee
-            orderbook.filledFee shouldBe matcherFee / 2
-            orderbook.feeAsset shouldBe Waves
-          }
-        )
+      orderHistory(bob, wctUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == bobOrderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe matcherFee
+        item.feeAsset shouldBe Waves
       }
-      Array(node.orderHistoryByPair(bob, wctUsdPair), node.ordersByAddress(bob, activeOnly = false), node.fullOrderHistory(bob)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == bobOrderId).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe matcherFee
-          orderbook.feeAsset shouldBe Waves
-        }
-      )
-      node.cancelOrder(alice, wctUsdPair, aliceOrderV3Id)
-      node.orderStatus(aliceOrderV3Id, wctUsdPair).filledFee shouldBe Some(matcherFee / 2)
-      node.orderStatus(bobOrderId, wctUsdPair).filledFee shouldBe Some(matcherFee)
-      Array(node.orderHistoryByPair(alice, wctUsdPair), node.ordersByAddress(alice, activeOnly = false), node.fullOrderHistory(alice)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == aliceOrderV3Id).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe matcherFee / 2
-          orderbook.feeAsset shouldBe Waves
-        }
-      )
-      Array(node.orderHistoryByPair(alice, wctUsdPair, activeOnly = true),
-            node.ordersByAddress(alice, activeOnly = true),
-            node.activeOrderHistory(alice)).foreach(
-        orderbookHistory => orderbookHistory.find(_.id == aliceOrderV3Id) shouldBe None
-      )
-    }
 
-    withClue("in partially filled and cancelled orders of different versions") {
-      val aliceOrderV3Id =
-        node.placeOrder(alice, wctUsdPair, BUY, 2.wct, 1.price, matcherFee, version = 3, feeAsset = feeAsset).message.id
-      val bobOrderId = node.placeOrder(bob, wctUsdPair, SELL, 1.wct, 1.price, matcherFee).message.id
-      node.waitOrderInBlockchain(aliceOrderV3Id)
-      node.orderStatus(aliceOrderV3Id, wctUsdPair).filledFee shouldBe Some(matcherFee / 2)
-      node.orderStatus(bobOrderId, wctUsdPair).filledFee shouldBe Some(matcherFee)
-      for (activeOnly <- Array(true, false)) {
-        Array(node.orderHistoryByPair(alice, wctUsdPair, activeOnly),
-              node.ordersByAddress(alice, activeOnly),
-              node.fullOrderHistory(alice, Some(activeOnly))).foreach(
-          orderbookHistory => {
-            val orderbook = orderbookHistory.find(_.id == aliceOrderV3Id).get
-            orderbook.fee shouldBe matcherFee
-            orderbook.filledFee shouldBe matcherFee / 2
-            orderbook.feeAsset shouldBe feeAsset
-          }
-        )
+      orderHistory(alice, wctUsdPair, activeOnly = Some(true)).foreach {
+        _.find(_.id == aliceOrderId) shouldBe None
       }
-      Array(node.orderHistoryByPair(bob, wctUsdPair), node.ordersByAddress(bob, activeOnly = false), node.fullOrderHistory(bob)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == bobOrderId).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe matcherFee
-          orderbook.feeAsset shouldBe Waves
-        }
-      )
-      node.cancelOrder(alice, wctUsdPair, aliceOrderV3Id)
-      node.orderStatus(aliceOrderV3Id, wctUsdPair).filledFee shouldBe Some(matcherFee / 2)
-      node.orderStatus(bobOrderId, wctUsdPair).filledFee shouldBe Some(matcherFee)
-      Array(node.orderHistoryByPair(alice, wctUsdPair), node.ordersByAddress(alice, activeOnly = false), node.fullOrderHistory(alice)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == aliceOrderV3Id).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe matcherFee / 2
-          orderbook.feeAsset shouldBe feeAsset
-        }
-      )
-      Array(node.orderHistoryByPair(alice, wctUsdPair, activeOnly = true),
-            node.ordersByAddress(alice, activeOnly = true),
-            node.activeOrderHistory(alice)).foreach(
-        orderbookHistory => orderbookHistory.find(_.id == aliceOrderV3Id) shouldBe None
-      )
     }
 
-    withClue("in partially filled orders with fractional filled amount") {
-      val aliceOrderId = node.placeOrder(alice, wctUsdPair, BUY, 9.wct, 1.price, matcherFee, version = 3, feeAsset = feeAsset).message.id
-      node.placeOrder(bob, wctUsdPair, SELL, 1.wct, 1.price, matcherFee).message.id
-      node.waitOrderInBlockchain(aliceOrderId)
-      node.orderStatus(aliceOrderId, wctUsdPair).filledFee shouldBe Some(33333)
-      Array(node.orderHistoryByPair(alice, wctUsdPair), node.ordersByAddress(alice, activeOnly = false), node.fullOrderHistory(alice)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == aliceOrderId).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe 33333
-          orderbook.feeAsset shouldBe feeAsset
-        }
-      )
-      node.cancelOrder(alice, wctUsdPair, aliceOrderId)
+    "in partially filled and cancelled orders" in {
+      val aliceOrder   = mkOrder(alice, wctUsdPair, BUY, 2.wct, 1.price, matcherFee = matcherFee)
+      val aliceOrderId = aliceOrder.id()
+      dex1.api.place(aliceOrder)
+
+      val bobOrder   = mkOrder(bob, wctUsdPair, SELL, 1.wct, 1.price, matcherFee = matcherFee)
+      val bobOrderId = bobOrder.id()
+      dex1.api.place(bobOrder)
+
+      waitForOrderAtNode(aliceOrder)
+
+      dex1.api.orderStatus(aliceOrder).filledFee shouldBe Some(matcherFee / 2)
+      dex1.api.orderStatus(bobOrder).filledFee shouldBe Some(matcherFee)
+
+      for {
+        activeOnly       <- List(true, false).map(Option(_))
+        orderBookHistory <- orderHistory(alice, wctUsdPair, activeOnly)
+      } yield {
+        val item = orderBookHistory.find(_.id == aliceOrderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe matcherFee / 2
+        item.feeAsset shouldBe Waves
+      }
+
+      orderHistory(bob, wctUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == bobOrderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe matcherFee
+        item.feeAsset shouldBe Waves
+      }
+
+      dex1.api.cancel(alice, aliceOrder)
+      dex1.api.orderStatus(aliceOrder).filledFee shouldBe Some(matcherFee / 2)
+      dex1.api.orderStatus(bobOrder).filledFee shouldBe Some(matcherFee)
+
+      orderHistory(alice, wctUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == aliceOrderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe matcherFee / 2
+        item.feeAsset shouldBe Waves
+      }
+
+      orderHistory(alice, wctUsdPair, activeOnly = Some(true)).foreach {
+        _.find(_.id == aliceOrderId) shouldBe None
+      }
     }
 
-    withClue("should should right fee if not enoght amount before order execution and fee rounding") {
-      val ethBalance = node.tradableBalance(alice, ethUsdPair)(EthId.toString)
-      node.broadcastTransfer(alice,
-                             bob.toAddress.stringRepr,
-                             ethBalance - (BigDecimal(0.005) * matcherFee).toLong,
-                             minFee,
-                             Some(EthId.toString),
-                             None,
-                             waitForTx = true)
+    "in partially filled and cancelled orders of different versions" in {
+      val aliceOrder   = mkOrder(alice, wctUsdPair, BUY, 2.wct, 1.price, matcherFee = matcherFee, feeAsset = feeAsset)
+      val aliceOrderId = aliceOrder.id()
+      dex1.api.place(aliceOrder)
 
-      node.upsertRate(feeAsset, 0.33333333, expectedStatusCode = StatusCodes.OK)
-      val orderFee: Long = (BigDecimal(0.33333333) * matcherFee).setScale(0, CEILING).toLong
+      val bobOrder   = mkOrder(bob, wctUsdPair, SELL, 1.wct, 1.price, matcherFee = matcherFee)
+      val bobOrderId = bobOrder.id()
+      dex1.api.place(bobOrder)
 
-      val aliceBuyOrderId =
-        node
-          .placeOrder(alice, ethUsdPair, BUY, 1.eth, 0.5.price, orderFee, version = 3, feeAsset = feeAsset)
-          .message
-          .id
+      waitForOrderAtNode(aliceOrder)
 
-      Array(node.orderHistoryByPair(alice, ethUsdPair), node.ordersByAddress(alice, activeOnly = false), node.fullOrderHistory(alice)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == aliceBuyOrderId).get
-          orderbook.fee shouldBe orderFee
-          orderbook.filledFee shouldBe 0
-          orderbook.feeAsset shouldBe feeAsset
-        }
-      )
+      dex1.api.orderStatus(aliceOrder).filledFee shouldBe Some(matcherFee / 2)
+      dex1.api.orderStatus(bobOrder).filledFee shouldBe Some(matcherFee)
 
-      node.tradableBalance(bob, ethUsdPair)(EthId.toString)
-      val bobOrderId = node.placeOrder(bob, ethUsdPair, SELL, 1.eth, 0.5.price, matcherFee, version = 3, feeAsset = feeAsset).message.id
-      node.waitOrderInBlockchain(aliceBuyOrderId)
-      node.orderStatus(aliceBuyOrderId, ethUsdPair).filledFee shouldBe Some(orderFee)
-      Array(node.orderHistoryByPair(alice, ethUsdPair), node.ordersByAddress(alice, activeOnly = false), node.fullOrderHistory(alice)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == aliceBuyOrderId).get
-          orderbook.fee shouldBe orderFee
-          orderbook.filledFee shouldBe orderFee
-          orderbook.feeAsset shouldBe feeAsset
-        }
-      )
-      Array(node.orderHistoryByPair(bob, ethUsdPair), node.ordersByAddress(bob, activeOnly = false), node.fullOrderHistory(bob)).foreach(
-        orderbookHistory => {
-          val orderbook = orderbookHistory.find(_.id == bobOrderId).get
-          orderbook.fee shouldBe matcherFee
-          orderbook.filledFee shouldBe matcherFee
-          orderbook.feeAsset shouldBe feeAsset
-        }
-      )
+      for {
+        activeOnly       <- List(true, false).map(Option(_))
+        orderBookHistory <- orderHistory(alice, wctUsdPair, activeOnly)
+      } yield {
+        val item = orderBookHistory.find(_.id == aliceOrderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe matcherFee / 2
+        item.feeAsset shouldBe feeAsset
+      }
+
+      orderHistory(bob, wctUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == bobOrderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe matcherFee
+        item.feeAsset shouldBe Waves
+      }
+
+      dex1.api.cancel(alice, aliceOrder)
+      dex1.api.orderStatus(aliceOrder).filledFee shouldBe Some(matcherFee / 2)
+      dex1.api.orderStatus(bobOrder).filledFee shouldBe Some(matcherFee)
+
+      orderHistory(alice, wctUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == aliceOrderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe matcherFee / 2
+        item.feeAsset shouldBe feeAsset
+      }
+
+      orderHistory(alice, wctUsdPair, activeOnly = Some(true)).foreach {
+        _.find(_.id == aliceOrderId) shouldBe None
+      }
+    }
+
+    "in partially filled orders with fractional filled amount" in {
+      val order   = mkOrder(alice, wctUsdPair, BUY, 9.wct, 1.price, matcherFee = matcherFee, feeAsset = feeAsset)
+      val orderId = order.id()
+      dex1.api.place(order)
+
+      dex1.api.place(mkOrder(bob, wctUsdPair, SELL, 1.wct, 1.price, matcherFee = matcherFee))
+
+      waitForOrderAtNode(order)
+      dex1.api.orderStatus(order).filledFee shouldBe Some(33333)
+
+      orderHistory(alice, wctUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == orderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe 33333
+        item.feeAsset shouldBe feeAsset
+      }
+
+      dex1.api.cancel(alice, order)
+    }
+
+    "should should right fee if not enough amount before order execution and fee rounding" in {
+      val ethBalance = dex1.api.tradableBalance(alice, ethUsdPair)(eth)
+
+      broadcastAndAwait(mkTransfer(alice, bob, ethBalance - (BigDecimal(0.005) * matcherFee).toLong, eth))
+
+      val rate = 0.33333333
+      dex1.api.upsertRate(feeAsset, rate)
+      val orderFee = (BigDecimal(rate) * matcherFee).setScale(0, CEILING).toLong
+
+      val aliceOrder   = mkOrder(alice, ethUsdPair, BUY, 1.eth, 0.5.price, orderFee, feeAsset = feeAsset)
+      val aliceOrderId = aliceOrder.id()
+      dex1.api.place(aliceOrder)
+
+      orderHistory(alice, ethUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == aliceOrderId).get
+        item.fee shouldBe orderFee
+        item.filledFee shouldBe 0
+        item.feeAsset shouldBe feeAsset
+      }
+
+      val bobOrder   = mkOrder(bob, ethUsdPair, SELL, 1.eth, 0.5.price, matcherFee, feeAsset = feeAsset)
+      val bobOrderId = bobOrder.id()
+      dex1.api.place(bobOrder)
+
+      waitForOrderAtNode(aliceOrder)
+      dex1.api.orderStatus(aliceOrder).filledFee shouldBe Some(orderFee)
+
+      orderHistory(alice, ethUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == aliceOrderId).get
+        item.fee shouldBe orderFee
+        item.filledFee shouldBe orderFee
+        item.feeAsset shouldBe feeAsset
+      }
+
+      orderHistory(bob, ethUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
+        val item = orderBookHistory.find(_.id == bobOrderId).get
+        item.fee shouldBe matcherFee
+        item.filledFee shouldBe matcherFee
+        item.feeAsset shouldBe feeAsset
+      }
     }
   }
 
+  private def orderHistory(account: KeyPair, pair: AssetPair, activeOnly: Option[Boolean]): List[List[OrderBookHistoryItem]] = List(
+    dex1.api.orderHistory(account, activeOnly),
+    dex1.api.orderHistoryByPair(account, pair, activeOnly),
+    dex1.api.orderHistoryWithApiKey(account, activeOnly)
+  )
 }

@@ -1,8 +1,8 @@
 package com.wavesplatform.dex.db
 
-import com.wavesplatform.database.DBExt
 import com.wavesplatform.dex.MatcherKeys
-import com.wavesplatform.transaction.assets.exchange.AssetPair
+import com.wavesplatform.dex.db.leveldb.DBExt
+import com.wavesplatform.dex.domain.asset.AssetPair
 import org.iq80.leveldb.DB
 
 trait AssetPairsDB {
@@ -12,14 +12,19 @@ trait AssetPairsDB {
 }
 
 object AssetPairsDB {
+
   def apply(db: DB): AssetPairsDB = new AssetPairsDB {
-    override def add(pair: AssetPair): Unit    = db.readWrite(_.put(MatcherKeys.assetPair(pair), ()))
-    override def remove(pair: AssetPair): Unit = db.readWrite(_.delete(MatcherKeys.assetPair(pair)))
-    override def all(): Set[AssetPair] = db.readOnly { ro =>
+
+    def add(pair: AssetPair): Unit    = db.readWrite(_.put(MatcherKeys.assetPair(pair), ()))
+    def remove(pair: AssetPair): Unit = db.readWrite(_.delete(MatcherKeys.assetPair(pair)))
+
+    def all(): Set[AssetPair] = db.readOnly { ro =>
       val r = Set.newBuilder[AssetPair]
+
       ro.iterateOver(MatcherKeys.AssetPairsPrefix) { pair =>
         r += AssetPair.fromBytes(pair.getKey.drop(2))
       }
+
       r.result()
     }
   }

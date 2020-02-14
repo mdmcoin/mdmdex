@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property name="default.pattern" value="%date{ISO8601,UTC} %-5level [%.25thread] %logger{26} - %msg%n%ex"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.out</target>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>${logback.stdout.level:-TRACE}</level>
+        </filter>
+        <encoder>
+            <pattern>${default.pattern}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>${logback.file.level:-TRACE}</level>
+        </filter>
+        <file>${waves.it.logging.dir:-target/logs}/test.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>${default.pattern}</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org.asynchttpclient" level="INFO"/>
+    <logger name="io.netty" level="INFO"/>
+    <logger name="io.grpc.netty" level="WARN"/>
+    <logger name="io.swagger" level="OFF"/>
+
+    <root level="TRACE">
+        <appender-ref ref="${waves.it.logging.appender:-STDOUT}"/>
+    </root>
+</configuration>

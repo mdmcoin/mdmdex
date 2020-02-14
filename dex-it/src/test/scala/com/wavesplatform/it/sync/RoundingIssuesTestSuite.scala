@@ -1,88 +1,92 @@
 package com.wavesplatform.it.sync
 
+import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.domain.asset.Asset.Waves
+import com.wavesplatform.dex.domain.order.OrderType
+import com.wavesplatform.dex.it.api.responses.dex.{LevelResponse, OrderStatus, OrderStatusResponse}
 import com.wavesplatform.it.MatcherSuiteBase
-import com.wavesplatform.it.api.LevelResponse
-import com.wavesplatform.it.api.SyncHttpApi._
-import com.wavesplatform.it.api.SyncMatcherHttpApi._
-import com.wavesplatform.it.sync.config.MatcherPriceAssetConfig._
-import com.wavesplatform.transaction.assets.exchange.OrderType
-
-import scala.concurrent.duration._
+import com.wavesplatform.wavesj.transactions.ExchangeTransaction
 
 class RoundingIssuesTestSuite extends MatcherSuiteBase {
+
+  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""waves.dex.price-assets = [ "$UsdId", "$BtcId", "WAVES" ]""")
+
   override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    val xs = Seq(IssueUsdTx, IssueEthTx, IssueBtcTx).map(_.json()).map(node.broadcastRequest(_))
-    xs.foreach(x => node.waitForTransaction(x.id))
+    wavesNode1.start()
+    broadcastAndAwait(IssueUsdTx, IssueEthTx, IssueBtcTx)
+    dex1.start()
   }
 
   "should correctly fill an order with small amount" in {
-    val aliceBalanceBefore = node.accountBalances(alice.toAddress.toString)._1
-    val bobBalanceBefore   = node.accountBalances(bob.toAddress.toString)._1
+    val aliceBalanceBefore = wavesNode1.api.balance(alice, Waves)
+    val bobBalanceBefore   = wavesNode1.api.balance(bob, Waves)
 
-    val counter   = node.prepareOrder(alice, wavesUsdPair, OrderType.BUY, 3100000000L, 238)
-    val counterId = node.placeOrder(counter).message.id
+    val counter = mkOrder(alice, wavesUsdPair, OrderType.BUY, 3100000000L, 238)
+    dex1.api.place(counter)
 
-    val submitted   = node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, 425532L, 235)
-    val submittedId = node.placeOrder(submitted).message.id
+    val submitted = mkOrder(bob, wavesUsdPair, OrderType.SELL, 425532L, 235)
+    dex1.api.place(submitted)
 
     val filledAmount = 420169L
-    node.waitOrderStatusAndAmount(wavesUsdPair, submittedId, "Filled", Some(filledAmount), 1.minute)
-    node.waitOrderStatusAndAmount(wavesUsdPair, counterId, "PartiallyFilled", Some(filledAmount), 1.minute)
+    dex1.api.waitForOrder(submitted)(_ == OrderStatusResponse(OrderStatus.Filled, Some(filledAmount), Some(296219L)))
+    dex1.api.waitForOrder(counter)(_ == OrderStatusResponse(OrderStatus.PartiallyFilled, Some(filledAmount), Some(40L)))
 
-    val tx = node.waitOrderInBlockchain(counterId).head
-    node.cancelOrder(alice, wavesUsdPair, counterId)
-    val rawExchangeTx = node.rawTransactionInfo(tx.id)
+    val tx = waitForOrderAtNode(counter)
+    dex1.api.cancel(alice, counter)
 
-    (rawExchangeTx \ "price").as[Long] shouldBe counter.price
-    (rawExchangeTx \ "amount").as[Long] shouldBe filledAmount
-    (rawExchangeTx \ "buyMatcherFee").as[Long] shouldBe 542L
-    (rawExchangeTx \ "sellMatcherFee").as[Long] shouldBe 3949587L
+    val exchangeTx = wavesNode1.api.transactionInfo(tx.head.getId).getOrElse(throw new RuntimeException(s"Can't find tx with id = '${tx.head.getId}'")) match {
+      case r: ExchangeTransaction => r
+      case x                      => throw new RuntimeException(s"Expected ExchangeTransaction, but got $x")
+    }
 
-    val aliceBalanceAfter = node.accountBalances(alice.toAddress.toString)._1
-    val bobBalanceAfter   = node.accountBalances(bob.toAddress.toString)._1
+    exchangeTx.getPrice shouldBe counter.price
+    exchangeTx.getAmount shouldBe filledAmount
+    exchangeTx.getBuyMatcherFee shouldBe 40L
+    exchangeTx.getSellMatcherFee shouldBe 296219L
+
+    val aliceBalanceAfter = wavesNode1.api.balance(alice, Waves)
+    val bobBalanceAfter   = wavesNode1.api.balance(bob, Waves)
 
     (aliceBalanceAfter - aliceBalanceBefore) shouldBe (-542L + 420169L)
     (bobBalanceAfter - bobBalanceBefore) shouldBe (-3949587L - 420169L)
   }
 
   "reserved balance should not be negative" in {
-    val counter   = node.prepareOrder(bob, ethBtcPair, OrderType.BUY, 923431000L, 31887L)
-    val counterId = node.placeOrder(counter).message.id
+    val counter = mkOrder(bob, ethBtcPair, OrderType.BUY, 923431000L, 31887L)
+    dex1.api.place(counter)
 
-    val submitted   = node.prepareOrder(alice, ethBtcPair, OrderType.SELL, 223345000L, 31887L)
-    val submittedId = node.placeOrder(submitted).message.id
+    val submitted = mkOrder(alice, ethBtcPair, OrderType.SELL, 223345000L, 31887L)
+    dex1.api.place(submitted)
 
     val filledAmount = 223344937L
-    node.waitOrderStatusAndAmount(ethBtcPair, submittedId, "Filled", Some(filledAmount), 1.minute)
-    node.waitOrderStatusAndAmount(ethBtcPair, counterId, "PartiallyFilled", Some(filledAmount), 1.minute)
+    dex1.api.waitForOrder(submitted)(_ == OrderStatusResponse(OrderStatus.Filled, filledAmount = Some(filledAmount), filledFee = Some(299999L)))
+    dex1.api.waitForOrder(counter)(_ == OrderStatusResponse(OrderStatus.PartiallyFilled, filledAmount = Some(filledAmount), filledFee = Some(72559L)))
 
-    withClue("Alice's reserved balance before cancel")(node.reservedBalance(alice) shouldBe empty)
+    withClue("Alice's reserved balance before cancel")(dex1.api.reservedBalance(alice) shouldBe empty)
 
-    node.waitOrderInBlockchain(counterId)
-    node.cancelOrder(bob, ethBtcPair, counterId)
+    waitForOrderAtNode(counter)
+    dex1.api.cancel(bob, counter)
 
-    withClue("Bob's reserved balance after cancel")(node.reservedBalance(bob) shouldBe empty)
+    withClue("Bob's reserved balance after cancel")(dex1.api.reservedBalance(bob) shouldBe empty)
   }
 
   "should correctly fill 2 counter orders" in {
-    val counter1 = node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, 98333333L, 60L)
-    node.placeOrder(counter1).message.id
+    val counter1 = mkOrder(bob, wavesUsdPair, OrderType.SELL, 98333333L, 60L)
+    dex1.api.place(counter1)
 
-    val counter2   = node.prepareOrder(bob, wavesUsdPair, OrderType.SELL, 100000000L, 70L)
-    val counter2Id = node.placeOrder(counter2).message.id
+    val counter2 = mkOrder(bob, wavesUsdPair, OrderType.SELL, 100000000L, 70L)
+    dex1.api.place(counter2)
 
-    val submitted   = node.prepareOrder(alice, wavesUsdPair, OrderType.BUY, 100000000L, 1000L)
-    val submittedId = node.placeOrder(submitted).message.id
+    val submitted = mkOrder(alice, wavesUsdPair, OrderType.BUY, 100000000L, 1000L)
+    dex1.api.place(submitted)
 
-    node.waitOrderStatusAndAmount(wavesUsdPair, counter2Id, "PartiallyFilled", Some(2857143L), 1.minute)
-    node.waitOrderStatusAndAmount(wavesUsdPair, submittedId, "Filled", Some(99523810L), 1.minute)
+    dex1.api.waitForOrder(submitted)(_ == OrderStatusResponse(OrderStatus.Filled, filledAmount = Some(99523810L), filledFee = Some(298571L)))
+    dex1.api.waitForOrder(counter2)(_ == OrderStatusResponse(OrderStatus.PartiallyFilled, filledAmount = Some(2857143L), filledFee = Some(8571L)))
 
     withClue("orderBook check") {
-      val ob = node.orderBook(wavesUsdPair)
+      val ob = dex1.api.orderBook(wavesUsdPair)
       ob.bids shouldBe empty
       ob.asks shouldBe List(LevelResponse(97142857L, 70L)) // = 100000000 - 2857143
     }
   }
-
 }

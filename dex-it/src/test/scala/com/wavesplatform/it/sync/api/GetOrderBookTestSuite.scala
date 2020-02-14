@@ -1,61 +1,48 @@
 package com.wavesplatform.it.sync.api
 
 import com.typesafe.config.{Config, ConfigFactory}
-import com.wavesplatform.it.api.SyncHttpApi._
-import com.wavesplatform.it.api.SyncMatcherHttpApi._
-import com.wavesplatform.it.sync.config.MatcherPriceAssetConfig._
+import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
 import com.wavesplatform.it.MatcherSuiteBase
-import com.wavesplatform.it.sync.config.MatcherPriceAssetConfig.IssueUsdTx
-import com.wavesplatform.transaction.assets.exchange.OrderType.{BUY, SELL}
 
 class GetOrderBookTestSuite extends MatcherSuiteBase {
+
   val ordersCount = 0
 
-  override protected def nodeConfigs: Seq[Config] = {
-
-    val orderFeeSettingsStr =
-      s"""
-         |TN.dex {
+  override protected val dexInitialSuiteConfig: Config =
+    ConfigFactory.parseString(
+      s"""TN.dex {
+         |  price-assets = [ "$UsdId", "WAVES" ]
          |  allowed-order-versions = [1, 2, 3]
          |  order-book-snapshot-http-cache {
          |    cache-timeout = 5s
          |    depth-ranges = [10, 20, 40, 41, 43, 100, 1000]
          |    default-depth = 100
          |  }
-         |}
-       """.stripMargin
-
-    super.nodeConfigs.map(
-      ConfigFactory
-        .parseString(orderFeeSettingsStr)
-        .withFallback
+         |}""".stripMargin
     )
-  }
 
   override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    val txIds = Seq(IssueUsdTx).map(_.json()).map(node.broadcastRequest(_).id)
-    txIds.foreach(node.waitForTransaction(_))
-    node.cancelOrdersForPair(alice, wavesUsdPair)
+    wavesNode1.start()
+    broadcastAndAwait(IssueUsdTx)
+    dex1.start()
   }
 
   def checkDepth(depth: Int, array: Array[Int] = Array()): Unit = {
-    val orderBook = node.orderBook(wavesUsdPair, depth)
+    val orderBook = dex1.api.orderBook(wavesUsdPair, depth)
 
     if (depth < ordersCount) {
       orderBook.asks.size shouldBe depth
       orderBook.bids.size shouldBe depth
     }
 
-    array.foreach(depth => {
-      node.orderBook(wavesUsdPair, depth) shouldBe orderBook
-    })
+    array.foreach(depth => dex1.api.orderBook(wavesUsdPair, depth) should matchTo(orderBook))
   }
 
-  "response orderbook should contain right count of bids and asks" in {
+  "response order book should contain right count of bids and asks" in {
+
     for (i <- 1 to ordersCount) {
-      node.placeOrder(alice, wavesUsdPair, BUY, 1.TN, i, 300000, version = 3)
-      node.placeOrder(alice, wavesUsdPair, SELL, 1.TN, i + 51, 300000, version = 3)
+      dex1.api.place(mkOrder(alice, wavesUsdPair, BUY, 1.TN, i, 300000, version = 3))
+      dex1.api.place(mkOrder(alice, wavesUsdPair, SELL, 1.TN, i + 51, 300000, version = 3))
     }
 
     checkDepth(10, Array(0, 1, 8, 9))
@@ -64,11 +51,9 @@ class GetOrderBookTestSuite extends MatcherSuiteBase {
     checkDepth(101, Array(102, 103, 999, 9999))
 
     withClue("check default depth value") {
-      val defaultOrderBook = node.orderBook(wavesUsdPair)
-      defaultOrderBook shouldBe node.orderBook(wavesUsdPair, 100)
-      Array(44, 45, 60, 98, 99).foreach(depth => {
-        node.orderBook(wavesUsdPair, depth) shouldBe defaultOrderBook
-      })
+      val defaultOrderBook = dex1.api.orderBook(wavesUsdPair)
+      defaultOrderBook shouldBe dex1.api.orderBook(wavesUsdPair, 100)
+      Array(44, 45, 60, 98, 99).foreach(depth => dex1.api.orderBook(wavesUsdPair, depth) shouldBe defaultOrderBook)
     }
   }
 }

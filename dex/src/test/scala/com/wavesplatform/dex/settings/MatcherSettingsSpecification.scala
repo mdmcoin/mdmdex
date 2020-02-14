@@ -2,37 +2,68 @@ package com.wavesplatform.dex.settings
 
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
-import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.dex.api.OrderBookSnapshotHttpCache
+import com.wavesplatform.dex.db.AccountStorage
+import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
+import com.wavesplatform.dex.domain.asset.AssetPair
+import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.domain.utils.EitherExt2
+import com.wavesplatform.dex.grpc.integration.settings.{GrpcClientSettings, WavesBlockchainClientSettings}
+import com.wavesplatform.dex.model.Implicits.AssetPairOps
 import com.wavesplatform.dex.queue.LocalMatcherQueue
-import com.wavesplatform.dex.settings.OrderFeeSettings.{DynamicSettings, FixedSettings, PercentSettings}
-import com.wavesplatform.state.diffs.produce
-import com.wavesplatform.transaction.assets.exchange.AssetPair
+import com.wavesplatform.dex.settings.OrderFeeSettings.{OrderFeeSettings, PercentSettings}
+import com.wavesplatform.dex.test.matchers.DiffMatcherWithImplicits
+import com.wavesplatform.dex.test.matchers.ProduceError.produce
 import net.ceedubs.ficus.Ficus._
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class MatcherSettingsSpecification extends BaseSettingsSpecification with Matchers {
+class MatcherSettingsSpecification extends BaseSettingsSpecification with Matchers with DiffMatcherWithImplicits {
 
   "MatcherSettings" should "read values" in {
-
-    val config = configWithSettings()
-
+    val config   = configWithSettings()
     val settings = config.as[MatcherSettings]("TN.dex")
-    settings.account should be("3Mqjki7bLtMEBRCYeQis39myp9B4cnooDEX")
-    settings.bindAddress should be("127.0.0.1")
-    settings.port should be(6886)
-    settings.exchangeTxBaseFee should be(4000000)
+
+    settings.accountStorage should be(AccountStorage.Settings.InMem(ByteStr.decodeBase64("c3lrYWJsZXlhdA==").get))
+    settings.restApi shouldBe RestAPISettings(
+      address = "127.1.2.3",
+      port = 6880,
+      apiKeyHash = "foobarhash",
+      cors = false,
+      apiKeyDifferentHost = false
+    )
+    settings.wavesBlockchainClient should matchTo(
+      WavesBlockchainClientSettings(
+        grpc = GrpcClientSettings(
+          target = "127.1.2.9:6333",
+          maxHedgedAttempts = 9,
+          maxRetryAttempts = 13,
+          keepAliveWithoutCalls = false,
+          keepAliveTime = 8.seconds,
+          keepAliveTimeout = 11.seconds,
+          idleTimeout = 20.seconds,
+          channelOptions = GrpcClientSettings.ChannelOptionsSettings(
+            connectTimeout = 99.seconds
+          )
+        ),
+        defaultCachesExpiration = 101.millis
+      )
+    )
+    settings.exchangeTxBaseFee should be(300000)
     settings.actorResponseTimeout should be(11.seconds)
-    settings.journalDataDir should be("/TN/matcher/journal")
-    settings.snapshotsDataDir should be("/TN/matcher/snapshots")
     settings.snapshotsInterval should be(999)
     settings.snapshotsLoadingTimeout should be(423.seconds)
     settings.startEventsProcessingTimeout should be(543.seconds)
     settings.maxOrdersPerRequest should be(100)
-    settings.priceAssets should be(Seq("TN", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J"))
-    settings.blacklistedAssets shouldBe Set("a")
+    settings.priceAssets should be(
+      Seq(
+        Waves,
+        AssetPair.extractAsset("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get,
+        AssetPair.extractAsset("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J").get
+      )
+    )
+    settings.blacklistedAssets shouldBe Set(AssetPair.extractAsset("AbunLGErT5ctzVN8MVjb4Ad9YgjpubB8Hqb17VxzfAck").get.asInstanceOf[IssuedAsset])
     settings.blacklistedNames.map(_.pattern.pattern()) shouldBe Seq("b")
     settings.blacklistedAddresses shouldBe Set("3N5CBq8NYBMBU3UVS3rfMgaQEpjZrkWcBAD")
     settings.orderBookSnapshotHttpCache shouldBe OrderBookSnapshotHttpCache.Settings(
@@ -40,7 +71,10 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
       depthRanges = List(1, 5, 333),
       defaultDepth = Some(5)
     )
+<<<<<<< HEAD
     settings.balanceWatchingBufferInterval should be(33.seconds)
+=======
+>>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
     settings.eventsQueue.tpe shouldBe "kafka"
     settings.eventsQueue.local shouldBe LocalMatcherQueue.Settings(enableStoring = false, 1.day, 99, cleanBeforeConsume = false)
     settings.eventsQueue.kafka.topic shouldBe "some-events"
@@ -49,18 +83,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     settings.eventsQueue.kafka.consumer.client.getInt("foo") shouldBe 2
     settings.eventsQueue.kafka.producer.client.getInt("bar") shouldBe 3
     settings.processConsumedTimeout shouldBe 663.seconds
-
-    settings.orderFee match {
-      case DynamicSettings(baseFee) =>
-        baseFee shouldBe 4000000
-      case FixedSettings(defaultAssetId, minFee) =>
-        defaultAssetId shouldBe None
-        minFee shouldBe 4000000
-      case PercentSettings(assetType, minFee) =>
-        assetType shouldBe AssetType.AMOUNT
-        minFee shouldBe 0.1
-    }
-
+    settings.orderFee should matchTo(Map[Long, OrderFeeSettings](-1L -> PercentSettings(AssetType.AMOUNT, 0.1)))
     settings.deviation shouldBe DeviationsSettings(true, 1000000, 1000000, 1000000)
     settings.allowedAssetPairs shouldBe Set.empty[AssetPair]
     settings.allowedOrderVersions shouldBe Set(11, 22)
@@ -125,17 +148,20 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     def invalidMode(invalidModeName: String = "invalid"): String =
       s"""
          |order-fee {
-         |  mode = $invalidModeName
-         |  dynamic {
-         |    base-fee = 4000000
-         |  }
-         |  fixed {
-         |    asset = TN
-         |    min-fee = 4000000
-         |  }
-         |  percent {
-         |    asset-type = amount
-         |    min-fee = 0.1
+         |  -1: {
+         |    mode = $invalidModeName
+         |    dynamic {
+         |      base-maker-fee = 4000000
+         |      base-taker-fee = 4000000
+         |    }
+         |    fixed {
+         |      asset = TN
+         |      min-fee = 4000000
+         |    }
+         |    percent {
+         |      asset-type = amount
+         |      min-fee = 0.1
+         |    }
          |  }
          |}
        """.stripMargin
@@ -143,17 +169,20 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     val invalidAssetTypeAndPercent =
       s"""
          |order-fee {
-         |  mode = percent
-         |  dynamic {
-         |    base-fee = 4000000
-         |  }
-         |  fixed {
-         |    asset = TN
-         |    min-fee = 4000000
-         |  }
-         |  percent {
-         |    asset-type = test
-         |    min-fee = 121.2
+         |  -1: {
+         |    mode = percent
+         |    dynamic {
+         |      base-maker-fee = 4000000
+         |      base-taker-fee = 4000000
+         |    }
+         |    fixed {
+         |      asset = TN
+         |      min-fee = 4000000
+         |    }
+         |    percent {
+         |      asset-type = test
+         |      min-fee = 121.2
+         |    }
          |  }
          |}
        """.stripMargin
@@ -161,17 +190,20 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     val invalidAssetAndFee =
       s"""
          |order-fee {
-         |  mode = fixed
-         |  dynamic {
-         |    base-fee = 4000000
-         |  }
-         |  fixed {
-         |    asset = ;;;;
-         |    min-fee = -4000000
-         |  }
-         |  percent {
-         |    asset-type = test
-         |    min-fee = 121
+         |  -1: {
+         |    mode = fixed
+         |    dynamic {
+         |      base-maker-fee = 4000000
+         |      base-taker-fee = 4000000
+         |    }
+         |    fixed {
+         |      asset = ;;;;
+         |      min-fee = -4000000
+         |    }
+         |    percent {
+         |      asset-type = test
+         |      min-fee = 121
+         |    }
          |  }
          |}
        """.stripMargin
@@ -179,17 +211,20 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     val invalidFeeInDynamicMode =
       s"""
          |order-fee {
-         |  mode = dynamic
-         |  dynamic {
-         |    base-fee = -350000
-         |  }
-         |  fixed {
-         |    asset = ;;;;
-         |    min-fee = -4000000
-         |  }
-         |  percent {
-         |    asset-type = test
-         |    min-fee = 121
+         |  -1: {
+         |    mode = dynamic
+         |    dynamic {
+         |      base-maker-fee = -4500000
+         |      base-taker-fee = 4500000
+         |    }
+         |    fixed {
+         |      asset = ;;;;
+         |      min-fee = -300000
+         |    }
+         |    percent {
+         |      asset-type = test
+         |      min-fee = 121
+         |    }
          |  }
          |}
        """.stripMargin
@@ -201,22 +236,21 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     val settingsInvalidAssetAndFee      = getSettingByConfig(configStr(invalidAssetAndFee))
     val settingsInvalidFeeInDynamicMode = getSettingByConfig(configStr(invalidFeeInDynamicMode))
 
-    settingsInvalidMode shouldBe Left("Invalid setting order-fee.mode value: invalid")
+    settingsInvalidMode shouldBe Left("Invalid setting order-fee value: Invalid setting order-fee.-1.mode value: invalid")
 
-    settingsDeprecatedNameMode shouldBe Left("Invalid setting order-fee.mode value: waves")
+    settingsDeprecatedNameMode shouldBe Left("Invalid setting order-fee value: Invalid setting order-fee.-1.mode value: waves")
 
     settingsInvalidTypeAndPercent shouldBe
       Left(
-        "Invalid setting order-fee.percent.asset-type value: test, " +
-          "Invalid setting order-fee.percent.min-fee value: 121.2 (required 0 < percent <= 100)")
+        "Invalid setting order-fee value: Invalid setting order-fee.-1.percent.asset-type value: test, " +
+          "Invalid setting order-fee.-1.percent.min-fee value: 121.2 (required 0 < percent <= 100)")
 
     settingsInvalidAssetAndFee shouldBe
       Left(
-        "Invalid setting order-fee.fixed.asset value: ;;;;, " +
-          "Invalid setting order-fee.fixed.min-fee value: -4000000 (required 0 < fee)")
-
+        "Invalid setting order-fee value: Invalid setting order-fee.-1.fixed.asset value: ;;;;, " +
+          "Invalid setting order-fee.-1.fixed.min-fee value: -4000000 (required 0 < fee)")
     settingsInvalidFeeInDynamicMode shouldBe Left(
-      s"Invalid setting order-fee.dynamic.base-fee value: -350000 (required 0 < base fee <= ${OrderFeeSettings.totalWavesAmount})"
+      s"Invalid setting order-fee value: Invalid setting order-fee.-1.dynamic.base-maker-fee value: -4500000 (required 0 < base maker fee)"
     )
   }
 
@@ -404,7 +438,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
 
     withClue("nonempty correct") {
       getSettingByConfig(configStr(nonEmptyCorrect)).explicitGet().matchingRules shouldBe Map(
-        AssetPair.createAssetPair("TN", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
+        AssetPair.fromString("TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
           NonEmptyList[DenormalizedMatchingRule](
             DenormalizedMatchingRule(100L, 0.002),
             List(

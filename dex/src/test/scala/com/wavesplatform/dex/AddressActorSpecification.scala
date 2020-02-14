@@ -5,28 +5,34 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import cats.kernel.Monoid
-import com.wavesplatform.NTPTime
-import com.wavesplatform.account.{Address, KeyPair, PublicKey}
-import com.wavesplatform.common.state.ByteStr
-import com.wavesplatform.dex.AddressActor.{BalanceUpdated, PlaceLimitOrder}
+import com.wavesplatform.dex.AddressActor.Command.{CancelNotEnoughCoinsOrders, PlaceOrder}
 import com.wavesplatform.dex.db.EmptyOrderDB
+import com.wavesplatform.dex.domain.account.{Address, KeyPair, PublicKey}
+import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.domain.order.{Order, OrderType, OrderV1}
+import com.wavesplatform.dex.domain.state.{LeaseBalance, Portfolio}
+import com.wavesplatform.dex.error.ErrorFormatterContext
+import com.wavesplatform.dex.model.Events.OrderAdded
 import com.wavesplatform.dex.model.{LimitOrder, OrderBook}
 import com.wavesplatform.dex.queue.{QueueEvent, QueueEventWithMeta}
-import com.wavesplatform.state.{LeaseBalance, Portfolio}
-import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
-import com.wavesplatform.transaction.assets.exchange.{AssetPair, Order, OrderType, OrderV1}
-import com.wavesplatform.wallet.Wallet
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import com.wavesplatform.dex.time.NTPTime
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.concurrent.Future
 
 class AddressActorSpecification
     extends TestKit(ActorSystem("AddressActorSpecification"))
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
     with BeforeAndAfterAll
     with ImplicitSender
     with NTPTime {
+
+  private implicit val efc: ErrorFormatterContext = (_: Asset) => 8
 
   private val assetId    = ByteStr("asset".getBytes("utf-8"))
   private val matcherFee = 4000000L
@@ -81,12 +87,13 @@ class AddressActorSpecification
 
         ref ! PlaceLimitOrder(sellTokenOrder1)
         eventsProbe.expectMsg(QueueEvent.Placed(LimitOrder(sellTokenOrder1)))
+        ref ! OrderAdded(LimitOrder(sellTokenOrder1), System.currentTimeMillis)
 
         updatePortfolio(initPortfolio.copy(assets = Map.empty), true)
         eventsProbe.expectMsg(QueueEvent.Canceled(sellTokenOrder1.assetPair, sellTokenOrder1.id()))
       }
 
-      "waves balance changed" when {
+      "TN balance changed" when {
         "there are waves for fee" in wavesBalanceTest(restWaves = matcherFee)
         "there are no waves at all" in wavesBalanceTest(restWaves = 0L)
 
@@ -102,7 +109,7 @@ class AddressActorSpecification
         }
       }
 
-      "waves were leased" when {
+      "TN were leased" when {
         "there are waves for fee" in leaseTest(_ => matcherFee)
         "there are no waves at all" in leaseTest(_.spendableBalance)
 
@@ -125,9 +132,11 @@ class AddressActorSpecification
 
       ref ! PlaceLimitOrder(sellTokenOrder1)
       eventsProbe.expectMsg(QueueEvent.Placed(LimitOrder(sellTokenOrder1)))
+      ref ! OrderAdded(LimitOrder(sellTokenOrder1), System.currentTimeMillis)
 
       ref ! PlaceLimitOrder(sellTokenOrder2)
       eventsProbe.expectMsg(QueueEvent.Placed(LimitOrder(sellTokenOrder2)))
+      ref ! OrderAdded(LimitOrder(sellTokenOrder2), System.currentTimeMillis)
 
       updatePortfolio(sellToken1Portfolio, true)
       eventsProbe.expectMsg(QueueEvent.Canceled(sellTokenOrder2.assetPair, sellTokenOrder2.id()))
@@ -142,9 +151,11 @@ class AddressActorSpecification
 
       ref ! PlaceLimitOrder(sellTokenOrder1)
       eventsProbe.expectMsg(QueueEvent.Placed(LimitOrder(sellTokenOrder1)))
+      ref ! OrderAdded(LimitOrder(sellTokenOrder1), System.currentTimeMillis)
 
       ref ! PlaceLimitOrder(sellTokenOrder2)
       eventsProbe.expectMsg(QueueEvent.Placed(LimitOrder(sellTokenOrder2)))
+      ref ! OrderAdded(LimitOrder(sellTokenOrder2), System.currentTimeMillis)
 
       updatePortfolio(sellWavesPortfolio, true)
       eventsProbe.expectMsg(QueueEvent.Canceled(sellTokenOrder1.assetPair, sellTokenOrder1.id()))
@@ -157,12 +168,15 @@ class AddressActorSpecification
 
       ref ! PlaceLimitOrder(sellTokenOrder1)
       eventsProbe.expectMsg(QueueEvent.Placed(LimitOrder(sellTokenOrder1)))
+      ref ! OrderAdded(LimitOrder(sellTokenOrder1), System.currentTimeMillis)
 
       ref ! PlaceLimitOrder(sellWavesOrder)
       eventsProbe.expectMsg(QueueEvent.Placed(LimitOrder(sellWavesOrder)))
+      ref ! OrderAdded(LimitOrder(sellWavesOrder), System.currentTimeMillis)
 
       ref ! PlaceLimitOrder(sellTokenOrder2)
       eventsProbe.expectMsg(QueueEvent.Placed(LimitOrder(sellTokenOrder2)))
+      ref ! OrderAdded(LimitOrder(sellTokenOrder2), System.currentTimeMillis)
 
       updatePortfolio(sellWavesPortfolio, true)
       eventsProbe.expectMsg(QueueEvent.Canceled(sellTokenOrder1.assetPair, sellTokenOrder1.id()))
@@ -178,32 +192,45 @@ class AddressActorSpecification
     * (updatedPortfolio: Portfolio, sendBalanceChanged: Boolean) => Unit
     */
   private def test(f: (ActorRef, TestProbe, (Portfolio, Boolean) => Unit) => Unit): Unit = {
+
     val eventsProbe      = TestProbe()
     val currentPortfolio = new AtomicReference[Portfolio]()
     val address          = addr("test")
-    val addressActor = system.actorOf(
-      Props(
-        new AddressActor(
-          address,
-          x => currentPortfolio.get().spendableBalanceOf(x),
-          ntpTime,
-          EmptyOrderDB,
-          _ => false,
-          event => {
-            eventsProbe.ref ! event
-            Future.successful(Some(QueueEventWithMeta(0, 0, event)))
-          },
-          _ => OrderBook.AggregatedSnapshot(),
-          false
-        )))
+    val addressActor =
+      system.actorOf(
+        Props(
+          new AddressActor(
+            address,
+            x => Future.successful { currentPortfolio.get().spendableBalanceOf(x) },
+            ntpTime,
+            EmptyOrderDB,
+            _ => Future.successful(false),
+            event => {
+              eventsProbe.ref ! event
+              Future.successful { Some(QueueEventWithMeta(0, 0, event)) }
+            },
+            _ => OrderBook.AggregatedSnapshot(),
+            false
+          )
+        )
+      )
     f(
       addressActor,
       eventsProbe,
       (updatedPortfolio, notify) => {
         val prevPortfolio = currentPortfolio.getAndSet(updatedPortfolio)
-        if (notify) addressActor ! BalanceUpdated(prevPortfolio.changedAssetIds(updatedPortfolio))
+        if (notify)
+          addressActor !
+            CancelNotEnoughCoinsOrders {
+              prevPortfolio
+                .changedAssetIds(updatedPortfolio)
+                .map(asset => asset -> updatedPortfolio.spendableBalanceOf(asset))
+                .toMap
+                .withDefaultValue(0)
+            }
       }
     )
+
     addressActor ! PoisonPill
   }
 
@@ -213,7 +240,9 @@ class AddressActorSpecification
   }
 
   private def addr(seed: String): Address       = privateKey(seed).toAddress
-  private def privateKey(seed: String): KeyPair = Wallet.generateNewAccount(seed.getBytes("utf-8"), 0)
+  private def privateKey(seed: String): KeyPair = KeyPair(seed.getBytes("utf-8"))
+
+  private def PlaceLimitOrder(o: Order): AddressActor.Command.PlaceOrder = PlaceOrder(o, isMarket = false)
 
   override protected def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)

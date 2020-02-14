@@ -1,18 +1,24 @@
 package com.wavesplatform.dex.market
 
 import akka.actor.{Actor, Props}
+import cats.instances.future.catsStdInstancesForFuture
+import cats.syntax.functor._
+import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
+import com.wavesplatform.dex.domain.utils.ScorexLogging
 import com.wavesplatform.dex.market.ExchangeTransactionBroadcastActor._
 import com.wavesplatform.dex.model.Events.ExchangeTransactionCreated
 import com.wavesplatform.dex.settings.ExchangeTransactionBroadcastSettings
-import com.wavesplatform.lang.ValidationError
-import com.wavesplatform.transaction.assets.exchange.ExchangeTransaction
-import com.wavesplatform.utils.{ScorexLogging, Time}
+import com.wavesplatform.dex.time.Time
+
+import scala.concurrent.Future
+import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
 class ExchangeTransactionBroadcastActor(settings: ExchangeTransactionBroadcastSettings,
                                         time: Time,
-                                        check: ExchangeTransaction => Either[ValidationError, Unit],
-                                        isConfirmed: ExchangeTransaction => Boolean,
-                                        broadcast: Seq[ExchangeTransaction] => Unit)
+                                        confirmed: Seq[ByteStr] => Future[Map[ByteStr, Boolean]],
+                                        broadcast: ExchangeTransaction => Future[Boolean])
     extends Actor
     with ScorexLogging {
 
@@ -23,63 +29,75 @@ class ExchangeTransactionBroadcastActor(settings: ExchangeTransactionBroadcastSe
     scheduleSend()
   }
 
-  private val default: Receive = {
-    case ExchangeTransactionCreated(tx) =>
-      try check(tx) match {
-        case Right(_) => broadcast(List(tx))
-        case Left(e)  => logError(tx, e)
-      } catch {
-        case e: Throwable => log.error(s"Can't check or broadcast the transaction ${tx.id()}", e)
-      }
-  }
+  private val default: Receive = { case ExchangeTransactionCreated(tx) => broadcast(tx) }
 
-  private def watching(toCheck: Vector[ExchangeTransaction], next: Vector[ExchangeTransaction]): Receive = {
-    case ExchangeTransactionCreated(tx) =>
-      try check(tx) match {
-        case Right(_) =>
-          broadcast(List(tx))
-          context.become(watching(toCheck, next :+ tx))
-
-        case Left(e) => logError(tx, e)
-      } catch {
-        case e: Throwable =>
-          log.warn(s"Can't check or broadcast the transaction ${tx.id()}, will try later", e)
-          context.become(watching(toCheck, next :+ tx))
-      }
-
-    case Send =>
-      val nowMs    = time.getTimestamp()
+  private def watching(toCheck: Vector[ExchangeTransaction], toNextCheck: Vector[ExchangeTransaction]): Receive = {
+    case CheckAndSend =>
+      val nowMs    = time.getTimestamp
       val expireMs = nowMs - settings.maxPendingTime.toMillis
 
-      val (confirmed, unconfirmed) = toCheck.partition(isConfirmed)
-      val (expired, ready)         = unconfirmed.partition(_.timestamp <= expireMs)
+      confirmed { toCheck.map(_.id()) }
+        .flatMap { confirmations =>
+          val (confirmed, unconfirmed) = toCheck.partition(tx => confirmations(tx.id.value))
+          val (expired, ready)         = unconfirmed.partition(_.timestamp <= expireMs)
 
-      log.debug(s"Stats: ${confirmed.size} confirmed, ${ready.size} ready")
-      if (expired.nonEmpty) log.warn(s"${expired.size} expired: ${expired.map(_.id().toString).mkString(", ")}")
+          Future
+            .sequence { ready.map(tx => broadcast(tx).tupleLeft(tx)) }
+            .map(_.toMap)
+            .map { isTxBroadcasted =>
+              val (validTxs, invalidTxs) = ready.partition(isTxBroadcasted)
 
-      try broadcast(ready)
-      catch {
-        case e: Throwable => log.warn(s"Can't broadcast one or more of transactions: ${ready.map(_.id()).mkString(", ")}. Will try later", e)
+              log.debug(s"Stats: ${confirmed.size} confirmed, ${ready.size} sent, ${validTxs.size} successful")
+              if (expired.nonEmpty) log.warn(s"${expired.size} failed to send: ${format(expired)}; became invalid: ${format(invalidTxs)}")
+
+              validTxs
+            }
+        }
+        .recover {
+          case NonFatal(e) =>
+            log.warn(s"Can't process transactions", e)
+            toCheck
+        }
+        .foreach { broadcastedTxs =>
+          self ! StashTransactionsToCheck(broadcastedTxs)
+        }
+
+    case ExchangeTransactionCreated(tx) =>
+      val r = for {
+        confirmed <- confirmed(List(tx.id())).map(_.getOrElse(tx.id(), false))
+        _         <- if (confirmed) Future.unit else broadcast(tx)
+      } yield confirmed
+
+      r.onComplete {
+        case Success(confirmed) => if (!confirmed) self ! EnqueueToNextCheck(tx)
+        case Failure(e) =>
+          log.warn(s"Can't confirm or broadcast ${tx.id()}", e)
+          self ! EnqueueToCheck(tx)
       }
 
-      scheduleSend()
-      context.become(watching(next ++ ready, Vector.empty))
+    case EnqueueToCheck(tx)            => context.become { watching(toCheck :+ tx, toNextCheck) }
+    case EnqueueToNextCheck(tx)        => context.become { watching(toCheck, toNextCheck :+ tx) }
+    case StashTransactionsToCheck(txs) => scheduleSend(); context.become { watching(toNextCheck ++ txs, Vector.empty) }
   }
 
-  override val receive: Receive = if (settings.broadcastUntilConfirmed) watching(toCheck = Vector.empty, next = Vector.empty) else default
+  override val receive: Receive = if (settings.broadcastUntilConfirmed) watching(toCheck = Vector.empty, toNextCheck = Vector.empty) else default
 
-  private def scheduleSend(): Unit = context.system.scheduler.scheduleOnce(settings.interval, self, Send)
+  private def scheduleSend(): Unit = context.system.scheduler.scheduleOnce(settings.interval, self, CheckAndSend)
 
-  private def logError(tx: ExchangeTransaction, error: ValidationError): Unit = log.warn(s"Tx ${tx.id()} become invalid: $error")
+  private def format(txs: Iterable[ExchangeTransaction]): String = txs.map(_.id().toString).mkString(", ")
 }
 
 object ExchangeTransactionBroadcastActor {
-  object Send
+
+  final case object CheckAndSend
+
+  private final case class EnqueueToNextCheck(tx: ExchangeTransaction)
+  private final case class EnqueueToCheck(tx: ExchangeTransaction)
+  private final case class StashTransactionsToCheck(txs: Seq[ExchangeTransaction])
 
   def props(settings: ExchangeTransactionBroadcastSettings,
             time: Time,
-            isValid: ExchangeTransaction => Either[ValidationError, Unit],
-            isConfirmed: ExchangeTransaction => Boolean,
-            broadcast: Seq[ExchangeTransaction] => Unit): Props =
-    Props(new ExchangeTransactionBroadcastActor(settings, time, isValid, isConfirmed, broadcast))
+            isConfirmed: Seq[ByteStr] => Future[Map[ByteStr, Boolean]],
+            broadcast: ExchangeTransaction => Future[Boolean]): Props =
+    Props(new ExchangeTransactionBroadcastActor(settings, time, isConfirmed, broadcast))
 }

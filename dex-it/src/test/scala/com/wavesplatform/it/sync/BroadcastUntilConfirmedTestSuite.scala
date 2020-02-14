@@ -1,80 +1,57 @@
 package com.wavesplatform.it.sync
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.domain.order.OrderType
+import com.wavesplatform.dex.it.api.responses.dex.OrderStatus
+import com.wavesplatform.dex.it.docker.WavesNodeContainer
 import com.wavesplatform.it.MatcherSuiteBase
-import com.wavesplatform.it.NodeConfigs.Default
-import com.wavesplatform.it.api.SyncHttpApi._
-import com.wavesplatform.it.api.SyncMatcherHttpApi._
-import com.wavesplatform.it.sync.config.MatcherPriceAssetConfig._
-import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
-import com.wavesplatform.transaction.assets.exchange.{AssetPair, OrderV1}
-
-import scala.concurrent.duration.DurationInt
 
 class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
-  private def minerConfig = ConfigFactory.parseString(
-    """TN {
-      |  network.node-name = node02
-      |  extensions = []
-      |}""".stripMargin).withFallback(Default.head)
-
-  private def matcherConfig =
+  override protected def dexInitialSuiteConfig: Config =
     ConfigFactory
-      .parseString(s"""TN {
-                      |  miner.enable = no
-                      |  dex.exchange-transaction-broadcast {
-                      |    broadcast-until-confirmed = yes
-                      |    interval = 20s
-                      |  }
+      .parseString(s"""TN.dex.exchange-transaction-broadcast {
+                      |  broadcast-until-confirmed = yes
+                      |  interval = 10s
                       |}""".stripMargin)
-      .withFallback(Default.head)
 
-  override protected def nodeConfigs: Seq[Config] = Seq(matcherConfig, minerConfig)
+  // Validator node
+  protected lazy val wavesNode2: WavesNodeContainer = {
+    createWavesNode("waves-2", suiteInitialConfig = ConfigFactory.parseString("TN.miner.enable = no") withFallback wavesNodeInitialSuiteConfig)
+  }
 
-  private def minerDockerNode = dockerNodes().last
+  private val aliceOrder = mkOrder(alice, ethWavesPair, OrderType.SELL, 100000L, 80000L)
+  private val bobOrder   = mkOrder(bob, ethWavesPair, OrderType.BUY, 200000L, 100000L)
 
   "BroadcastUntilConfirmed" in {
-    markup("Issue an asset")
-    node.signedBroadcast(IssueEthTx.json())
-    val pair = AssetPair(IssuedAsset(IssueEthTx.id()), Waves)
-    nodes.waitForTransaction(IssueEthTx.id().toString)
-    nodes.waitForHeightArise()
-
-    markup("Prepare orders")
-    val now = System.currentTimeMillis()
-    val alicePlace = OrderV1.sell(
-      sender = alice,
-      matcher = matcher,
-      pair = pair,
-      amount = 100000L,
-      price = 80000L,
-      timestamp = now,
-      expiration = now + 1.day.toMillis,
-      matcherFee = 4000000L
-    )
-
-    val bobPlace = OrderV1.buy(
-      sender = bob,
-      matcher = matcher,
-      pair = pair,
-      amount = 200000L,
-      price = 100000L,
-      timestamp = now,
-      expiration = now + 1.day.toMillis,
-      matcherFee = 4000000L
-    )
-
-    markup("Shutdown miners")
-    val minerContainerId = docker.stopContainer(minerDockerNode)
+    markup("Disconnect a miner node from the network")
+    wavesNode1.disconnectFromNetwork()
 
     markup("Place orders, those should match")
-    node.placeOrder(alicePlace)
-    node.placeOrder(bobPlace)
-    node.waitOrderStatus(pair, alicePlace.idStr(), "Filled")
-    val exchangeTxId = node.waitTransactionsByOrder(alicePlace.idStr(), 1).head.id
+    eventually { dex1.api.tryPlace(aliceOrder) shouldBe 'right }
 
-    markup("Start miners and wait until it receives the transaction")
-    docker.startContainer(minerContainerId)
-    nodes.waitForTransaction(exchangeTxId)
+    dex1.api.place(bobOrder)
+    dex1.api.waitForOrderStatus(aliceOrder, OrderStatus.Filled)
+
+    markup("Wait for a transaction")
+    val exchangeTxId = dex1.api.waitForTransactionsByOrder(aliceOrder, 1).head.getId
+
+    markup("Connect the miner node to the network")
+    wavesNode1.connectToNetwork()
+
+    markup("Wait until it receives the transaction")
+    wavesNode2.api.waitForTransaction(exchangeTxId)
+  }
+
+  override protected def beforeAll(): Unit = {
+    wavesNode1.start()
+    wavesNode2.start()
+
+    wavesNode2.api.connect(wavesNode1.networkAddress)
+    wavesNode2.api.waitForConnectedPeer(wavesNode1.networkAddress)
+
+    dex1.start()
+
+    broadcastAndAwait(IssueEthTx)
+    wavesNode2.api.waitForTransaction(IssueEthTx)
   }
 }

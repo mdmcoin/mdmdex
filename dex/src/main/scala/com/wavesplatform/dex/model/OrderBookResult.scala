@@ -5,19 +5,20 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.wavesplatform.dex.api.JsonSerializer
-import com.wavesplatform.transaction.assets.exchange.AssetPair
+import com.wavesplatform.dex.domain.asset.AssetPair
+import com.wavesplatform.dex.domain.model.Denormalization
 
 @JsonSerialize(using = classOf[OrderBookResult.Serializer])
 case class OrderBookResult(timestamp: Long, pair: AssetPair, bids: Seq[LevelAgg], asks: Seq[LevelAgg], assetPairDecimals: Option[(Int, Int)] = None)
 
 object OrderBookResult {
 
-  private def formatValue(value: Double, decimals: Int): String = new java.text.DecimalFormat(s"0.${"0" * decimals}").format(value)
+  private def formatValue(value: BigDecimal, decimals: Int): String = new java.text.DecimalFormat(s"0.${"0" * decimals}").format(value)
 
   private def denormalizeAndSerializeSide(side: Seq[LevelAgg], amountAssetDecimals: Int, priceAssetDecimals: Int, jg: JsonGenerator): Unit = {
     side.foreach { levelAgg =>
-      val denormalizedPrice  = MatcherModel.Denormalization.denormalizePrice(levelAgg.price, amountAssetDecimals, priceAssetDecimals)
-      val denormalizedAmount = MatcherModel.Denormalization.denormalizeAmountAndFee(levelAgg.amount, amountAssetDecimals)
+      val denormalizedPrice  = Denormalization.denormalizePrice(levelAgg.price, amountAssetDecimals, priceAssetDecimals)
+      val denormalizedAmount = Denormalization.denormalizeAmountAndFee(levelAgg.amount, amountAssetDecimals)
 
       jg.writeStartArray(2)
       jg.writeString(formatValue(denormalizedPrice, priceAssetDecimals))

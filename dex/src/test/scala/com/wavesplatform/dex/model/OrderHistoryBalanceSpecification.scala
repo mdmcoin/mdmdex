@@ -4,15 +4,17 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.testkit.TestKit
 import akka.util.Timeout
-import com.wavesplatform.NTPTime
-import com.wavesplatform.account.{Address, KeyPair}
-import com.wavesplatform.common.state.ByteStr
+import com.wavesplatform.dex.domain.account.{Address, KeyPair}
+import com.wavesplatform.dex.domain.asset.Asset.Waves
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.model.Events.{OrderAdded, OrderCanceled, OrderExecuted}
-import com.wavesplatform.dex.{AddressActor, MatcherTestData}
-import com.wavesplatform.transaction.Asset
-import com.wavesplatform.transaction.Asset.Waves
-import com.wavesplatform.transaction.assets.exchange.{AssetPair, Order}
+import com.wavesplatform.dex.time.NTPTime
+import com.wavesplatform.dex.{AddressActor, MatcherSpecBase}
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpecLike
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -20,9 +22,9 @@ import scala.reflect.ClassTag
 
 class OrderHistoryBalanceSpecification
     extends TestKit(ActorSystem())
-    with PropSpecLike
+    with AnyPropSpecLike
     with Matchers
-    with MatcherTestData
+    with MatcherSpecBase
     with BeforeAndAfterEach
     with NTPTime {
 
@@ -893,7 +895,7 @@ private object OrderHistoryBalanceSpecification {
 
   private implicit class AddressActorExt(val ref: ActorRef) extends AnyVal {
     def orderIds(assetPair: Option[AssetPair], activeOnly: Boolean): Seq[Order.Id] =
-      askAddressActor[Seq[(ByteStr, OrderInfo[OrderStatus])]](ref, AddressActor.GetOrdersStatuses(assetPair, activeOnly)).map(_._1)
+      askAddressActor[AddressActor.Reply.OrdersStatuses](ref, AddressActor.Query.GetOrdersStatuses(assetPair, activeOnly)).xs.map(_._1)
 
     def activeOrderIds: Seq[Order.Id] = orderIds(None, true)
 
@@ -904,13 +906,14 @@ private object OrderHistoryBalanceSpecification {
     def allOrderIdsByPair(pair: AssetPair): Seq[Order.Id] = orderIds(Some(pair), false)
 
     def openVolume(asset: Asset): Long =
-      askAddressActor[Map[Asset, Long]](ref, AddressActor.GetReservedBalance).getOrElse(asset, 0L)
+      askAddressActor[AddressActor.Reply.Balance](ref, AddressActor.Query.GetReservedBalance).balance.getOrElse(asset, 0L)
 
     def orderStatus(orderId: ByteStr): OrderStatus =
-      askAddressActor[OrderStatus](ref, AddressActor.GetOrderStatus(orderId))
+      askAddressActor[OrderStatus](ref, AddressActor.Query.GetOrderStatus(orderId))
   }
 
   private implicit class OrderExecutedExt(val oe: OrderExecuted.type) extends AnyVal {
-    def apply(submitted: LimitOrder, counter: LimitOrder): OrderExecuted = OrderExecuted(submitted, counter, submitted.order.timestamp)
+    def apply(submitted: LimitOrder, counter: LimitOrder): OrderExecuted =
+      OrderExecuted(submitted, counter, submitted.order.timestamp, submitted.matcherFee, counter.matcherFee)
   }
 }

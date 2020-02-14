@@ -5,31 +5,29 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.actor.{Actor, ActorRef, ActorSystem, Kill, Props, Terminated}
 import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestProbe}
 import cats.data.NonEmptyList
-import com.wavesplatform.account.KeyPair
-import com.wavesplatform.common.state.ByteStr
-import com.wavesplatform.dex.MatcherTestData
-import com.wavesplatform.dex.db.{AssetPairsDB, OrderBookSnapshotDB}
+import com.wavesplatform.dex.MatcherSpecBase
+import com.wavesplatform.dex.db.{AssetPairsDB, OrderBookSnapshotDB, WithDB}
+import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import com.wavesplatform.dex.market.MatcherActor.{ForceStartOrderBook, GetMarkets, MarketData, SaveSnapshot}
 import com.wavesplatform.dex.market.MatcherActorSpecification.{DeletingActor, FailAtStartActor, NothingDoActor, RecoveringActor, _}
 import com.wavesplatform.dex.market.OrderBookActor.{OrderBookRecovered, OrderBookSnapshotUpdateCompleted}
 import com.wavesplatform.dex.model.{Events, OrderBook}
 import com.wavesplatform.dex.queue.{QueueEvent, QueueEventWithMeta}
 import com.wavesplatform.dex.settings.{DenormalizedMatchingRule, MatchingRule}
-import com.wavesplatform.state.{AssetDescription, Blockchain}
-import com.wavesplatform.transaction.Asset
-import com.wavesplatform.transaction.Asset.IssuedAsset
-import com.wavesplatform.transaction.assets.exchange.AssetPair
-import com.wavesplatform.utils.randomBytes
-import com.wavesplatform.{NTPTime, WithDB}
+import com.wavesplatform.dex.time.NTPTime
 import org.scalamock.scalatest.PathMockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 
 class MatcherActorSpecification
     extends MatcherSpec("MatcherActor")
-    with MatcherTestData
+    with MatcherSpecBase
     with WithDB
     with BeforeAndAfterEach
     with PathMockFactory
@@ -37,11 +35,9 @@ class MatcherActorSpecification
     with Eventually
     with NTPTime {
 
-  private val blockchain: Blockchain = stub[Blockchain]
-  (blockchain.assetDescription _)
-    .when(*)
-    .returns(Some(AssetDescription(KeyPair(ByteStr.empty), "Unknown".getBytes, Array.emptyByteArray, 8, reissuable = false, 1, None, 0)))
-    .anyNumberOfTimes()
+  private def assetDescription(assetId: Asset): Option[BriefAssetDescription] = {
+    Some(BriefAssetDescription(name = "Unknown", decimals = 8, hasScript = false))
+  }
 
   "MatcherActor" should {
     "return all open markets" in {
@@ -50,14 +46,6 @@ class MatcherActorSpecification
 
       val pair  = AssetPair(randomAssetId, randomAssetId)
       val order = buy(pair, 2000, 1)
-
-      (blockchain.accountScript _)
-        .when(order.sender.toAddress)
-        .returns(None)
-
-      (blockchain.accountScript _)
-        .when(order.matcherPublicKey.toAddress)
-        .returns(None)
 
       probe.send(actor, wrapLimitOrder(order))
       probe.send(actor, GetMarkets)
@@ -76,14 +64,6 @@ class MatcherActorSpecification
       val pair  = AssetPair(randomAssetId, randomAssetId)
       val order = buy(pair, 2000, 1)
 
-      (blockchain.accountScript _)
-        .when(order.sender.toAddress)
-        .returns(None)
-
-      (blockchain.accountScript _)
-        .when(order.matcherPublicKey.toAddress)
-        .returns(None)
-
       probe.send(actor, wrapLimitOrder(order))
       addressActor.expectMsgType[Events.OrderAdded]
     }
@@ -99,7 +79,7 @@ class MatcherActorSpecification
             doNothingOnRecovery,
             ob,
             (_, _) => Props(new FailAtStartActor),
-            blockchain.assetDescription
+            assetDescription
           )
         )
 
@@ -152,7 +132,7 @@ class MatcherActorSpecification
             startResult => working = startResult.isRight,
             ob,
             (_, _) => Props(new FailAtStartActor()),
-            blockchain.assetDescription
+            assetDescription
           )
         )
       )
@@ -183,7 +163,7 @@ class MatcherActorSpecification
                 startResult => stopped = startResult.isLeft,
                 ob,
                 (_, _) => Props(new FailAtStartActor),
-                blockchain.assetDescription
+                assetDescription
               )
             )
           ))
@@ -210,7 +190,7 @@ class MatcherActorSpecification
                 startResult => stopped = startResult.isLeft,
                 ob,
                 (_, _) => Props(new NothingDoActor),
-                blockchain.assetDescription
+                assetDescription
               )
             )
           )
@@ -316,7 +296,7 @@ class MatcherActorSpecification
               _ => {},
               ob,
               (pair, matcherActor) => Props(new RecoveringActor(matcherActor, pair)),
-              blockchain.assetDescription
+              assetDescription
             )
           )
         )
@@ -339,7 +319,7 @@ class MatcherActorSpecification
             doNothingOnRecovery,
             ob,
             (assetPair, matcher) => Props(new DeletingActor(matcher, assetPair, Some(9L))),
-            blockchain.assetDescription
+            assetDescription
           )
         )
 
@@ -399,7 +379,7 @@ class MatcherActorSpecification
           if (idx < 0) throw new RuntimeException(s"Can't find $assetPair in $assetPairs")
           r(idx)._1
         },
-        blockchain.assetDescription
+        assetDescription
       )
     )
 
@@ -409,7 +389,6 @@ class MatcherActorSpecification
   private def fakeOrderBookActor(assetPair: AssetPair): (Props, TestProbe) = {
     val probe = TestProbe()
     val props = Props(new Actor {
-      import context.dispatcher
       private var nr = -1L
 
       override def receive: Receive = {
@@ -445,13 +424,13 @@ class MatcherActorSpecification
             assetPair,
             _ => {},
             _ => {},
-            matcherSettings,
             ntpTime,
             NonEmptyList.one(DenormalizedMatchingRule(0, 0.00000001)),
             _ => {},
-            _ => MatchingRule.DefaultRule
+            _ => MatchingRule.DefaultRule,
+            _ => (t, m) => m.matcherFee -> t.matcherFee
         ),
-        blockchain.assetDescription
+        assetDescription
       )
     )
   }
@@ -461,7 +440,7 @@ class MatcherActorSpecification
 
   private def matcherHadOrderBooksBefore(apdb: AssetPairsDB, obsdb: OrderBookSnapshotDB, pairs: (AssetPair, Long)*): Unit = {
     pairs.map(_._1).foreach(apdb.add)
-    pairs.foreach { case (pair, offset) => obsdb.update(pair, offset, Some(OrderBook.empty.snapshot)) }
+    pairs.foreach { case (pair, offset) => obsdb.update(pair, offset, Some(OrderBook.Snapshot.empty)) }
   }
 
   private def doNothingOnRecovery(x: Either[String, (ActorRef, QueueEventWithMeta.Offset)]): Unit = {}
@@ -473,7 +452,6 @@ class MatcherActorSpecification
 object MatcherActorSpecification {
   private class NothingDoActor extends Actor { override def receive: Receive = Actor.ignoringBehavior }
   private class RecoveringActor(owner: ActorRef, assetPair: AssetPair, startOffset: Option[Long] = None) extends Actor {
-    import context.dispatcher
     context.system.scheduler.scheduleOnce(50.millis, owner, OrderBookRecovered(assetPair, startOffset)) // emulates recovering
     override def receive: Receive = {
       case ForceStartOrderBook(p) if p == assetPair => sender() ! MatcherActor.OrderBookCreated(assetPair)

@@ -1,77 +1,20 @@
 package com.wavesplatform.dex.model
 
-import cats.implicits._
-import com.wavesplatform.account.Address
+import cats.instances.long.catsKernelStdGroupForLong
+import cats.syntax.group._
+import com.wavesplatform.dex.domain.asset.Asset
+import com.wavesplatform.dex.domain.model.Price
+import com.wavesplatform.dex.domain.order.{Order, OrderType}
+import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
 import com.wavesplatform.dex.error
-import com.wavesplatform.dex.error.MatcherError
-import com.wavesplatform.dex.model.MatcherModel.Price
-import com.wavesplatform.state.{Blockchain, Portfolio}
-import com.wavesplatform.transaction.Asset
-import com.wavesplatform.transaction.assets.exchange._
+import com.wavesplatform.dex.fp.MapImplicits.cleaningGroup
 import play.api.libs.json.{JsObject, JsValue, Json}
 
 import scala.math.BigDecimal.RoundingMode
 
 object MatcherModel {
 
-  type Price  = Long
-  type Amount = Long
-
-  def getAssetDecimals(asset: Asset, blockchain: Blockchain): Either[MatcherError, Int] =
-    asset.fold[Either[MatcherError, Int]](Right(8)) { issuedAsset =>
-      blockchain
-        .assetDescription(issuedAsset)
-        .toRight[MatcherError] { error.AssetNotFound(issuedAsset) }
-        .map(_.decimals)
-    }
-
-  def getPairDecimals(pair: AssetPair, blockchain: Blockchain): Either[MatcherError, (Int, Int)] =
-    (getAssetDecimals(pair.amountAsset, blockchain), getAssetDecimals(pair.priceAsset, blockchain)).tupled
-
-  def getCost(amount: Long, price: Long): Long = (BigDecimal(price) * amount / Order.PriceConstant).toLong
-
-  /** Converts amounts, prices and fees from denormalized values (decimal numbers) to normalized ones (longs) */
-  object Normalization {
-
-    def normalizeAmountAndFee(value: Double, assetDecimals: Int): Amount =
-      (BigDecimal(value) * BigDecimal(10).pow(assetDecimals)).toLong
-
-    def normalizePrice(value: Double, amountAssetDecimals: Int, priceAssetDecimals: Int): Price =
-      (BigDecimal(value) * BigDecimal(10).pow(8 + priceAssetDecimals - amountAssetDecimals).toLongExact).toLong
-
-    def normalizePrice(value: Double, pair: AssetPair, decimals: (Int, Int)): Price = {
-      val (amountAssetDecimals, priceAssetDecimals) = decimals
-      normalizePrice(value, amountAssetDecimals, priceAssetDecimals)
-    }
-  }
-
-  /** Converts amounts, prices and fees from normalized values (longs) to denormalized ones (decimal numbers) */
-  object Denormalization {
-
-    def denormalizeAmountAndFee(value: Amount, assetDecimals: Int): Double =
-      (BigDecimal(value) / BigDecimal(10).pow(assetDecimals)).toDouble
-
-    def denormalizeAmountAndFee(value: Amount, asset: Asset, blockchain: Blockchain): Either[MatcherError, Double] =
-      getAssetDecimals(asset, blockchain).map(denormalizeAmountAndFee(value, _))
-
-    def denormalizeAmountAndFeeWithDefault(value: Amount, asset: Asset, blockchain: Blockchain): Double =
-      denormalizeAmountAndFee(value, asset, blockchain).getOrElse { (value / BigDecimal(10).pow(8)).toDouble }
-
-    def denormalizePrice(value: Price, amountAssetDecimals: Int, priceAssetDecimals: Int): Double =
-      (BigDecimal(value) / BigDecimal(10).pow(8 + priceAssetDecimals - amountAssetDecimals).toLongExact).toDouble
-
-    def denormalizePrice(value: Price, pair: AssetPair, decimals: (Int, Int)): Double = {
-      val (amountAssetDecimals, priceAssetDecimals) = decimals
-      denormalizePrice(value, amountAssetDecimals, priceAssetDecimals)
-    }
-
-    def denormalizePrice(value: Price, pair: AssetPair, blockchain: Blockchain): Either[MatcherError, Double] =
-      getPairDecimals(pair, blockchain).map(denormalizePrice(value, pair, _))
-
-    def denormalizePriceWithDefault(value: Price, pair: AssetPair, blockchain: Blockchain): Double =
-      denormalizePrice(value, pair, blockchain).getOrElse { (value / BigDecimal(10).pow(8)).toDouble }
-  }
-
+  def getCost(amount: Long, price: Long): Long                              = (BigDecimal(price) * amount / Order.PriceConstant).toLong
   def correctRateByAssetDecimals(value: Double, assetDecimals: Int): Double = { BigDecimal(value) * BigDecimal(10).pow(assetDecimals - 8) }.toDouble
 
   sealed trait DecimalsFormat
@@ -102,7 +45,9 @@ sealed trait AcceptedOrder {
 
   def spentAsset: Asset = order.getSpendAssetId
   def rcvAsset: Asset   = order.getReceiveAssetId
-  val feeAsset: Asset   = order.matcherFeeAssetId
+  val feeAsset: Asset   = order.feeAsset
+
+  val matcherFee: Long = order.matcherFee
 
   def requiredFee: Price                = if (feeAsset == rcvAsset) (fee - receiveAmount).max(0L) else fee
   def requiredBalance: Map[Asset, Long] = Map(spentAsset -> rawSpentAmount) |+| Map(feeAsset -> requiredFee)
@@ -188,7 +133,7 @@ object AcceptedOrder {
     *
     *     2. Other cases
     *
-    *       A = x
+    *       x = A
     *
     */
   def executedAmount(submitted: AcceptedOrder, counter: LimitOrder): Long = {
@@ -259,8 +204,14 @@ case class SellLimitOrder(amount: Long, fee: Long, order: Order) extends SellOrd
 }
 
 sealed trait MarketOrder extends AcceptedOrder {
+
+  /** Min between tradable balance of the order's owner and required balance of the order by spendable asset */
   val availableForSpending: Long
-  def reservableBalance: Map[Asset, Long] = requiredBalance.updated(order.getSpendAssetId, availableForSpending)
+
+  def reservableBalance: Map[Asset, Long] =
+    if (availableForSpending == 0) requiredBalance - order.getSpendAssetId
+    else requiredBalance.updated(order.getSpendAssetId, availableForSpending)
+
   def partial(amount: Long, fee: Long, availableForSpending: Long): MarketOrder
 }
 
@@ -356,18 +307,23 @@ object Events {
 
   sealed trait Event
 
-  case class OrderExecuted(submitted: AcceptedOrder, counter: LimitOrder, timestamp: Long) extends Event {
+  /**
+    *  In case of dynamic fee settings the following params can be different from the appropriate `acceptedOrder.order.matcherFee`
+    * @param maxSubmittedFee limited by base-taker-fee
+    * @param maxCounterFee limited by base-maker-fee
+    */
+  case class OrderExecuted(submitted: AcceptedOrder, counter: LimitOrder, timestamp: Long, maxSubmittedFee: Long, maxCounterFee: Long) extends Event {
 
     lazy val executedAmount: Long             = AcceptedOrder.executedAmount(submitted, counter)
     lazy val executedAmountOfPriceAsset: Long = MatcherModel.getCost(executedAmount, counter.price)
 
     def counterRemainingAmount: Long = math.max(counter.amount - executedAmount, 0)
-    def counterExecutedFee: Long     = AcceptedOrder.partialFee(counter.order.matcherFee, counter.order.amount, executedAmount)
+    def counterExecutedFee: Long     = AcceptedOrder.partialFee(maxCounterFee, counter.order.amount, executedAmount)
     def counterRemainingFee: Long    = math.max(counter.fee - counterExecutedFee, 0)
     def counterRemaining: LimitOrder = counter.partial(amount = counterRemainingAmount, fee = counterRemainingFee)
 
     def submittedRemainingAmount: Long = math.max(submitted.amount - executedAmount, 0)
-    def submittedExecutedFee: Long     = AcceptedOrder.partialFee(submitted.order.matcherFee, submitted.order.amount, executedAmount)
+    def submittedExecutedFee: Long     = AcceptedOrder.partialFee(maxSubmittedFee, submitted.order.amount, executedAmount)
     def submittedRemainingFee: Long    = math.max(submitted.fee - submittedExecutedFee, 0)
 
     def submittedMarketRemaining(submittedMarketOrder: MarketOrder): MarketOrder = {
@@ -396,13 +352,4 @@ object Events {
   case class OrderCancelFailed(id: Order.Id, reason: error.MatcherError)
 
   case class ExchangeTransactionCreated(tx: ExchangeTransaction)
-
-  case class BalanceChanged(changes: Map[Address, BalanceChanged.Changes]) {
-    def isEmpty: Boolean = changes.isEmpty
-  }
-
-  object BalanceChanged {
-    val empty: BalanceChanged = BalanceChanged(Map.empty)
-    case class Changes(updatedPortfolio: Portfolio, changedAssets: Set[Option[Asset]])
-  }
 }

@@ -1,82 +1,79 @@
 package com.wavesplatform.it.sync
 
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory.parseString
-import com.wavesplatform.account.KeyPair
-import com.wavesplatform.common.state.ByteStr.decodeBase58
+import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.domain.account.KeyPair
+import com.wavesplatform.dex.domain.asset.Asset.Waves
+import com.wavesplatform.dex.domain.asset.AssetPair
+import com.wavesplatform.dex.domain.order.Order
+import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
+import com.wavesplatform.dex.it.api.responses.dex.OrderStatus
+import com.wavesplatform.dex.it.waves.MkWavesEntities.IssueResults
 import com.wavesplatform.it.MatcherSuiteBase
-import com.wavesplatform.it.api.SyncHttpApi._
-import com.wavesplatform.it.api.SyncMatcherHttpApi._
-import com.wavesplatform.it.sync.config.MatcherPriceAssetConfig._
-import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
-import com.wavesplatform.transaction.assets.exchange.AssetPair
-import com.wavesplatform.transaction.assets.exchange.OrderType.{BUY, SELL}
-
-import scala.concurrent.duration._
 
 class RestOrderLimitTestSuite extends MatcherSuiteBase {
-  import RestOrderLimitTestSuite._
-  override protected def nodeConfigs: Seq[Config] = CustomConfigs
 
-  private def activeOrders: Seq[String] = {
-    val activeOrders = node.activeOrderHistory(alice).map(_.id)
-    node.ordersByAddress(alice, activeOnly = true).map(_.id) should equal(activeOrders)
+  override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString("waves.dex.rest-order-limit = 8".stripMargin)
+
+  private def activeOrders: List[Order.Id] = {
+    val activeOrders = dex1.api.orderHistory(alice, activeOnly = Some(true)).map(_.id)
+    dex1.api.orderHistoryWithApiKey(alice, activeOnly = Some(true)).map(_.id) should equal(activeOrders)
     activeOrders
   }
 
-  private def allOrders: Seq[String] = {
-    val allOrders = node.fullOrderHistory(alice).map(_.id)
-    node.ordersByAddress(alice, activeOnly = false).map(_.id) should equal(allOrders)
+  private def allOrders: List[Order.Id] = {
+    val allOrders = dex1.api.orderHistory(alice).map(_.id)
+    dex1.api.orderHistoryWithApiKey(alice, activeOnly = Some(false)).map(_.id) should equal(allOrders)
     allOrders
   }
 
-  private def activeOrdersBy(pair: AssetPair, n: KeyPair = alice): Seq[String] =
-    node.orderHistoryByPair(n, pair, activeOnly = true).map(_.id)
+  private def activeOrdersBy(pair: AssetPair, n: KeyPair = alice): List[Order.Id] =
+    dex1.api.orderHistoryByPair(n, pair, activeOnly = Some(true)).map(_.id)
 
-  private def allOrdersBy(pair: AssetPair, n: KeyPair = alice): Seq[String] = node.orderHistoryByPair(n, pair).map(_.id)
+  private def allOrdersBy(pair: AssetPair, n: KeyPair = alice): List[Order.Id] = dex1.api.orderHistoryByPair(n, pair).map(_.id)
 
   markup("""Test suite checks only Alice's OrderHistory.
-          |Bob places orders only for matching Alice's orders.""".stripMargin)
+           |Bob places orders only for matching Alice's orders.""".stripMargin)
 
   "Order History REST API methods should have limit for orders in response" in {
-    val aliceAsset = node
-      .broadcastIssue(alice, "AliceCoin", "Test", someAssetAmount, 0, reissuable = false, issueFee, None)
-      .id
-    val bobAsset = node
-      .broadcastIssue(bob, "BobCoin", "Test", someAssetAmount, 0, reissuable = false, issueFee, None)
-      .id
-    Seq(aliceAsset, bobAsset).foreach(node.waitForTransaction(_))
+    val now = System.currentTimeMillis()
 
-    val alicePair = AssetPair(IssuedAsset(decodeBase58(aliceAsset).get), Waves)
-    val bobPair   = AssetPair(IssuedAsset(decodeBase58(bobAsset).get), Waves)
+    val IssueResults(issueAliceAssetTx, _, aliceAsset) = mkIssueExtended(alice, "AliceCoin", someAssetAmount, 0)
+    val IssueResults(issueBobAssetTx, _, bobAsset)     = mkIssueExtended(bob, "BobCoin", someAssetAmount, 0)
+
+    broadcastAndAwait(issueAliceAssetTx, issueBobAssetTx)
+
+    val alicePair = AssetPair(aliceAsset, Waves)
+    val bobPair   = AssetPair(bobAsset, Waves)
 
     info("'fullOrderHistory' and 'ordersByAddress' (activeOnly=false) must return no more 'rest-order-limit' orders")
 
-    val active0 = node.placeOrder(alice, alicePair, SELL, 1, 15.TN, matcherFee).message.id
-
-    val active1    = node.placeOrder(alice, alicePair, SELL, 1, 10.TN, matcherFee).message.id
-    val partial1   = node.placeOrder(alice, alicePair, SELL, 2, 9.TN, matcherFee).message.id
-    val filled1    = node.placeOrder(alice, alicePair, SELL, 1, 8.TN, matcherFee).message.id
-    val cancelled1 = node.placeOrder(alice, alicePair, SELL, 1, 11.TN, matcherFee).message.id
-    val active2    = node.placeOrder(alice, bobPair, BUY, 1, 2.TN, matcherFee).message.id
-    val filled2    = node.placeOrder(alice, bobPair, BUY, 1, 4.TN, matcherFee).message.id
-    val partial2   = node.placeOrder(alice, bobPair, BUY, 2, 3.TN, matcherFee).message.id
-    val cancelled2 = node.placeOrder(alice, bobPair, BUY, 1, 2.TN, matcherFee).message.id
+    val active0    = mkOrder(alice, alicePair, SELL, 1, 15.waves, ts = now)
+    val active1    = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 1)
+    val partial1   = mkOrder(alice, alicePair, SELL, 2, 9.waves, ts = now + 2)
+    val filled1    = mkOrder(alice, alicePair, SELL, 1, 8.waves, ts = now + 3)
+    val cancelled1 = mkOrder(alice, alicePair, SELL, 1, 11.waves, ts = now + 4)
+    val active2    = mkOrder(alice, bobPair, BUY, 1, 2.waves, ts = now + 5)
+    val filled2    = mkOrder(alice, bobPair, BUY, 1, 4.waves, ts = now + 6)
+    val partial2   = mkOrder(alice, bobPair, BUY, 2, 3.waves, ts = now + 7)
+    val cancelled2 = mkOrder(alice, bobPair, BUY, 1, 2.waves, ts = now + 8)
+    List(active0, active1, partial1, filled1, cancelled1, active2, filled2, partial2, cancelled2).foreach(dex1.api.place)
 
     // orders for matching Alice's orders
-    node.placeOrder(bob, alicePair, BUY, 1, 8.TN, matcherFee).message.id // fill filled1
-    node.placeOrder(bob, alicePair, BUY, 1, 9.TN, matcherFee).message.id // part fill partial1
-    node.placeOrder(bob, bobPair, SELL, 1, 4.TN, matcherFee).message.id  // fill filled2
-    node.placeOrder(bob, bobPair, SELL, 1, 3.TN, matcherFee).message.id  // part fill partial2
+    List(
+      mkOrder(bob, alicePair, BUY, 1, 8.waves, ts = now + 9), // fill filled1
+      mkOrder(bob, alicePair, BUY, 1, 9.waves, ts = now + 10), // part fill partial1
+      mkOrder(bob, bobPair, SELL, 1, 4.waves, ts = now + 11), // fill filled2
+      mkOrder(bob, bobPair, SELL, 1, 3.waves, ts = now + 12) // part fill partial2
+    ).foreach(dex1.api.place)
 
-    node.cancelOrder(alice, alicePair, cancelled1)
-    node.cancelOrder(alice, alicePair, cancelled2)
-    node.waitOrderStatus(bobPair, cancelled2, "Cancelled", 1.minutes)
+    dex1.api.cancel(alice, cancelled1)
+    dex1.api.cancel(alice, cancelled2)
+    dex1.api.waitForOrderStatus(cancelled2, OrderStatus.Cancelled)
 
-    val activeOrdersAllFive       = Seq(partial2, active2, partial1, active1, active0)
-    val allOrdersExceptTheFilled1 = activeOrdersAllFive ++ Seq(cancelled2, filled2, cancelled1)
-    val activeOrdersByPair        = Seq(partial1, active1, active0)
-    val allOrdersByPair           = activeOrdersByPair ++ Seq(cancelled1, filled1)
+    val activeOrdersAllFive       = Seq(partial2, active2, partial1, active1, active0).map(_.id())
+    val allOrdersExceptTheFilled1 = activeOrdersAllFive ++ Seq(cancelled2, filled2, cancelled1).map(_.id())
+    val activeOrdersByPair        = Seq(partial1, active1, active0).map(_.id())
+    val allOrdersByPair           = activeOrdersByPair ++ Seq(cancelled1, filled1).map(_.id())
 
     activeOrders should equal(activeOrdersAllFive)
     allOrders should equal(allOrdersExceptTheFilled1)
@@ -85,51 +82,65 @@ class RestOrderLimitTestSuite extends MatcherSuiteBase {
 
     info("'fullOrderHistory' and 'ordersByAddress' must return all active orders, even if they are more than the limit")
 
-    val active3 = node.placeOrder(alice, alicePair, SELL, 1, 10.TN, matcherFee).message.id
-    val active4 = node.placeOrder(alice, alicePair, SELL, 1, 10.TN, matcherFee).message.id
-    val active5 = node.placeOrder(alice, bobPair, BUY, 1, 2.TN, matcherFee).message.id
-    val active6 = node.placeOrder(alice, bobPair, BUY, 1, 2.TN, matcherFee).message.id
+    val active3 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 13)
+    val active4 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 14)
+    val active5 = mkOrder(alice, bobPair, BUY, 1, 2.TN, ts = now + 15)
+    val active6 = mkOrder(alice, bobPair, BUY, 1, 2.TN, ts = now + 16)
+    List(active3, active4, active5, active6).foreach(dex1.api.place)
 
-    node.waitOrderStatus(bobPair, active6, "Accepted", 1.minutes)
+    dex1.api.waitForOrderStatus(active6, OrderStatus.Accepted)
 
-    val activeOrdersAllNine          = Seq(active6, active5, active4, active3) ++ activeOrdersAllFive
-    val activeOrdersByPairWithTwoNew = Seq(active4, active3) ++ activeOrdersByPair
-    val allOrdersByPairWithTwoNew    = Seq(active4, active3) ++ allOrdersByPair
+    val activeOrdersAllNine          = Seq(active6, active5, active4, active3).map(_.id()) ++ activeOrdersAllFive
+    val activeOrdersByPairWithTwoNew = Seq(active4, active3).map(_.id()) ++ activeOrdersByPair
+    val allOrdersByPairWithTwoNew    = Seq(active4, active3).map(_.id()) ++ allOrdersByPair
 
-    activeOrders should (equal(allOrders) and equal(activeOrdersAllNine))
+    {
+      val xs = activeOrders
+      xs should equal(allOrders)
+      xs should equal(activeOrdersAllNine)
+    }
+
     activeOrdersBy(alicePair) should equal(activeOrdersByPairWithTwoNew)
     allOrdersBy(alicePair) should equal(allOrdersByPairWithTwoNew)
 
     info("'orderHistoryByPair' must return no more 'rest-order-limit' orders")
 
-    val active7  = node.placeOrder(alice, alicePair, SELL, 1, 9.TN, matcherFee).message.id
-    val active8  = node.placeOrder(alice, alicePair, SELL, 1, 10.TN, matcherFee).message.id
-    val active9  = node.placeOrder(alice, bobPair, BUY, 1, 1.TN, matcherFee).message.id
-    val active10 = node.placeOrder(alice, bobPair, BUY, 1, 1.TN, matcherFee).message.id
+    val active7  = mkOrder(alice, alicePair, SELL, 1, 9.TN, ts = now + 17)
+    val active8  = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 18)
+    val active9  = mkOrder(alice, bobPair, BUY, 1, 1.TN, ts = now + 19)
+    val active10 = mkOrder(alice, bobPair, BUY, 1, 1.TN, ts = now + 20)
+    List(active7, active8, active9, active10).foreach(dex1.api.place)
 
-    node.waitOrderStatus(bobPair, active10, "Accepted", 1.minutes)
+    dex1.api.waitForOrderStatus(active10, OrderStatus.Accepted)
 
-    val activeOrdersAllThirteen               = Seq(active10, active9, active8, active7) ++ activeOrdersAllNine
-    val activeOrdersByPairWithTwoMoreNew      = Seq(active8, active7) ++ activeOrdersByPairWithTwoNew
-    val allOrdersByPairWithTwoNewExceptOneOld = Seq(active8, active7) ++ allOrdersByPairWithTwoNew.dropRight(1)
+    val activeOrdersAllThirteen               = Seq(active10, active9, active8, active7).map(_.id()) ++ activeOrdersAllNine
+    val activeOrdersByPairWithTwoMoreNew      = Seq(active8, active7).map(_.id()) ++ activeOrdersByPairWithTwoNew
+    val allOrdersByPairWithTwoNewExceptOneOld = Seq(active8, active7).map(_.id()) ++ allOrdersByPairWithTwoNew.dropRight(1)
 
-    activeOrders should (equal(allOrders) and equal(activeOrdersAllThirteen))
+    {
+      val xs = activeOrders
+      xs should equal(allOrders)
+      xs should equal(activeOrdersAllThirteen)
+    }
+
     activeOrdersBy(alicePair) should equal(activeOrdersByPairWithTwoMoreNew)
     allOrdersBy(alicePair) should equal(allOrdersByPairWithTwoNewExceptOneOld)
 
     info("all the methods move active orders that were filled")
 
-    node.placeOrder(bob, bobPair, SELL, 1, 3.TN, matcherFee).message.id   // fill partial2
-    node.placeOrder(bob, bobPair, SELL, 2, 2.TN, matcherFee).message.id   // fill active2, active5
-    node.placeOrder(bob, alicePair, BUY, 2, 9.TN, matcherFee).message.id  // fill partial1, active7
-    node.placeOrder(bob, alicePair, BUY, 1, 10.TN, matcherFee).message.id // fill active1
+    List(
+      mkOrder(bob, bobPair, SELL, 1, 3.TN, ts = now + 21), // fill partial2
+      mkOrder(bob, bobPair, SELL, 2, 2.TN, ts = now + 22), // fill active2, active5
+      mkOrder(bob, alicePair, BUY, 2, 9.TN, ts = now + 23), // fill partial1, active7
+      mkOrder(bob, alicePair, BUY, 1, 10.TN, ts = now + 24) // fill active1
+    ).foreach(dex1.api.place)
 
-    node.waitOrderStatus(bobPair, active1, "Filled", 1.minutes)
+    dex1.api.waitForOrderStatus(active1, OrderStatus.Filled)
 
-    val activeOrdersAllSeven            = Seq(active10, active9, active8, active6, active4, active3, active0)
-    val allOrdersWithOneFilled          = activeOrdersAllSeven ++ Seq(active1)
-    val activeOrdersByPairWithTwoFilled = Seq(active8, active4, active3, active0)
-    val allOrdersByPairWithTwoFilled    = activeOrdersByPairWithTwoFilled ++ Seq(active7, cancelled1, partial1, active1)
+    val activeOrdersAllSeven            = Seq(active10, active9, active8, active6, active4, active3, active0).map(_.id())
+    val allOrdersWithOneFilled          = activeOrdersAllSeven ++ Seq(active1).map(_.id())
+    val activeOrdersByPairWithTwoFilled = Seq(active8, active4, active3, active0).map(_.id())
+    val allOrdersByPairWithTwoFilled    = activeOrdersByPairWithTwoFilled ++ Seq(active7, cancelled1, partial1, active1).map(_.id())
 
     activeOrders should equal(activeOrdersAllSeven)
     allOrders should equal(allOrdersWithOneFilled)
@@ -138,30 +149,26 @@ class RestOrderLimitTestSuite extends MatcherSuiteBase {
 
     info("'orderHistoryByPair' must return all active orders, even if they are more than the limit")
 
-    val active11 = node.placeOrder(alice, alicePair, SELL, 1, 10.TN, matcherFee).message.id
-    val active12 = node.placeOrder(alice, alicePair, SELL, 1, 10.TN, matcherFee).message.id
-    val active13 = node.placeOrder(alice, alicePair, SELL, 1, 10.TN, matcherFee).message.id
-    val active14 = node.placeOrder(alice, alicePair, SELL, 1, 10.TN, matcherFee).message.id
-    val active15 = node.placeOrder(alice, alicePair, SELL, 1, 10.TN, matcherFee).message.id
+    val active11 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 25)
+    val active12 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 26)
+    val active13 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 27)
+    val active14 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 28)
+    val active15 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 29)
+    List(active11, active12, active13, active14, active15).foreach(dex1.api.place)
 
-    node.waitOrderStatus(bobPair, active15, "Accepted", 1.minutes)
+    dex1.api.waitForOrderStatus(active15, OrderStatus.Accepted)
 
-    val activeOrdersAllTwelve     = Seq(active15, active14, active13, active12, active11) ++ activeOrdersAllSeven
-    val activeOrdersByPairAllNine = Seq(active15, active14, active13, active12, active11) ++ allOrdersByPairWithTwoFilled.take(4)
+    val activeOrdersAllTwelve     = Seq(active15, active14, active13, active12, active11).map(_.id()) ++ activeOrdersAllSeven
+    val activeOrdersByPairAllNine = Seq(active15, active14, active13, active12, active11).map(_.id()) ++ allOrdersByPairWithTwoFilled.take(4)
 
-    activeOrders should (equal(allOrders) and equal(activeOrdersAllTwelve))
-    activeOrdersBy(alicePair) should (equal(allOrdersBy(alicePair)) and equal(activeOrdersByPairAllNine))
+    activeOrders should equal(allOrders)
+    activeOrders should equal(activeOrdersAllTwelve)
+
+    {
+      val xs = activeOrdersBy(alicePair)
+      xs should equal(allOrdersBy(alicePair))
+      xs should equal(activeOrdersByPairAllNine)
+    }
   }
 
-}
-
-object RestOrderLimitTestSuite {
-  val reducedLimit                            = 8
-  val configWithReducedRestOrderLimit: Config = parseString(s"""
-                                                       |TN.dex {
-                                                       |  rest-order-limit=$reducedLimit
-                                                       |}
-    """.stripMargin)
-
-  val CustomConfigs: Seq[Config] = Configs.map(configWithReducedRestOrderLimit.withFallback(_))
 }

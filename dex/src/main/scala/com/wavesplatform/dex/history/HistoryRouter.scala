@@ -3,22 +3,20 @@ package com.wavesplatform.dex.history
 import java.time.{Instant, LocalDateTime, ZoneOffset}
 
 import akka.actor.{Actor, ActorRef, Props}
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.model.Denormalization
 import com.wavesplatform.dex.history.DBRecords.{EventRecord, OrderRecord, Record}
 import com.wavesplatform.dex.history.HistoryRouter.{SaveEvent, SaveOrder}
 import com.wavesplatform.dex.model.Events.{Event, OrderAdded, OrderCanceled, OrderExecuted}
-import com.wavesplatform.dex.model.MatcherModel.Denormalization
 import com.wavesplatform.dex.model.OrderStatus.Filled
 import com.wavesplatform.dex.model.{AcceptedOrder, OrderStatus}
 import com.wavesplatform.dex.settings.{OrderHistorySettings, PostgresConnection}
-import com.wavesplatform.state.Blockchain
-import com.wavesplatform.transaction.Asset
-import com.wavesplatform.transaction.assets.exchange.AssetPair
 import io.getquill.{PostgresJdbcContext, SnakeCase}
 
 object HistoryRouter {
 
-  def props(blockchain: Blockchain, postgresConnection: PostgresConnection, orderHistorySettings: OrderHistorySettings): Props =
-    Props(new HistoryRouter(blockchain, postgresConnection, orderHistorySettings))
+  def props(assetDecimals: Asset => Int, postgresConnection: PostgresConnection, orderHistorySettings: OrderHistorySettings): Props =
+    Props(new HistoryRouter(assetDecimals, postgresConnection, orderHistorySettings))
 
   val eventTrade, buySide, limitOrderType    = 0: Byte
   val eventCancel, sellSide, marketOrderType = 1: Byte
@@ -30,8 +28,8 @@ object HistoryRouter {
   trait HistoryMsg {
 
     type R <: Record // mapping between domain objects and database rows
-    type DenormalizePrice        = (Long, AssetPair) => Double // how to convert price to the human-readable format
-    type DenormalizeAmountAndFee = (Long, Asset) => Double     // how to convert amount and fee fee to the human-readable format
+    type DenormalizePrice        = (Long, AssetPair) => BigDecimal // how to convert price to the human-readable format
+    type DenormalizeAmountAndFee = (Long, Asset) => BigDecimal     // how to convert amount and fee fee to the human-readable format
 
     protected def createRecords(denormalizeAmountAndFee: DenormalizeAmountAndFee, denormalizePrice: DenormalizePrice): Set[R]
     protected def toLocalDateTime(timestamp: Long): LocalDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
@@ -51,13 +49,13 @@ object HistoryRouter {
           senderPublicKey = order.senderPublicKey.toString,
           amountAssetId = order.assetPair.amountAssetStr,
           priceAssetId = order.assetPair.priceAssetStr,
-          feeAssetId = AssetPair.assetIdStr(order.matcherFeeAssetId),
+          feeAssetId = order.feeAsset.toString,
           side = if (acceptedOrder.isBuyOrder) buySide else sellSide,
           price = denormalizePrice(order.price, order.assetPair),
           amount = denormalizeAmountAndFee(order.amount, order.assetPair.amountAsset),
           timestamp = toLocalDateTime(order.timestamp),
           expiration = toLocalDateTime(order.expiration),
-          fee = denormalizeAmountAndFee(order.matcherFee, order.matcherFeeAssetId),
+          fee = denormalizeAmountAndFee(order.matcherFee, order.feeAsset),
           created = toLocalDateTime(this.timestamp)
         )
       )
@@ -72,7 +70,7 @@ object HistoryRouter {
       this.event match {
         case _: OrderAdded => Set.empty[EventRecord]
 
-        case e @ OrderExecuted(submitted, counter, timestamp) =>
+        case e @ OrderExecuted(submitted, counter, timestamp, _, _) =>
           val assetPair = submitted.order.assetPair
 
           Set(
@@ -87,8 +85,8 @@ object HistoryRouter {
                 price = denormalizePrice(acceptedOrder.order.price, assetPair),
                 filled = denormalizeAmountAndFee(e.executedAmount, assetPair.amountAsset),
                 totalFilled = denormalizeAmountAndFee(acceptedOrder.order.amount - remainingAmount, assetPair.amountAsset),
-                feeFilled = denormalizeAmountAndFee(executedFee, acceptedOrder.order.matcherFeeAssetId),
-                feeTotalFilled = denormalizeAmountAndFee(acceptedOrder.order.matcherFee - remainingFee, acceptedOrder.order.matcherFeeAssetId),
+                feeFilled = denormalizeAmountAndFee(executedFee, acceptedOrder.order.feeAsset),
+                feeTotalFilled = denormalizeAmountAndFee(acceptedOrder.order.matcherFee - remainingFee, acceptedOrder.order.feeAsset),
                 status = if (remainingAmount == 0) statusFilled else statusPartiallyFilled
               )
           }
@@ -104,7 +102,7 @@ object HistoryRouter {
               filled = 0,
               totalFilled = denormalizeAmountAndFee(submitted.order.amount - submitted.amount, assetPair.amountAsset),
               feeFilled = 0,
-              feeTotalFilled = denormalizeAmountAndFee(submitted.order.matcherFee - submitted.fee, submitted.order.matcherFeeAssetId),
+              feeTotalFilled = denormalizeAmountAndFee(submitted.order.matcherFee - submitted.fee, submitted.order.feeAsset),
               status = OrderStatus.finalStatus(submitted, isSystemCancel) match { case _: Filled => statusFilled; case _ => statusCancelled }
             )
           )
@@ -115,13 +113,13 @@ object HistoryRouter {
   final case object StopAccumulate
 }
 
-class HistoryRouter(blockchain: Blockchain, postgresConnection: PostgresConnection, orderHistorySettings: OrderHistorySettings) extends Actor {
+class HistoryRouter(assetDecimals: Asset => Int, postgresConnection: PostgresConnection, orderHistorySettings: OrderHistorySettings) extends Actor {
 
-  private def denormalizeAmountAndFee(value: Long, asset: Asset): Double =
-    Denormalization.denormalizeAmountAndFeeWithDefault(value, asset, blockchain)
+  private def denormalizeAmountAndFee(value: Long, asset: Asset): BigDecimal =
+    Denormalization.denormalizeAmountAndFee(value, assetDecimals(asset))
 
-  private def denormalizePrice(value: Long, pair: AssetPair): Double =
-    Denormalization.denormalizePriceWithDefault(value, pair, blockchain)
+  private def denormalizePrice(value: Long, pair: AssetPair): BigDecimal =
+    Denormalization.denormalizePrice(value, assetDecimals(pair.amountAsset), assetDecimals(pair.priceAsset))
 
   private val ctx = new PostgresJdbcContext(SnakeCase, postgresConnection.getConfig); import ctx._
 
