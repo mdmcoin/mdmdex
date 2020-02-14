@@ -9,18 +9,7 @@ import com.wavesplatform.dex.it.api.responses.dex.{LevelResponse, OrderStatus}
 import com.wavesplatform.dex.it.test.Scripts
 import com.wavesplatform.dex.it.waves.MkWavesEntities.IssueResults
 import com.wavesplatform.it.MatcherSuiteBase
-<<<<<<< HEAD
-import com.wavesplatform.it.api.LevelResponse
-import com.wavesplatform.it.api.SyncHttpApi._
-import com.wavesplatform.it.api.SyncMatcherHttpApi._
-import com.wavesplatform.it.sync.config.MatcherPriceAssetConfig._
-import com.wavesplatform.it._
-import com.wavesplatform.transaction.Asset.IssuedAsset
-import com.wavesplatform.transaction.assets.exchange.{AssetPair, OrderType}
-import com.wavesplatform.transaction.assets.exchange.OrderType.{BUY, SELL}
-=======
 import com.wavesplatform.it.config.DexTestConfig._
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 
 /**
   * BUY orders price:  (1 - p) * best bid <= price <= (1 + l) * best ask
@@ -357,64 +346,21 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
   }
 
   "orders fee is" - {
-<<<<<<< HEAD
-    "in deviation bounds" in {
-      for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
-        val bestAskOrderId =
-          node.placeOrder(alice, assetPair, SELL, 1000.TN, 600000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
-        node.waitOrderStatus(assetPair, bestAskOrderId, expectedStatus = "Accepted")
-        node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.TN, 600000))
-
-        val bobOrderId =
-          node.placeOrder(bob, assetPair, BUY, 1000.TN, 800000, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
-        node.waitOrderStatus(assetPair, bobOrderId, expectedStatus = "Filled")
-
-        val bestBidOrderId =
-          node.placeOrder(bob, assetPair, BUY, 1000.TN, 700000, 3 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
-        node.waitOrderStatus(assetPair, bestBidOrderId, expectedStatus = "Accepted")
-        node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.TN, 700000))
-
-        val aliceOrderId =
-          node.placeOrder(alice, assetPair, SELL, 1000.TN, 600000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
-        node.waitOrderStatus(assetPair, aliceOrderId, expectedStatus = "Filled")
-
-        Array(alice, bob).foreach(sender => node.cancelAllOrders(sender))
-      }
-
-      withClue("in usd") {
-        val bestAskOrderId =
-          node.placeOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 600, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
-        node.waitOrderStatus(wavesUsdPair, bestAskOrderId, expectedStatus = "Accepted")
-        node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.TN, 600))
-
-        val bobOrderId =
-          node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, 800, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
-        node.waitOrderStatus(wavesUsdPair, bobOrderId, expectedStatus = "Filled")
-
-        val bestBidOrderId =
-          node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, 700, 3 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
-        node.waitOrderStatus(wavesUsdPair, bestBidOrderId, expectedStatus = "Accepted")
-        node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.TN, 700))
-
-        val aliceOrderId =
-          node.placeOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
-        node.waitOrderStatus(wavesUsdPair, aliceOrderId, expectedStatus = "Filled")
-=======
     "in deviation bounds" - {
       for (assetPair <- Seq(wavesBtcPair, ethWavesPair, scriptAssetsPair)) s"$assetPair" in {
-        val aliceOrder1 = mkOrder(alice, assetPair, SELL, 1000.waves, 600000, 2 * matcherFee, feeAsset = assetPair.priceAsset)
+        val aliceOrder1 = mkOrder(alice, assetPair, SELL, 1000.TN, 600000, 2 * matcherFee, feeAsset = assetPair.priceAsset)
         placeAndAwaitAtDex(aliceOrder1)
 
-        dex1.api.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.waves, 600000))
+        dex1.api.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.TN, 600000))
 
-        val bobOrder1 = mkOrder(bob, assetPair, BUY, 1000.waves, 800000, 3 * matcherFee, feeAsset = assetPair.priceAsset)
+        val bobOrder1 = mkOrder(bob, assetPair, BUY, 1000.TN, 800000, 3 * matcherFee, feeAsset = assetPair.priceAsset)
         placeAndAwaitAtDex(bobOrder1, OrderStatus.Filled)
 
-        val aliceOrder2 = mkOrder(alice, assetPair, BUY, 1000.waves, 700000, 3 * matcherFee, feeAsset = assetPair.priceAsset)
+        val aliceOrder2 = mkOrder(alice, assetPair, BUY, 1000.TN, 700000, 3 * matcherFee, feeAsset = assetPair.priceAsset)
         placeAndAwaitAtDex(aliceOrder2)
-        dex1.api.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.waves, 700000))
+        dex1.api.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.TN, 700000))
 
-        val bobOrder2 = mkOrder(bob, assetPair, SELL, 1000.waves, 600000, 2 * matcherFee, feeAsset = assetPair.priceAsset)
+        val bobOrder2 = mkOrder(bob, assetPair, SELL, 1000.TN, 600000, 2 * matcherFee, feeAsset = assetPair.priceAsset)
         placeAndAwaitAtDex(bobOrder2, OrderStatus.Filled)
         waitForOrdersAtNode(aliceOrder1, aliceOrder2)
 
@@ -422,126 +368,74 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
       }
 
       s"$wavesUsdPair" in {
-        val bobOrder1 = mkOrder(bob, wavesUsdPair, SELL, 1000.waves, 600, 600, feeAsset = wavesUsdPair.priceAsset)
+        val bobOrder1 = mkOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 600, feeAsset = wavesUsdPair.priceAsset)
         placeAndAwaitAtDex(bobOrder1)
 
-        dex1.api.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.waves, 600))
+        dex1.api.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.TN, 600))
 
-        val aliceOrder1 = mkOrder(alice, wavesUsdPair, BUY, 1000.waves, 800, 3 * 300, feeAsset = wavesUsdPair.priceAsset)
+        val aliceOrder1 = mkOrder(alice, wavesUsdPair, BUY, 1000.TN, 800, 3 * 300, feeAsset = wavesUsdPair.priceAsset)
         placeAndAwaitAtDex(aliceOrder1, OrderStatus.Filled)
 
-        val aliceOrder2 = mkOrder(alice, wavesUsdPair, BUY, 1000.waves, 700, 3 * 300, feeAsset = wavesUsdPair.priceAsset)
+        val aliceOrder2 = mkOrder(alice, wavesUsdPair, BUY, 1000.TN, 700, 3 * 300, feeAsset = wavesUsdPair.priceAsset)
         placeAndAwaitAtDex(aliceOrder2)
-        dex1.api.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.waves, 700))
+        dex1.api.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.TN, 700))
 
-        val bobOrder2 = mkOrder(bob, wavesUsdPair, SELL, 1000.waves, 600, 2 * 300, feeAsset = wavesUsdPair.priceAsset)
+        val bobOrder2 = mkOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 2 * 300, feeAsset = wavesUsdPair.priceAsset)
         placeAndAwaitAtDex(bobOrder2, OrderStatus.Filled)
         waitForOrdersAtNode(bobOrder1, aliceOrder1, aliceOrder2, bobOrder2)
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 
         cancelAll(alice, bob)
       }
     }
 
-<<<<<<< HEAD
-    "out of deviation bounds" in {
-      for (assetPair <- Array(wavesBtcPair, ethWavesPair, scriptAssetsPair)) {
-        val bestAskOrderId =
-          node.placeOrder(alice, assetPair, SELL, 1000.TN, 600000, 2 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
-        node.waitOrderStatus(assetPair, bestAskOrderId, expectedStatus = "Accepted")
-        node.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.TN, 600000))
-
-        assertBadRequestAndMessage(
-          node.placeOrder(bob, assetPair, BUY, 1000.TN, 300000, 359999, version = 3, feeAsset = assetPair.priceAsset).message.id,
-          feeIsOutOfDeviationBounds("0.00359999", assetPair.priceAssetStr, BUY),
-          400
-=======
     "out of deviation bounds" - {
       for (assetPair <- Seq(wavesBtcPair, ethWavesPair, scriptAssetsPair)) s"$assetPair" in {
-        val bestAskOrder = mkOrder(alice, assetPair, SELL, 1000.waves, 600000, 2 * matcherFee, feeAsset = assetPair.priceAsset)
+        val bestAskOrder = mkOrder(alice, assetPair, SELL, 1000.TN, 600000, 2 * matcherFee, feeAsset = assetPair.priceAsset)
         placeAndAwaitAtDex(bestAskOrder)
 
-        dex1.api.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.waves, 600000))
+        dex1.api.orderBook(assetPair).asks shouldBe List(LevelResponse(1000.TN, 600000))
 
-        dex1.api.tryPlace(mkOrder(bob, assetPair, BUY, 1000.waves, 300000, 359999, feeAsset = assetPair.priceAsset)) should failWith(
+        dex1.api.tryPlace(mkOrder(bob, assetPair, BUY, 1000.TN, 300000, 359999, feeAsset = assetPair.priceAsset)) should failWith(
           9441551, // DeviantOrderMatcherFee
           feeIsOutOfDeviationBounds("0.00359999", assetPair.priceAssetStr, BUY)
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
         )
 
-<<<<<<< HEAD
-        val bestBidOrderId =
-          node.placeOrder(bob, assetPair, BUY, 1000.TN, 1200000, 4 * matcherFee, version = 3, feeAsset = assetPair.priceAsset).message.id
-        node.waitOrderStatus(assetPair, bestBidOrderId, expectedStatus = "Accepted")
-        node.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.TN, 1200000))
-
-        assertBadRequestAndMessage(
-          node.placeOrder(alice, assetPair, SELL, 1000.TN, 600000, 719999, version = 3, feeAsset = assetPair.priceAsset).message.id,
-          feeIsOutOfDeviationBounds("0.00719999", assetPair.priceAssetStr, SELL),
-          400
-=======
         dex1.api.cancel(alice, bestAskOrder)
 
-        val bestBidOrder = mkOrder(bob, assetPair, BUY, 1000.waves, 1200000, 4 * matcherFee, feeAsset = assetPair.priceAsset)
+        val bestBidOrder = mkOrder(bob, assetPair, BUY, 1000.TN, 1200000, 4 * matcherFee, feeAsset = assetPair.priceAsset)
         placeAndAwaitAtDex(bestBidOrder)
 
-        dex1.api.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.waves, 1200000))
+        dex1.api.orderBook(assetPair).bids shouldBe List(LevelResponse(1000.TN, 1200000))
 
-        dex1.api.tryPlace(mkOrder(alice, assetPair, SELL, 1000.waves, 600000, 719999, feeAsset = assetPair.priceAsset)) should failWith(
+        dex1.api.tryPlace(mkOrder(alice, assetPair, SELL, 1000.TN, 600000, 719999, feeAsset = assetPair.priceAsset)) should failWith(
           9441551, // DeviantOrderMatcherFee
           feeIsOutOfDeviationBounds("0.00719999", assetPair.priceAssetStr, SELL)
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
         )
 
         cancelAll(alice, bob)
       }
 
-<<<<<<< HEAD
-      withClue("in isd") {
-        val bestAskOrderId =
-          node.placeOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 2 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
-        node.waitOrderStatus(wavesUsdPair, bestAskOrderId, expectedStatus = "Accepted")
-        node.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.TN, 600))
-
-        assertBadRequestAndMessage(
-          node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, 300, 359, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id,
-          feeIsOutOfDeviationBounds("3.59", wavesUsdPair.priceAssetStr, BUY),
-          400
-=======
       s"$wavesUsdPair" in {
-        val bestAskOrder = mkOrder(bob, wavesUsdPair, SELL, 1000.waves, 600, 2 * 300, feeAsset = wavesUsdPair.priceAsset)
+        val bestAskOrder = mkOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 2 * 300, feeAsset = wavesUsdPair.priceAsset)
         placeAndAwaitAtDex(bestAskOrder)
 
-        dex1.api.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.waves, 600))
+        dex1.api.orderBook(wavesUsdPair).asks shouldBe List(LevelResponse(1000.TN, 600))
 
-        dex1.api.tryPlace(mkOrder(alice, wavesUsdPair, BUY, 1000.waves, 300, 359, feeAsset = wavesUsdPair.priceAsset)) should failWith(
+        dex1.api.tryPlace(mkOrder(alice, wavesUsdPair, BUY, 1000.TN, 300, 359, feeAsset = wavesUsdPair.priceAsset)) should failWith(
           9441551, // DeviantOrderMatcherFee
           feeIsOutOfDeviationBounds("3.59", wavesUsdPair.priceAssetStr, BUY)
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
         )
 
-<<<<<<< HEAD
-        val bestBidOrderId =
-          node.placeOrder(alice, wavesUsdPair, BUY, 1000.TN, 1200, 4 * 300, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id
-        node.waitOrderStatus(wavesUsdPair, bestBidOrderId, expectedStatus = "Accepted")
-        node.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.TN, 1200))
-
-        assertBadRequestAndMessage(
-          node.placeOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 719, version = 3, feeAsset = wavesUsdPair.priceAsset).message.id,
-          feeIsOutOfDeviationBounds("7.19", wavesUsdPair.priceAssetStr, SELL),
-          400
-=======
         dex1.api.cancel(bob, bestAskOrder)
 
-        val bestBidOrder = mkOrder(alice, wavesUsdPair, BUY, 1000.waves, 1200, 4 * 300, feeAsset = wavesUsdPair.priceAsset)
+        val bestBidOrder = mkOrder(alice, wavesUsdPair, BUY, 1000.TN, 1200, 4 * 300, feeAsset = wavesUsdPair.priceAsset)
         placeAndAwaitAtDex(bestBidOrder)
 
-        dex1.api.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.waves, 1200))
+        dex1.api.orderBook(wavesUsdPair).bids shouldBe List(LevelResponse(1000.TN, 1200))
 
-        dex1.api.tryPlace(mkOrder(bob, wavesUsdPair, SELL, 1000.waves, 600, 719, feeAsset = wavesUsdPair.priceAsset)) should failWith(
+        dex1.api.tryPlace(mkOrder(bob, wavesUsdPair, SELL, 1000.TN, 600, 719, feeAsset = wavesUsdPair.priceAsset)) should failWith(
           9441551, // DeviantOrderMatcherFee
           feeIsOutOfDeviationBounds("7.19", wavesUsdPair.priceAssetStr, SELL)
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
         )
 
         cancelAll(alice, bob)

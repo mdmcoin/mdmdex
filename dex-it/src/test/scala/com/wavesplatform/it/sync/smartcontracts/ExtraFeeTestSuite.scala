@@ -99,35 +99,18 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
           val matcherInitBalance = wavesNode1.api.balance(matcher, Waves)
 
           val expectedFee = tradeFee + 2 * smartFee + smartFee // 2 x "smart asset" and 1 x "matcher script"
-<<<<<<< HEAD
-          val invalidFee = expectedFee - 1
 
-          node.expectRejectedOrderPlacement(
-            alice,
-            bothSmartPair,
-            SELL,
-            amount,
-            price,
-            invalidFee,
-            2,
-            expectedMessage = Some("Required 0.16 TN as fee for this order, but given 0.15999999 TN")
-=======
           val invalidFee  = expectedFee - 1
 
           dex1.api.tryPlace(mkOrder(alice, bothSmartPair, SELL, amount, price, invalidFee, version = 2)) should failWith(
             9441542, // FeeNotEnough
-            "Required 0.015 WAVES as fee for this order, but given 0.01499999 WAVES"
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
+            "Required 0.015 TN as fee for this order, but given 0.01499999 TN"
           )
 
           placeAndAwaitAtDex(mkOrder(alice, bothSmartPair, SELL, amount, price, expectedFee, version = 2))
 
           info("expected fee should be reserved")
-<<<<<<< HEAD
-          node.reservedBalance(alice)("TN") shouldBe expectedFee
-=======
           dex1.api.reservedBalance(alice)(Waves) shouldBe expectedFee
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 
           val submitted = mkOrder(bob, bothSmartPair, BUY, amount, price, expectedFee, version = 2)
           dex1.api.place(submitted)
@@ -173,90 +156,6 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
       }
 
       withClue("with asset pair with different decimals count") {
-<<<<<<< HEAD
-        val wavesToAssetWith2DecPair = createAssetPair(assetWith2Dec, "TN")
-        val bobWavesBalance          = node.accountBalances(bob.toAddress.toString)._1
-        val bobAssetBalance          = node.assetBalance(bob.toAddress.toString, assetWith2Dec).balance
-        val aliceWavesBalance        = node.accountBalances(alice.toAddress.toString)._1
-        val aliceAssetBalance        = node.assetBalance(alice.toAddress.toString, assetWith2Dec).balance
-
-        assertBadRequestAndMessage(
-          node.placeOrder(
-            sender = bob,
-            pair = wavesToAssetWith2DecPair,
-            orderType = SELL,
-            amount = 10000L,
-            price = 300.waves * 1000000L,
-            fee = 4,
-            version = 3,
-            feeAsset = IssuedAsset(ByteStr(Base58.decode(assetWith2Dec)))
-          ),
-          s"Required 0.05 $assetWith2Dec as fee for this order, but given 0.04 $assetWith2Dec"
-        )
-
-        node.accountBalances(bob.toAddress.toString)._1 shouldBe bobWavesBalance
-        node.assetBalance(bob.toAddress.toString, assetWith2Dec).balance shouldBe bobAssetBalance
-        node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceWavesBalance
-        node.assetBalance(alice.toAddress.toString, assetWith2Dec).balance shouldBe aliceAssetBalance
-
-        val bobOrderId = node
-          .placeOrder(
-            sender = bob,
-            pair = wavesToAssetWith2DecPair,
-            orderType = SELL,
-            amount = 10000L,
-            price = 300.waves * 1000000L,
-            fee = 5,
-            version = 3,
-            feeAsset = IssuedAsset(ByteStr(Base58.decode(assetWith2Dec)))
-          )
-          .message
-          .id
-        node.reservedBalance(bob) shouldBe Map(assetWith2Dec.toString -> 10005L)
-
-        node
-          .placeOrder(
-            sender = alice,
-            pair = wavesToAssetWith2DecPair,
-            orderType = BUY,
-            amount = 20000L,
-            price = 300.waves * 1000000L,
-            fee = 5,
-            version = 3,
-            feeAsset = IssuedAsset(ByteStr(Base58.decode(assetWith2Dec)))
-          )
-          .message
-          .id
-        node.waitOrderInBlockchain(bobOrderId)
-
-        node.reservedBalance(alice) shouldBe Map("TN" -> 300.waves * 100L)
-        node.reservedBalance(bob) shouldBe Map()
-        node.accountBalances(bob.toAddress.toString)._1 shouldBe bobWavesBalance + 300.waves * 100L
-        node.assetBalance(bob.toAddress.toString, assetWith2Dec).balance shouldBe bobAssetBalance - 10005L
-        node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceWavesBalance - 300.waves * 100L
-        node.assetBalance(alice.toAddress.toString, assetWith2Dec).balance shouldBe aliceAssetBalance + 9998L
-
-        val anotherBobOrderId = node
-          .placeOrder(
-            sender = bob,
-            pair = wavesToAssetWith2DecPair,
-            orderType = SELL,
-            amount = 10000L,
-            price = 300.waves * 1000000L,
-            fee = 5,
-            version = 3,
-            feeAsset = IssuedAsset(ByteStr(Base58.decode(assetWith2Dec)))
-          )
-          .message
-          .id
-        node.waitOrderInBlockchain(anotherBobOrderId)
-
-        node.reservedBalance(alice) shouldBe Map()
-        node.accountBalances(bob.toAddress.toString)._1 shouldBe bobWavesBalance + 2 * 300.waves * 100L
-        node.assetBalance(bob.toAddress.toString, assetWith2Dec).balance shouldBe bobAssetBalance - 2 * 10005L
-        node.accountBalances(alice.toAddress.toString)._1 shouldBe aliceWavesBalance - 2 * 300.waves * 100L
-        node.assetBalance(alice.toAddress.toString, assetWith2Dec).balance shouldBe aliceAssetBalance + 2 * 9998L
-=======
 
         dex1.api.upsertRate(assetWith2Dec, 4)
 
@@ -267,7 +166,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         val aliceWavesBalance = wavesNode1.api.balance(alice, Waves)
         val aliceAssetBalance = wavesNode1.api.balance(alice, assetWith2Dec)
 
-        dex1.api.tryPlace(mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 4, feeAsset = assetWith2Dec)) should failWith(
+        dex1.api.tryPlace(mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.TN * 1000000L, 4, feeAsset = assetWith2Dec)) should failWith(
           9441542, // FeeNotEnough
           s"Required 0.05 $assetWith2DecId as fee for this order, but given 0.04 $assetWith2DecId"
         )
@@ -277,32 +176,31 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         wavesNode1.api.balance(alice, Waves) shouldBe aliceWavesBalance
         wavesNode1.api.balance(alice, assetWith2Dec) shouldBe aliceAssetBalance
 
-        val bobOrder = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 5, feeAsset = assetWith2Dec)
+        val bobOrder = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.TN * 1000000L, 5, feeAsset = assetWith2Dec)
         dex1.api.place(bobOrder)
         dex1.api.reservedBalance(bob)(assetWith2Dec) shouldBe 10005L
 
-        val aliceOrder = mkOrder(alice, asset2WithDecWavesPair, BUY, 20000L, 300.waves * 1000000L, 5, feeAsset = assetWith2Dec)
+        val aliceOrder = mkOrder(alice, asset2WithDecWavesPair, BUY, 20000L, 300.TN * 1000000L, 5, feeAsset = assetWith2Dec)
         dex1.api.place(aliceOrder)
         waitForOrderAtNode(bobOrder)
 
-        dex1.api.reservedBalance(alice)(Waves) shouldBe (300.waves * 100L)
+        dex1.api.reservedBalance(alice)(Waves) shouldBe (300.TN * 100L)
         dex1.api.reservedBalance(bob) shouldBe Map()
 
-        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 300.waves * 100L)
+        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 300.TN * 100L)
         wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 10005L)
-        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 300.waves * 100L)
+        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 300.TN * 100L)
         wavesNode1.api.balance(alice, assetWith2Dec) shouldBe (aliceAssetBalance + 9998L)
 
-        val anotherBobOrderId = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 5, assetWith2Dec)
+        val anotherBobOrderId = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.TN * 1000000L, 5, assetWith2Dec)
         dex1.api.place(anotherBobOrderId)
         waitForOrderAtNode(anotherBobOrderId)
 
         dex1.api.reservedBalance(alice) shouldBe Map()
-        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 2 * 300.waves * 100L)
+        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 2 * 300.TN * 100L)
         wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 2 * 10005L)
-        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 2 * 300.waves * 100L)
+        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 2 * 300.TN * 100L)
         wavesNode1.api.balance(alice, assetWith2Dec) shouldBe (aliceAssetBalance + 2 * 9998L)
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
       }
     }
   }

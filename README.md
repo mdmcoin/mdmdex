@@ -368,20 +368,11 @@ waves.dex.rest-api.api-key-hash = "7L6GpLHhA5KyJTAVc8WFHwEcyTY8fC8rRbyMCiFnM4i"
 
 ### Kafka's queue
 
-<<<<<<< HEAD
-### Kafka's queue
-
-=======
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 If all of these points are true:
 
 1. You are using Kafka queue
 2. Have a lot of Place and Cancel requests
-<<<<<<< HEAD
-3. You face an issues when Consumer or Producer can't connect to Kafka
-=======
 3. You face issues when Consumer or Producer can't connect to Kafka
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 
 There are recommendations for the OS-related system the DEX server runs on.
 Note, it is not recommended to change this options if you aren't face the issue.
@@ -400,11 +391,7 @@ Note, it is not recommended to change this options if you aren't face the issue.
     sudo sysctl -p
     ```
 
-<<<<<<< HEAD
-## 12. Contributor notes
-=======
 ## 11. Contributor notes
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 
 ### Branches
 

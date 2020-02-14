@@ -71,10 +71,6 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
       depthRanges = List(1, 5, 333),
       defaultDepth = Some(5)
     )
-<<<<<<< HEAD
-    settings.balanceWatchingBufferInterval should be(33.seconds)
-=======
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
     settings.eventsQueue.tpe shouldBe "kafka"
     settings.eventsQueue.local shouldBe LocalMatcherQueue.Settings(enableStoring = false, 1.day, 99, cleanBeforeConsume = false)
     settings.eventsQueue.kafka.topic shouldBe "some-events"

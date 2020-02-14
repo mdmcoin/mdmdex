@@ -28,11 +28,7 @@ class OrderHistoryStub(system: ActorSystem, time: Time) {
         Props(
           new AddressActor(
             ao.order.sender,
-<<<<<<< HEAD
-            _ => 0L,
-=======
             _ => Future.successful(0L),
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
             time,
             new TestOrderDB(100),
             _ => Future.successful(false),

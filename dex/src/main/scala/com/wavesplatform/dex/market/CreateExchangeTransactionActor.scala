@@ -1,19 +1,11 @@
 package com.wavesplatform.dex.market
 
 import akka.actor.{Actor, Props}
-<<<<<<< HEAD
-import com.wavesplatform.account.Address
-import com.wavesplatform.dex.market.CreateExchangeTransactionActor.OrderExecutedObserved
-import com.wavesplatform.dex.model.Events.{ExchangeTransactionCreated, OrderExecuted}
-import com.wavesplatform.dex.model.ExchangeTransactionCreator.CreateTransaction
-import com.wavesplatform.utils.ScorexLogging
-=======
 import com.wavesplatform.dex.domain.account.Address
 import com.wavesplatform.dex.domain.utils.ScorexLogging
 import com.wavesplatform.dex.market.CreateExchangeTransactionActor.OrderExecutedObserved
 import com.wavesplatform.dex.model.Events.{ExchangeTransactionCreated, OrderExecuted}
 import com.wavesplatform.dex.model.ExchangeTransactionCreator.CreateTransaction
->>>>>>> 0303166a0a72de75548e378e233b25aa0b2f6b9d
 import play.api.libs.json.Json
 
 import scala.collection.mutable
