@@ -27,7 +27,7 @@ class AssetPairBuilderSpec extends AnyFreeSpec with Matchers with MockFactory {
 
   def awaitResult[A](result: FutureResult[A]): Result[A] = Await.result(result.value, Duration.Inf)
 
-  private val WAVES = "TN"
+  private val TN = "TN"
   private val WUSD  = IssuedAsset(ByteStr.decodeBase58("HyFJ3rrq5m7FxdkWtQXkZrDat1F7LjVVGfpSkUuEXQHj").get)
   private val WBTC  = IssuedAsset(ByteStr.decodeBase58("Fmg13HEHJHuZYbtJq8Da8wifJENq8uBxDuWoP9pVe2Qe").get)
   private val WEUR  = IssuedAsset(ByteStr.decodeBase58("2xnE3EdpqXtFgCP156qt1AbyjpqdZ5jGjWo3CwTawcux").get)
