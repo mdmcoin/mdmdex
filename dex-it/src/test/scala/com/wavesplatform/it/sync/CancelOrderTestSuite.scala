@@ -63,7 +63,7 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
   "Order can be canceled" - {
     "After cancelAllOrders all of them should be cancelled" in {
       val accounts = (1 to 20).map(_ => createAccountWithBalance(100000000000L -> None))
-
+    }
     "After cancelAllOrders (200) all of them should be cancelled" in {
       val totalAccounts    = 20
       val ordersPerAccount = 200
