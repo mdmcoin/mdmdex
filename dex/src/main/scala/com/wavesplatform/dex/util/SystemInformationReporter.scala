@@ -14,9 +14,9 @@ object SystemInformationReporter extends ScorexLogging {
       ).foldLeft(ConfigFactory.empty()) { case (r, path) => r.withFallback(resolved.withOnlyPath(path)) }
 
       Seq(
-        "waves.custom.genesis",
-        "waves.wallet",
-        "waves.rest-api.api-key-hash",
+        "TN.custom.genesis",
+        "TN.wallet",
+        "TN.rest-api.api-key-hash",
         "metrics.influx-db",
       ).foldLeft(orig)(_.withoutPath(_))
     }

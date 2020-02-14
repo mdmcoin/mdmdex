@@ -8,7 +8,7 @@ object GenesisConfig {
   val generatorConfig: Config = ConfigFactory.parseResources("genesis.conf")
   val config: Config          = GenesisConfigGenerator.generate(generatorConfig)
 
-  private val requiredChainId = config.getString("waves.blockchain.custom.address-scheme-character").head.toByte
+  private val requiredChainId = config.getString("TN.blockchain.custom.address-scheme-character").head.toByte
 
   def setupAddressScheme(): Unit = {
     if (AddressScheme.current.chainId != requiredChainId)

@@ -15,7 +15,7 @@ import scala.util.{Success, Try}
 case class AssetPair(@(ApiModelProperty @field)(
                        value = "Base58 encoded amount asset id",
                        dataType = "string",
-                       example = "WAVES"
+                       example = "TN"
                      ) amountAsset: Asset,
                      @(ApiModelProperty @field)(
                        value = "Base58 encoded amount price id",

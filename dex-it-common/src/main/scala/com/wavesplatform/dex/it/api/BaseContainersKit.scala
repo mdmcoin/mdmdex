@@ -88,7 +88,7 @@ trait BaseContainersKit extends ScorexLogging {
     def defaultDir =
       Paths.get(System.getProperty("user.dir"), moduleName, "target", "logs", runId, getClass.getSimpleName.replaceAll("""(\w)\w*\.""", "$1."))
 
-    Option { System.getProperty("waves.it.logging.dir") }
+    Option { System.getProperty("TN.it.logging.dir") }
       .map { Paths get _ }
       .getOrElse { defaultDir }
       .unsafeTap { Files.createDirectories(_) }

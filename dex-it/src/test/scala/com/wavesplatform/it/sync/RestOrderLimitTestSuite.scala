@@ -12,7 +12,7 @@ import com.wavesplatform.it.MatcherSuiteBase
 
 class RestOrderLimitTestSuite extends MatcherSuiteBase {
 
-  override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString("waves.dex.rest-order-limit = 8".stripMargin)
+  override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString("TN.dex.rest-order-limit = 8".stripMargin)
 
   private def activeOrders: List[Order.Id] = {
     val activeOrders = dex1.api.orderHistory(alice, activeOnly = Some(true)).map(_.id)

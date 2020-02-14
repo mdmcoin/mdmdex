@@ -15,7 +15,7 @@ object Asset {
   val AssetIdLength: Int       = com.wavesplatform.dex.domain.crypto.DigestSize
   val AssetIdStringLength: Int = base58Length(AssetIdLength)
 
-  val WavesName = "WAVES"
+  val WavesName = "TN"
 
   final case class IssuedAsset(id: ByteStr) extends Asset { override def toString: String = id.base58 }
   final case object Waves                   extends Asset { override def toString: String = WavesName }

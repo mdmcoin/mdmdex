@@ -166,7 +166,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
     "fixed fee mode" - {
 
       "processing market order (SELL)" in {
-        dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"waves.dex.order-fee.-1.mode = $FIXED").withFallback(dexInitialSuiteConfig))
+        dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"TN.dex.order-fee.-1.mode = $FIXED").withFallback(dexInitialSuiteConfig))
 
         testFilledMarketOrder(SELL, FIXED)
       }

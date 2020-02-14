@@ -15,7 +15,7 @@ class RatesTestSuite extends MatcherSuiteBase {
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString(
     s"""TN.dex {
-       |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
+       |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
        |}""".stripMargin
   )
 

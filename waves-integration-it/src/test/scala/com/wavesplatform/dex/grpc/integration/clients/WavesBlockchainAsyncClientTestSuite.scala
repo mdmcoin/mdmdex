@@ -157,7 +157,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
   "broadcastTx" - {
     "returns true if the transaction passed the validation and was added to the UTX pool" in {
-      val pair       = AssetPair.createAssetPair(UsdId.toString, "WAVES").get // TODO
+      val pair       = AssetPair.createAssetPair(UsdId.toString, "TN").get // TODO
       val exchangeTx = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcher = matcher)
 
       wait(client.broadcastTx(exchangeTx)) shouldBe true
@@ -169,7 +169,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
       val executedAmount = 1L
       val executedPrice  = 2 * Order.PriceConstant
-      val pair           = AssetPair.createAssetPair(UsdId.toString, "WAVES").get
+      val pair           = AssetPair.createAssetPair(UsdId.toString, "TN").get
       val fakeBob        = KeyPair("fake-bob".getBytes(StandardCharsets.UTF_8))
 
       val buy  = mkOrder(alice, pair, OrderType.BUY, executedAmount, executedPrice, matcher = matcher)
@@ -266,7 +266,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
       withClue("run script") {
         val now  = System.currentTimeMillis()
-        val pair = AssetPair.createAssetPair(UsdId.toString, "WAVES").get
+        val pair = AssetPair.createAssetPair(UsdId.toString, "TN").get
         val buy  = Order.buy(bob, matcher, pair, 1L, 2 * Order.PriceConstant, now, now + 1.day.toMillis, 0)
 
         wait(client.runScript(receiver, buy)) shouldBe RunScriptResult.Allowed
@@ -306,7 +306,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
     }
 
     "the order was in a forged ExchangeTransaction" in {
-      val pair       = AssetPair.createAssetPair(UsdId.toString, "WAVES").get
+      val pair       = AssetPair.createAssetPair(UsdId.toString, "TN").get
       val exchangeTx = mkExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcher = matcher)
 
       broadcastAndAwait(exchangeTx)

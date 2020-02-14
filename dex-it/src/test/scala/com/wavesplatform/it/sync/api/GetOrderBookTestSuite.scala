@@ -11,7 +11,7 @@ class GetOrderBookTestSuite extends MatcherSuiteBase {
   override protected val dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
       s"""TN.dex {
-         |  price-assets = [ "$UsdId", "WAVES" ]
+         |  price-assets = [ "$UsdId", "TN" ]
          |  allowed-order-versions = [1, 2, 3]
          |  order-book-snapshot-http-cache {
          |    cache-timeout = 5s

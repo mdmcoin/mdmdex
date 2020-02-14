@@ -92,7 +92,7 @@ object MatcherSettings {
       config
         .as[String]("address-scheme-character")
         .headOption
-        .getOrElse(throw new IllegalArgumentException("waves.dex.address-scheme-character is mandatory!"))
+        .getOrElse(throw new IllegalArgumentException("TN.dex.address-scheme-character is mandatory!"))
 
     val accountStorage        = accountStorageSettingsReader.read(config, "account-storage")
     val wavesBlockchainClient = config.as[WavesBlockchainClientSettings]("waves-blockchain-client")

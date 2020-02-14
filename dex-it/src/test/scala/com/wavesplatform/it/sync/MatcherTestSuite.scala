@@ -78,7 +78,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         markets.amountAssetName shouldBe aliceAssetName
         markets.amountAssetInfo shouldBe Some(AssetDecimalsInfo(issueAliceAssetTx.getDecimals))
 
-        markets.priceAssetName shouldBe "WAVES"
+        markets.priceAssetName shouldBe "TN"
         markets.priceAssetInfo shouldBe Some(AssetDecimalsInfo(8))
       }
 

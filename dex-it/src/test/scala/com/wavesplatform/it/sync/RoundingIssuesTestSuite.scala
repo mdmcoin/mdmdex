@@ -9,7 +9,7 @@ import com.wavesplatform.wavesj.transactions.ExchangeTransaction
 
 class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
-  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "$BtcId", "WAVES" ]""")
+  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "$BtcId", "TN" ]""")
 
   override protected def beforeAll(): Unit = {
     wavesNode1.start()

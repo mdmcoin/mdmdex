@@ -4,7 +4,7 @@ import scala.util.control.NonFatal
 
 object Base58 extends BaseXXEncDec {
 
-  private[this] val useSlowBase58: Boolean = sys.props.get("waves.use-slow-base58").exists(s => s.toLowerCase == "true" || s == "1")
+  private[this] val useSlowBase58: Boolean = sys.props.get("TN.use-slow-base58").exists(s => s.toLowerCase == "true" || s == "1")
 
   override val defaultDecodeLimit: Int = 192
 

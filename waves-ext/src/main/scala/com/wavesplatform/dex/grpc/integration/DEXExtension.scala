@@ -38,7 +38,7 @@ class DEXExtension(context: ExtensionContext) extends Extension with ScorexLoggi
     server
   }
 
-  override def start(): Unit = server = startServer(context.settings.config.as[DEXExtensionSettings]("waves.dex.grpc.integration"))
+  override def start(): Unit = server = startServer(context.settings.config.as[DEXExtensionSettings]("TN.dex.grpc.integration"))
 
   override def shutdown(): Future[Unit] = {
     log.info("Shutting down gRPC DEX extension")
