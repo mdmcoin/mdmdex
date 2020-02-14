@@ -50,7 +50,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
         defaultCachesExpiration = 101.millis
       )
     )
-    settings.exchangeTxBaseFee should be(300000)
+    settings.exchangeTxBaseFee should be(4000000)
     settings.actorResponseTimeout should be(11.seconds)
     settings.snapshotsInterval should be(999)
     settings.snapshotsLoadingTimeout should be(423.seconds)
