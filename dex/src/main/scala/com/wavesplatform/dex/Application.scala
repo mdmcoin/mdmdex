@@ -74,7 +74,7 @@ object Application {
 
     config.getConfig(scalaContextPath).toProperties.asScala.foreach { case (k, v) => System.setProperty(s"$scalaContextPath.$k", v) }
 
-    val settings = config.as[MatcherSettings]("waves.dex")(MatcherSettings.valueReader)
+    val settings = config.as[MatcherSettings]("TN.dex")(MatcherSettings.valueReader)
 
     // Initialize global var with actual address scheme
     AddressScheme.current = new AddressScheme { override val chainId: Byte = settings.addressSchemeCharacter.toByte }

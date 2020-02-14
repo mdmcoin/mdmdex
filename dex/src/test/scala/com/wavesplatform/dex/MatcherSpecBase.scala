@@ -134,7 +134,7 @@ trait MatcherSpecBase extends NTPTime with DiffMatcherWithImplicits with DoubleO
   private val maxTimeGen: Gen[Long]     = Gen.choose(10000L, Order.MaxLiveTime).map(_ + System.currentTimeMillis())
   private val createdTimeGen: Gen[Long] = Gen.choose(0L, 10000L).map(System.currentTimeMillis() - _)
 
-  protected val matcherSettings: MatcherSettings = loadConfig(None).as[MatcherSettings]("waves.dex")
+  protected val matcherSettings: MatcherSettings = loadConfig(None).as[MatcherSettings]("TN.dex")
 
   protected def randomBytes(howMany: Int = 32): Array[Byte] = {
     val r = new Array[Byte](howMany)
