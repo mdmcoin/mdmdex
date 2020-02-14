@@ -50,9 +50,9 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
         if (artifactsToDownload.isEmpty) log.info("Waves Node artifacts have been cached")
         else {
           log.info("Opening releases page...")
-          val r = Http.http.run(Request("https://api.github.com/repos/wavesplatform/Waves/releases")).map {
+          val r = Http.http.run(Request("https://api.github.com/repos/BlackTurtle123/TurtleNetwork/releases")).map {
             releasesContent =>
-              log.info(s"Looking for Waves Node $version...")
+              log.info(s"Looking for TN Node $version...")
               getFilesToDownload(releasesContent.bodyAsString, version, _ => artifactsToDownload).map { rawUrl =>
                 val url        = new URL(rawUrl)
                 val fileName   = url.getPath.split('/').last
