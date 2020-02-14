@@ -16,7 +16,7 @@ class MatcherMassOrdersTestSuite extends MatcherSuiteBase {
   private val orderLimit = 10
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
+    s"""TN.dex {
        |  rest-order-limit = $orderLimit
        |  price-assets = [ "$UsdId", "WAVES" ]
        |}""".stripMargin

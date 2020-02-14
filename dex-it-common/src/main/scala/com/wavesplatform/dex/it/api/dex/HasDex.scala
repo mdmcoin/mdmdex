@@ -25,7 +25,7 @@ trait HasDex { self: BaseContainersKit =>
 
   protected def dexQueueConfig(queueId: Int): Config = {
     Option { System.getenv("KAFKA_SERVER") }.fold { ConfigFactory.empty() } { kafkaServer =>
-      ConfigFactory.parseString(s"""waves.dex.events-queue {
+      ConfigFactory.parseString(s"""TN.dex.events-queue {
                                    |  type = kafka
                                    |  kafka {
                                    |    servers = "$kafkaServer"

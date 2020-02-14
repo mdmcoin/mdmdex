@@ -112,7 +112,7 @@ object GenesisConfigGenerator {
       )
 
     ConfigFactory.parseString(
-      s"""waves.blockchain.custom {
+      s"""TN.blockchain.custom {
          |  address-scheme-character = "${generatorSettings.chainId.toChar}"
          |  genesis {
          |    timestamp: ${settings.timestamp}

@@ -12,7 +12,7 @@ import scala.math.BigDecimal.RoundingMode
 
 class TradeBalanceAndRoundingTestSuite extends MatcherSuiteBase {
 
-  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""waves.dex.price-assets = [ "$UsdId", "WAVES" ]""")
+  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "WAVES" ]""")
 
   override protected def beforeAll(): Unit = {
     wavesNode1.start()

@@ -15,8 +15,8 @@ class NetworkIssuesTestSuite extends MatcherSuiteBase with HasToxiProxy {
   private val wavesNodeProxy: ContainerProxy = mkToxiProxy(WavesNodeContainer.netAlias, WavesNodeContainer.dexGrpcExtensionPort)
 
   override protected def dexInitialSuiteConfig: Config = {
-    ConfigFactory.parseString(s"""waves.dex {
-                                 |  price-assets = [ "$UsdId", "WAVES" ]
+    ConfigFactory.parseString(s"""TN.dex {
+                                 |  price-assets = [ "$UsdId", "TN" ]
                                  |  waves-blockchain-client.grpc.target = "$toxiProxyHostName:${getInnerToxiProxyPort(wavesNodeProxy)}"
                                  |}""".stripMargin)
   }

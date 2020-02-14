@@ -35,7 +35,7 @@ class OrdersFromScriptedAssetTestSuite extends MatcherSuiteBase {
       )
 
   override protected val dexInitialSuiteConfig: Config =
-    ConfigFactory.parseString(s"""waves.dex.price-assets = ["${allowAsset.id}", "${denyAsset.id}", "${unscriptedAsset.id}"]""")
+    ConfigFactory.parseString(s"""TN.dex.price-assets = ["${allowAsset.id}", "${denyAsset.id}", "${unscriptedAsset.id}"]""")
 
   override protected def beforeAll(): Unit = {
     wavesNode1.start()
