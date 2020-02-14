@@ -16,7 +16,7 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString(
     s"""
-       |waves.dex {
+       |TN.dex {
        |  price-assets = [ "$UsdId", "WAVES" ]
        |  order-fee.-1 {
        |    mode = dynamic
@@ -126,8 +126,8 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
     dex1.restartWithNewSuiteConfig(
       ConfigFactory.parseString(
         s"""
-           |waves.dex {
-           |  price-assets = [ "$UsdId", "WAVES" ]
+           |TN.dex {
+           |  price-assets = [ "$UsdId", "TN" ]
            |  order-fee {
            |    -1: {
            |      mode = dynamic

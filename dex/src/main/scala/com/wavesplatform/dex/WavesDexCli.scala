@@ -142,7 +142,7 @@ object WavesDexCli {
               println(s"""Saved the seed to '$accountFile'.
                          |Don't forget to update your settings:
                          |
-                         |waves.dex {
+                         |TN.dex {
                          |  account-storage {
                          |    type = "encrypted-file"
                          |    encrypted-file {
@@ -171,7 +171,7 @@ object WavesDexCli {
                 s"""Your API Key: $hashedApiKey
                    |Don't forget to update your settings:
                    |
-                   |waves.dex.rest-api.api-key-hash = "$hashedApiKey"
+                   |TN.dex.rest-api.api-key-hash = "$hashedApiKey"
                    |""".stripMargin)
           }
           println("Done")

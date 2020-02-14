@@ -272,7 +272,7 @@ class TradersTestSuite extends MatcherSuiteBase {
 
       wavesNode1.restartWithNewSuiteConfig(
         ConfigFactory.parseString(
-          s"""waves.miner {
+          s"""TN.miner {
              |  micro-block-interval = 11171ms            # 10 times more than usual one
              |  minimal-block-generation-offset = 31871ms # 10 times more than usual one
              |}""".stripMargin
