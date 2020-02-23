@@ -256,13 +256,13 @@ class OrderValidatorSpecification
           * fee should be >= base fee * 10 pow (fee asset decimals - 8) * rate, ceiling round mode
           */
         withClue("Fee in USD (2 decimals) should be >= 0.02.usd\n") {
-          val order = createOrder(wavesUsdPair, OrderType.BUY, 100.TN, price = 3, matcherFee = 0.3.usd, feeAsset = usd)
+          val order = createOrder(wavesUsdPair, OrderType.BUY, 100.TN, price = 3, matcherFee = 0.02.usd, feeAsset = usd)
           validateByDynamicSettings { order } shouldBe 'right
           validateByDynamicSettings { order.updateFee(0.01.usd) } should produce("FeeNotEnough")
         }
 
         withClue("Fee in BTC (8 decimals) should be >= 0.00000034.btc\n") {
-          val order = createOrder(wavesBtcPair, OrderType.BUY, 100.TN, price = 0.00011162, matcherFee = 0.0000034.btc, feeAsset = btc)
+          val order = createOrder(wavesBtcPair, OrderType.BUY, 100.TN, price = 0.00011162, matcherFee = 0.00000034.btc, feeAsset = btc)
           validateByDynamicSettings { order } shouldBe 'right
           validateByDynamicSettings { order.updateFee(0.00000033.btc) } should produce("FeeNotEnough")
         }
