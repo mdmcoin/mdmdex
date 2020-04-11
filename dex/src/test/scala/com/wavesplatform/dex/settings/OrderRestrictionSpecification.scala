@@ -116,8 +116,8 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
 
     withClue("incorrect pair and step amount") {
       getSettingByConfig(configStr(incorrectPairAndStepAmount)) should produce(
-        "Invalid setting order-restrictions value: Can't parse asset pair 'ETH-;;;', " +
-          "Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value)"
+        "Invalid setting order-restrictions value: Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value), " +
+          "Can't parse asset pair 'ETH-;;;'"
       )
     }
 
@@ -137,9 +137,9 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
       """.stripMargin
     withClue("incorrect step amount, pair and min-amount in incorrect pair") {
       getSettingByConfig(configStr(someIncorrectValues)) should produce(
-        "Invalid setting order-restrictions value: Can't parse asset pair 'ETH-;;;', " +
-          "Invalid setting order-restrictions.ETH-;;;.min-amount value: -0.05 (required 0 < value), " +
-          "Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value)"
+        "Invalid setting order-restrictions value: Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value), " +
+          "Can't parse asset pair 'ETH-;;;', " +
+          "Invalid setting order-restrictions.ETH-;;;.min-amount value: -0.05 (required 0 < value)"
       )
     }
   }
