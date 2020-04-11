@@ -283,7 +283,7 @@ class AddressActor(owner: Address,
   private def getTradableBalance(forAssets: Set[Asset]): Future[Map[Asset, Long]] = {
     Future
       .traverse(forAssets)(asset => spendableBalance(asset) tupleLeft asset)
-      .map(_.toMap |-| openVolume)
+      .map(xs => (xs.toMap |-| openVolume).withDefaultValue(0L))
   }
 
   private def scheduleExpiration(order: Order): Unit = if (enableSchedules && !expiration.contains(order.id())) {
@@ -377,7 +377,7 @@ class AddressActor(owner: Address,
       }
       .onComplete {
         case Success(Some(error)) => self ! Event.StoreFailed(orderId, error)
-        case Success(None)        => log.trace(s"Order $orderId saved")
+        case Success(None)        => log.trace(s"$event saved")
         case _                    => throw new IllegalStateException("Impossibru")
       }
 
