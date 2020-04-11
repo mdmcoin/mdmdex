@@ -44,12 +44,6 @@ class WavesBlockchainCachingClient(underlying: WavesBlockchainClient[Future], de
   }
 
   override def spendableBalance(address: Address, asset: Asset): Future[Long] = balancesCache.get(address -> asset).map(_.toLong)
-
-  override def allAssetsSpendableBalance(address: Address): Future[Map[Asset, Long]] = underlying.allAssetsSpendableBalance(address) andThen {
-    case Success(bs) => balancesCache.batchPut(Map(address -> bs))
-    case Failure(t)  => log.error("Cannot update balance cache!", t)
-  }
-
   override def isFeatureActivated(id: Short): Future[Boolean]                                           = featuresCache.get(id) map Boolean2boolean
   override def assetDescription(asset: Asset.IssuedAsset): Future[Option[BriefAssetDescription]]        = assetDescriptionsCache.get(asset)
   override def hasScript(asset: Asset.IssuedAsset): Future[Boolean]                                     = underlying.hasScript(asset)

@@ -21,7 +21,6 @@ trait WavesBlockchainClient[F[_]] {
 
   def spendableBalanceChanges: Observable[SpendableBalanceChanges]
   def spendableBalance(address: Address, asset: Asset): F[Long]
-  def allAssetsSpendableBalance(address: Address): F[Map[Asset, Long]]
 
   def isFeatureActivated(id: Short): F[Boolean]
 
