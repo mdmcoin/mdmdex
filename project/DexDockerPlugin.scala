@@ -12,7 +12,7 @@ object DexDockerPlugin extends AutoPlugin {
   override def projectSettings: Seq[Def.Setting[_]] =
     inTask(docker)(
       Seq(
-        imageNames := Seq(ImageName("com.wavesplatform/waves-dex:latest")),
+        imageNames := Seq(ImageName("turtlenetwork/waves-dex:latest")),
         additionalFiles := Seq.empty,
         exposedPorts := Set(
           6886, // REST API

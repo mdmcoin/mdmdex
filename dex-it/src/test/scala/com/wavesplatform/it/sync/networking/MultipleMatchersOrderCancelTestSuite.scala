@@ -18,7 +18,7 @@ import org.scalatest
 @DexItKafkaRequired
 class MultipleMatchersOrderCancelTestSuite extends MatcherSuiteBase {
 
-  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""waves.dex.price-assets = [ "$UsdId", "WAVES" ]""".stripMargin)
+  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "WAVES" ]""".stripMargin)
 
   protected lazy val dex2: DexContainer = createDex("dex-2")
 
@@ -40,7 +40,7 @@ class MultipleMatchersOrderCancelTestSuite extends MatcherSuiteBase {
             s"Alice doesn't have enough balance in ${issuedAsset.toString} to make a transfer"
           )
         }
-        broadcastAndAwait { mkTransfer(alice, account, balance, asset, 0.003.waves) }
+        broadcastAndAwait { mkTransfer(alice, account, balance, asset, 0.003.TN) }
     }
     account
   }
@@ -55,11 +55,11 @@ class MultipleMatchersOrderCancelTestSuite extends MatcherSuiteBase {
     */
   "Tricky case when DEX-1 is slower than DEX-2 and it leads to order cancelling on DEX-1" in {
 
-    val acc1 = createAccountWithBalance(15.015.waves -> Waves)
-    val acc2 = createAccountWithBalance(0.015.waves  -> Waves, 15.usd -> usd)
+    val acc1 = createAccountWithBalance(15.015.TN -> Waves)
+    val acc2 = createAccountWithBalance(0.015.TN  -> Waves, 15.usd -> usd)
 
     val sellOrders = (1 to 5).map { amt =>
-      mkOrderDP(acc1, wavesUsdPair, OrderType.SELL, amt.waves, amt)
+      mkOrderDP(acc1, wavesUsdPair, OrderType.SELL, amt.TN, amt)
     }
 
     sellOrders.foreach { placeAndAwaitAtDex(_) }
@@ -72,7 +72,7 @@ class MultipleMatchersOrderCancelTestSuite extends MatcherSuiteBase {
     dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"TN.dex.events-queue.type = local").withFallback(dexInitialSuiteConfig))
 
     (1 to 3).foreach { amt =>
-      val order = mkOrderDP(acc2, wavesUsdPair, OrderType.BUY, amt.waves, amt)
+      val order = mkOrderDP(acc2, wavesUsdPair, OrderType.BUY, amt.TN, amt)
       dex2.api.place(order)
       dex2.api.waitForOrderStatus(order, OrderStatus.Filled)
     }

@@ -45,7 +45,7 @@ object ExtensionPackaging extends AutoPlugin {
       ),
       classpathOrdering ++= {
         val jar = """(.+)[-_]([\d\.]+.*)\.jar""".r
-        val inDeb = filesInDeb((Compile / unmanagedBase).value / s"TN${wavesNodeVersion.value}_all.deb")
+        val inDeb = filesInDeb((Compile / unmanagedBase).value / s"TN_${wavesNodeVersion.value}_all.deb")
           .filter(x => x.endsWith(".jar") && x.startsWith("./usr/share/waves/lib"))
           .map(_.split('/').last)
           .map {

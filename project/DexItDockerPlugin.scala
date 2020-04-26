@@ -17,7 +17,7 @@ object DexItDockerPlugin extends AutoPlugin {
       Seq(
         additionalFiles := Seq.empty,
         exposedPorts := Set(6886),
-        baseImage := "com.wavesplatform/waves-dex:latest",
+        baseImage := "turtlenetwork/waves-dex:latest",
         dockerfile := {
           new Dockerfile {
             from(baseImage.value)
