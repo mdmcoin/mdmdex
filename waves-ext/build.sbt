@@ -1,13 +1,9 @@
 description := "Node integration extension for the Waves DEX"
 
-import VersionSourcePlugin.V
 import WavesNodeArtifactsPlugin.autoImport.wavesNodeVersion
 import com.typesafe.sbt.SbtNativePackager.Universal
 
-enablePlugins(WavesExtensionDockerPlugin, RunApplicationSettings, WavesNodeArtifactsPlugin, ExtensionPackaging, GitVersioning, VersionSourcePlugin)
-
-V.scalaPackage := "com.wavesplatform.dex.grpc.integration"
-V.subProject := "ext"
+enablePlugins(RunApplicationSettings, WavesNodeArtifactsPlugin, ExtensionPackaging, GitVersioning)
 
 resolvers += "dnvriend" at "https://dl.bintray.com/dnvriend/maven"
 libraryDependencies ++= Dependencies.Module.wavesExt
@@ -21,11 +17,36 @@ val packageSettings = Seq(
 packageSettings
 inScope(Global)(packageSettings)
 
-inConfig(Compile)(
-  Seq(
-    unmanagedJars := (Compile / unmanagedJars).dependsOn(downloadWavesNodeArtifacts).value
+lazy val versionSourceTask = Def.task {
+
+  val versionFile      = sourceManaged.value / "com" / "wavesplatform" / "dex" / "grpc" / "integration" / "Version.scala"
+  val versionExtractor = """(\d+)\.(\d+)\.(\d+).*""".r
+
+  val (major, minor, patch) = version.value match {
+    case versionExtractor(ma, mi, pa) => (ma.toInt, mi.toInt, pa.toInt)
+    case x                            =>
+      // SBT downloads only the latest commit, so "version" doesn't know, which tag is the nearest
+      if (Option(System.getenv("TRAVIS")).fold(false)(_.toBoolean)) (0, 0, 0)
+      else throw new IllegalStateException(s"ext: can't parse version by git tag: $x")
+  }
+
+  IO.write(
+    versionFile,
+    s"""package com.wavesplatform.dex.grpc.integration
+       |
+       |object Version {
+       |  val VersionString = "${version.value}"
+       |  val VersionTuple = ($major, $minor, $patch)
+       |}
+       |""".stripMargin
   )
-)
+  Seq(versionFile)
+}
+
+inConfig(Compile)(Seq(
+  sourceGenerators += versionSourceTask,
+  unmanagedJars := (Compile / unmanagedJars).dependsOn(downloadWavesNodeArtifacts).value
+))
 
 // Packaging
 executableScriptName := "waves-dex-extension"
@@ -46,7 +67,7 @@ Runtime / dependencyClasspath := {
 // ZIP archive
 inConfig(Universal)(
   Seq(
-    packageName := s"waves-dex-extension-${version.value}", // An archive file name
+    packageName := s"TN-dex-extension-${version.value}", // An archive file name
     mappings ++= sbt.IO
       .listFiles((Compile / packageSource).value / "doc")
       .map { file =>
@@ -59,7 +80,7 @@ inConfig(Universal)(
 
 // DEB package
 inConfig(Linux)(Seq(
-  name := s"waves-dex-extension${network.value.packageSuffix}", // A staging directory name
+  name := s"TN-dex-extension${network.value.packageSuffix}", // A staging directory name
   normalizedName := name.value, // An archive file name
   packageName := name.value // In a control file
 ))

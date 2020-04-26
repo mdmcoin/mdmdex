@@ -447,7 +447,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
 
   "Market order creation is possible when spenadable balance is equal to reservable" in {
 
-    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"waves.dex.order-fee.-1.mode = $DYNAMIC").withFallback(dexInitialSuiteConfig))
+    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"TN.dex.order-fee.-1.mode = $DYNAMIC").withFallback(dexInitialSuiteConfig))
 
     val carol = KeyPair("carol".getBytes)
 

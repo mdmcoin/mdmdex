@@ -73,7 +73,7 @@ executableScriptName := "waves-dex"
 // ZIP archive and mappings for all artifacts
 inConfig(Universal)(
   Seq(
-    packageName := s"waves-dex-${version.value}", // An archive file name
+    packageName := s"TN-dex-${version.value}", // An archive file name
     // Common JVM parameters
     // -J prefix is required by a parser
     javaOptions ++= Seq(

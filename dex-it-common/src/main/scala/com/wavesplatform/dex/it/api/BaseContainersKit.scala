@@ -30,7 +30,7 @@ trait BaseContainersKit extends ScorexLogging {
 
   private val networkSeed           = Random.nextInt(0x100000) << 4 | 0x0A000000 // a random network in 10.x.x.x range
   private val networkPrefix         = s"${InetAddress.getByAddress(toByteArray(networkSeed)).getHostAddress}/28" // 10.x.x.x/28 network will accommodate up to 13 nodes
-  protected val networkName: String = s"waves-${Random.nextInt(Int.MaxValue)}"
+  protected val networkName: String = s"TN-${Random.nextInt(Int.MaxValue)}"
   protected val network: NetworkImpl = Network
     .builder()
     .createNetworkCmdModifier { cmd: CreateNetworkCmd =>

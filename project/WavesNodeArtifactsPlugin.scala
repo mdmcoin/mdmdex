@@ -25,7 +25,7 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
       val version = wavesNodeVersion.value
       val filesToRemove = IO.listFiles(unmanagedBase.value).filter { x =>
         val name = x.getName
-        name.startsWith("waves") && !name.contains(version)
+        name.startsWith("TN") && !name.contains(version)
       }
 
       filesToRemove.foreach(_.delete())
@@ -37,7 +37,7 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
       val log       = streams.value.log
 
       val unmanagedJarsToDownload = artifactNames(version).filterNot(x => (targetDir / x).isFile)
-      if (unmanagedJarsToDownload.isEmpty) log.info("Waves Node artifacts have been downloaded")
+      if (unmanagedJarsToDownload.isEmpty) log.info("TN Node artifacts have been downloaded")
       else {
         val cacheDir = wavesArtifactsCacheDir.value
         cacheDir.mkdirs()
@@ -47,7 +47,7 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
           IO.copyFile(cacheDir / x, targetDir / x)
         }
 
-        if (artifactsToDownload.isEmpty) log.info("Waves Node artifacts have been cached")
+        if (artifactsToDownload.isEmpty) log.info("TN Node artifacts have been cached")
         else {
           log.info("Opening releases page...")
           val r = Http.http.run(Request("https://api.github.com/repos/BlackTurtle123/TurtleNetwork/releases")).map {
@@ -75,7 +75,7 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
     downloadWavesNodeArtifacts := downloadWavesNodeArtifacts.dependsOn(cleanupWavesNodeArtifacts).value
   )
 
-  private def artifactNames(version: String): List[String] = List(s"waves-all-$version.jar", s"waves_${version}_all.deb")
+  private def artifactNames(version: String): List[String] = List(s"TN-all-$version.jar", s"TN_${version}_all.deb")
 
   /**
     * @param toDownload version => file names to download
@@ -114,7 +114,7 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
 trait WavesNodeArtifactsKeys {
   // Useful for CI
   val wavesArtifactsCacheDir     = settingKey[File]("Where cached artifacts are stored")
-  val wavesNodeVersion           = settingKey[String]("Waves Node version without 'v'")
+  val wavesNodeVersion           = settingKey[String]("TN Node version without 'v'")
   val cleanupWavesNodeArtifacts  = taskKey[Seq[File]]("Removes stale artifacts")
-  val downloadWavesNodeArtifacts = taskKey[Unit]("Downloads Waves Node artifacts to unmanagedBase")
+  val downloadWavesNodeArtifacts = taskKey[Unit]("Downloads TN Node artifacts to unmanagedBase")
 }

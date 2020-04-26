@@ -69,7 +69,7 @@ class MultipleMatchersOrderCancelTestSuite extends MatcherSuiteBase {
     // (which were caused by exchange transactions from DEX-2)
 
     dex1.api.saveSnapshots
-    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"waves.dex.events-queue.type = local").withFallback(dexInitialSuiteConfig))
+    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"TN.dex.events-queue.type = local").withFallback(dexInitialSuiteConfig))
 
     (1 to 3).foreach { amt =>
       val order = mkOrderDP(acc2, wavesUsdPair, OrderType.BUY, amt.waves, amt)
