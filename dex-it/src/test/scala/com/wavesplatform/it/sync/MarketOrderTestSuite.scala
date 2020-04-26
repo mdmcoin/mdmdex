@@ -451,14 +451,14 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
 
     val carol = KeyPair("carol".getBytes)
 
-    broadcastAndAwait(mkTransfer(alice, carol, 10.waves, Waves))
+    broadcastAndAwait(mkTransfer(alice, carol, 10.TN, Waves))
 
-    val order1 = mkOrderDP(carol, wavesUsdPair, SELL, 9.997.waves, 3.0, ttl = 1.day)
-    val order2 = mkOrderDP(carol, wavesUsdPair, SELL, 9.997.waves, 3.0, ttl = 2.days)
+    val order1 = mkOrderDP(carol, wavesUsdPair, SELL, 9.997.TN, 3.0, ttl = 1.day)
+    val order2 = mkOrderDP(carol, wavesUsdPair, SELL, 9.997.TN, 3.0, ttl = 2.days)
 
     dex1.api.place(order1)
-    dex1.api.reservedBalance(carol) should matchTo(Map[Asset, Long](Waves -> 10.waves))
-    wavesNode1.api.balance(carol, Waves) shouldBe 10.waves
+    dex1.api.reservedBalance(carol) should matchTo(Map[Asset, Long](Waves -> 10.TN))
+    wavesNode1.api.balance(carol, Waves) shouldBe 10.TN
 
     dex1.api.tryPlaceMarket(order2) should failWith(
       3147270,
