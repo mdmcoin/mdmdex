@@ -23,47 +23,14 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "$BtcId", "TN" ]""")
 
-  // micro-block-interval and balance-watching-buffer-interval to reproduce an auto cancel issue
-  // snapshots-interval - snapshots should not affect this test
-  override protected def nodeConfigs: Seq[Config] = super.nodeConfigs.map {
-    ConfigFactory
-      .parseString(
-        s"""TN {
-           |  miner.micro-block-interval = 3s
-           |  dex {
-           |    snapshots-interval = 100000
-           |    balance-watching-buffer-interval = 100ms
-           |  }
-           |}""".stripMargin
-      )
-      .withFallback
-  }
-
   override protected def beforeAll(): Unit = {
     wavesNode1.start()
     broadcastAndAwait(IssueUsdTx, IssueBtcTx)
     dex1.start()
   }
 
-  def createAccountWithBalance(balances: (Long, Option[String])*): KeyPair = {
-    val account = KeyPair(ByteStr(s"account-test-${ThreadLocalRandom.current().nextLong()}".getBytes(StandardCharsets.UTF_8)))
-
-    balances.foreach {
-      case (balance, asset) =>
-        if (asset.isDefined)
-          assert(
-            node.assetBalance(alice.toAddress.toString, asset.get.toString).balance >= balance,
-            s"Alice doesn't have enough balance in ${asset.get.toString} to make a transfer"
-          )
-        node.waitForTransaction(node.broadcastTransfer(alice, account.toAddress.toString, balance, 300000L, asset, None).id)
-    }
-    account
-  }
-
   "Order can be canceled" - {
-    "After cancelAllOrders all of them should be cancelled" in {
-      val accounts = (1 to 20).map(_ => createAccountWithBalance(100000000000L -> None))
-    }
+
     "After cancelAllOrders (200) all of them should be cancelled" in {
       val totalAccounts    = 20
       val ordersPerAccount = 200
