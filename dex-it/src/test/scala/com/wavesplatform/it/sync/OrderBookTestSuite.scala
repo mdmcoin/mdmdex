@@ -92,9 +92,9 @@ class OrderBookTestSuite extends MatcherSuiteBase {
     "reserved balances should be released for the pair" in {
       val (aliceReservedBalances, bobReservedBalances) = (reservedBalancesOf(alice), reservedBalancesOf(bob))
       aliceReservedBalances.usd shouldBe 0
-      aliceReservedBalances.waves shouldBe (aliceRBForBothPairs.waves - aliceRBForOnePair.TN)
+      aliceReservedBalances.waves shouldBe (aliceRBForBothPairs.waves - aliceRBForOnePair.waves)
       bobReservedBalances.wct shouldBe (bobRBForBothPairs.wct - bobRBForOnePair.wct)
-      bobReservedBalances.waves shouldBe (bobRBForBothPairs.waves - bobRBForOnePair.TN)
+      bobReservedBalances.waves shouldBe (bobRBForBothPairs.waves - bobRBForOnePair.waves)
     }
 
     "it should not affect other pairs and their orders" in {

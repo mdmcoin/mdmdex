@@ -72,7 +72,7 @@ object WavesNodeContainer extends ScorexLogging {
                                 ec: ExecutionContext): WavesNodeContainer = {
 
     val underlying = GenericContainer(
-      dockerImage = "com.wavesplatform/waves-integration-it:latest",
+      dockerImage = "turtlenetwork/waves-integration-it:latest",
       exposedPorts = List(restApiPort, networkPort, dexGrpcExtensionPort),
       env = getEnv(name, internalIp),
       waitStrategy = ignoreWaitStrategy

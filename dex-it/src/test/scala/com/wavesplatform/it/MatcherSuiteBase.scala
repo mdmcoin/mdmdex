@@ -66,6 +66,4 @@ trait MatcherSuiteBase
     cleanupWebSockets()
     super.afterAll()
   }
-
-  private def kafkaServer: Option[String] = Option(System.getenv("KAFKA_SERVER"))
 }
