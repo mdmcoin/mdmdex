@@ -51,14 +51,14 @@ final case class WavesNodeContainer(override val internalIp: String, underlying:
 
 object WavesNodeContainer extends ScorexLogging {
 
-  private val baseContainerPath: String = "/opt/waves"
+  private val baseContainerPath: String = "/opt/TN"
   private val containerLogsPath: String = s"$baseContainerPath/logs"
 
-  private val restApiPort: Int  = 6869 // application.conf waves.rest-api.port
-  private val networkPort: Int  = 6863 // application.conf waves.network.port
+  private val restApiPort: Int  = 6861 // application.conf waves.rest-api.port
+  private val networkPort: Int  = 6860 // application.conf waves.network.port
   val dexGrpcExtensionPort: Int = 6887 // application.conf waves.dex.grpc.integration.port
 
-  val netAlias: String = "waves.nodes"
+  val netAlias: String = "TN.nodes"
 
   def apply(name: String,
             networkName: String,
@@ -113,7 +113,7 @@ object WavesNodeContainer extends ScorexLogging {
       s"-Djava.util.logging.config.file=$baseContainerPath/jul.properties",
       s"-Dlogback.configurationFile=$baseContainerPath/logback-container.xml",
       s"-Dlogback.brief.fullPath=$containerLogsPath/container-$containerName.log",
-      s"-Dwaves.network.declared-address=$ip:6883"
+      s"-TN.network.declared-address=$ip:6883"
     ).mkString(" ", " ", " ")
   )
 }

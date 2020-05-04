@@ -29,7 +29,7 @@ class DEXExtension(context: ExtensionContext) extends Extension with ScorexLoggi
   )
 
   override def start(): Unit = {
-    val settings    = context.settings.config.as[DEXExtensionSettings]("waves.dex.grpc.integration")
+    val settings    = context.settings.config.as[DEXExtensionSettings]("TN.dex.grpc.integration")
     val bindAddress = new InetSocketAddress(settings.host, settings.port)
     apiService = new WavesBlockchainApiGrpcService(context, settings.balanceChangesBatchLinger)
     server = NettyServerBuilder

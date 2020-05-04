@@ -249,7 +249,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
       withClue("run script") {
         val pair       = AssetPair.createAssetPair(toVanilla(issueTx.getId).toString, "TN").get
-        val exchangeTx = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcherFee = 1.waves, matcher = matcher)
+        val exchangeTx = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcherFee = 1.TN, matcher = matcher)
 
         wait(client.runScript(IssuedAsset(issueTx.getId), exchangeTx)) shouldBe RunScriptResult.Allowed
       }
@@ -288,27 +288,6 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
   "spendableBalance" in {
     wait(client.spendableBalance(bob, Waves)) shouldBe 494994798999996L
     wait(client.spendableBalance(bob, randomIssuedAsset)) shouldBe 0L
-  }
-
-  "allAssetsSpendableBalance" in {
-
-    val carol = mkKeyPair("carol")
-
-    broadcastAndAwait(
-      mkTransfer(bob, carol, 10.TN, Waves),
-      mkTransfer(alice, carol, 1.usd, usd),
-      mkTransfer(bob, carol, 1.btc, btc)
-    )
-
-    wavesNode1.api.broadcast(mkTransfer(carol, bob, 1.TN, Waves))
-
-    wait(client allAssetsSpendableBalance carol) should matchTo(
-      Map[Asset, Long](
-        Waves -> (10.TN - 1.TN - minFee),
-        usd   -> 1.usd,
-        btc   -> 1.btc
-      )
-    )
   }
 
   "forgedOrder" - {

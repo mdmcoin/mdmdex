@@ -18,7 +18,7 @@ object WavesExtensionDockerPlugin extends AutoPlugin {
       Seq(
         additionalFiles := Seq.empty,
         exposedPorts := Set.empty,
-        baseImage := s"wavesplatform/wavesnode:${wavesNodeVersion.value}",
+        baseImage := s"turtlenetwork/tnnode:${wavesNodeVersion.value}",
         dockerfile := {
           new Dockerfile {
             from(baseImage.value)
