@@ -398,8 +398,8 @@ class OrderBookActorSpecification
       val makerTakerFeeAtOffset = Fee.getMakerTakerFeeByOffset(
         new OrderFeeSettingsCache(
           Map(
-            0L -> DynamicSettings(0.001.waves, 0.003.waves),
-            1L -> DynamicSettings(0.001.waves, 0.005.waves)
+            0L -> DynamicSettings(0.001.TN, 0.003.TN),
+            1L -> DynamicSettings(0.001.TN, 0.005.TN)
           ))) _
 
       obcTestWithPrepare(prepare = (_, _) => (), makerTakerFeeAtOffset = makerTakerFeeAtOffset) { (pair, orderBook, tp) =>
@@ -407,17 +407,17 @@ class OrderBookActorSpecification
         val now = System.currentTimeMillis()
 
         // place when order fee settings is DynamicSettings(0.001.waves, 0.003.waves)
-        val maker1 = sell(wavesUsdPair, 10.waves, 3.00, matcherFee = 0.003.waves.some, ts = now.some)
+        val maker1 = sell(wavesUsdPair, 10.TN, 3.00, matcherFee = 0.04.TN.some, ts = now.some)
         orderBook ! wrapLimitOrder(0, maker1)
 
         // place when order fee settings is DynamicSettings(0.001.waves, 0.005.waves)
-        val taker1 = buy(wavesUsdPair, 10.waves, 3.00, matcherFee = 0.005.waves.some, ts = now.some)
+        val taker1 = buy(wavesUsdPair, 10.TN, 3.00, matcherFee = 0.05.TN.some, ts = now.some)
         orderBook ! wrapLimitOrder(1, taker1)
         tp.expectMsgType[OrderAdded]
 
         val oe = tp.expectMsgType[OrderExecuted]
-        oe.counterExecutedFee shouldBe 0.0006.waves
-        oe.submittedExecutedFee shouldBe 0.005.waves
+        oe.counterExecutedFee shouldBe 0.006.TN
+        oe.submittedExecutedFee shouldBe 0.005.TN
       }
     }
 

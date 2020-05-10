@@ -50,7 +50,7 @@ class FeeSpecification
         val denormalizedCounterAmounts  = countersAmounts.map(Denormalization.denormalizeAmountAndFee(_, 8))
 
         // taker / maker -> maker / taker
-        val getFee = Fee.getMakerTakerFee(OrderFeeSettings.DynamicSettings(0.003.waves, 0.006.waves)) _
+        val getFee = Fee.getMakerTakerFee(OrderFeeSettings.DynamicSettings(0.04.TN, 0.08.TN)) _
 
         s"S: $submittedType $submittedDenormalizedAmount, C: ${denormalizedCounterAmounts.mkString("[", ", ", "]")}" in {
           counterOrders
@@ -87,23 +87,23 @@ class FeeSpecification
         */
       (1 to 2).foreach { v =>
         s"submitted order version is $v" when {
-          test(BUY, 100.waves, submittedFee = 1, orderVersion = v)(100.waves)(1)
-          test(BUY, 100.waves, submittedFee = 1, orderVersion = v)(99.99999999.waves)(0)
-          test(BUY, 100.waves, submittedFee = 1, orderVersion = v)(50.waves, 50.waves)(0, 0)
-          test(BUY, 100.waves, submittedFee = 1, orderVersion = v)(1.waves, 120.waves)(0, 0)
-          test(SELL, 100.waves, submittedFee = 5, orderVersion = v)(2.waves, 500.waves)(0, 4)
-          test(SELL, 100.waves, submittedFee = 5, orderVersion = v)(2.waves, 50.waves)(0, 2)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(100.TN)(1)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(99.99999999.TN)(0)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(50.TN, 50.TN)(0, 0)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(1.TN, 120.TN)(0, 0)
+          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 500.TN)(0, 4)
+          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 50.TN)(0, 2)
         }
       }
 
       (3 to 3).foreach { v =>
         s"submitted order version is $v" when {
-          test(BUY, 100.waves, submittedFee = 1, orderVersion = v)(100.waves)(1)
-          test(BUY, 100.waves, submittedFee = 1, orderVersion = v)(99.99999999.waves)(1)
-          test(BUY, 100.waves, submittedFee = 1, orderVersion = v)(50.waves, 50.waves)(1, 0)
-          test(BUY, 100.waves, submittedFee = 1, orderVersion = v)(1.waves, 120.waves)(1, 0)
-          test(SELL, 100.waves, submittedFee = 5, orderVersion = v)(2.waves, 500.waves)(1, 4)
-          test(SELL, 100.waves, submittedFee = 5, orderVersion = v)(2.waves, 50.waves)(1, 2)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(100.TN)(1)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(99.99999999.TN)(1)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(50.TN, 50.TN)(1, 0)
+          test(BUY, 100.TN, submittedFee = 1, orderVersion = v)(1.TN, 120.TN)(1, 0)
+          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 500.TN)(1, 4)
+          test(SELL, 100.TN, submittedFee = 5, orderVersion = v)(2.TN, 50.TN)(1, 2)
         }
       }
     }
@@ -116,7 +116,7 @@ class FeeSpecification
         val feeSettings          = DynamicSettings.symmetric(300000L)
         val (makerFee, takerFee) = Fee.getMakerTakerFee(feeSettings)(submitted, counter)
 
-        takerFee shouldBe 0.003.waves
+        takerFee shouldBe 0.04.TN
         makerFee shouldBe 0L
       }
     }
