@@ -12,7 +12,7 @@ import akka.util.Timeout
 import com.google.common.primitives.Longs
 import com.wavesplatform.dex.Matcher.StoreEvent
 import com.wavesplatform.dex._
-import com.wavesplatform.dex.api.http.{ApiRoute, AuthRoute, PlayJsonException, SwaggerDocService}
+import com.wavesplatform.dex.api.http._
 import com.wavesplatform.dex.caches.RateCache
 import com.wavesplatform.dex.domain.account.{Address, PublicKey}
 import com.wavesplatform.dex.domain.asset.Asset.Waves
@@ -81,6 +81,7 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
   private val placeTimer = timer.refine("action" -> "place")
 
   private def invalidJsonResponse(fields: List[String] = Nil): StandardRoute = complete { InvalidJsonResponse(error.InvalidJson(fields)) }
+  private val invalidUserPublicKey: StandardRoute                            = complete { SimpleErrorResponse(StatusCodes.Forbidden, error.UserPublicKeyIsNotValid) }
 
   private val invalidJsonParsingRejectionsHandler =
     server.RejectionHandler
@@ -108,7 +109,7 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
           handleRejections(invalidJsonParsingRejectionsHandler) {
             getOrderBook ~ marketStatus ~ placeLimitOrder ~ placeMarketOrder ~ getAssetPairAndPublicKeyOrderHistory ~ getPublicKeyOrderHistory ~
               getAllOrderHistory ~ tradableBalance ~ reservedBalance ~ orderStatus ~
-              historyDelete ~ cancel ~ cancelAll ~ orderbooks ~ orderBookDelete ~ getTransactionsByOrder ~ forceCancelOrder ~
+              historyDelete ~ cancel ~ cancelAll ~ cancelAllById ~ orderbooks ~ orderBookDelete ~ getTransactionsByOrder ~ forceCancelOrder ~
               upsertRate ~ deleteRate ~ saveSnapshots
           }
         }
@@ -219,9 +220,11 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
         SimpleResponse(
           StatusCodes.OK,
           Json.obj(
-            "priceAssets"   -> matcherSettings.priceAssets,
-            "orderFee"      -> getActualOrderFeeSettings().getJson(matcherAccountFee, rateCache.getJson).value,
-            "orderVersions" -> allowedOrderVersions.toSeq.sorted
+            "matcherPublicKey" -> matcherPublicKey,
+            "priceAssets"      -> matcherSettings.priceAssets,
+            "orderFee"         -> getActualOrderFeeSettings().getJson(matcherAccountFee, rateCache.getJson).value,
+            "orderVersions"    -> allowedOrderVersions.toSeq.sorted,
+            "networkByte"      -> matcherSettings.addressSchemeCharacter.toInt
           )
         )
       }
@@ -321,7 +324,7 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
   )
   def getOrderBook: Route = (path("orderbook" / AssetPairPM) & get) { p =>
     parameters('depth.as[Int].?) { depth =>
-      withAssetPair(p, redirectToInverse = true) { pair =>
+      withAssetPair(p, redirectToInverse = true, depth.fold("")(d => s"?depth=$d")) { pair =>
         complete { orderBookSnapshot.get(pair, depth) }
       }
     }
@@ -515,6 +518,37 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
     handleCancelRequest(None)
   }
 
+  @Path("/orders/{address}/cancel")
+  @ApiOperation(
+    value = "Cancel active orders by IDs",
+    httpMethod = "POST",
+    authorizations = Array(new Authorization(SwaggerDocService.apiKeyDefinitionName)),
+    produces = "application/json",
+    consumes = "application/json",
+    response = classOf[Any]
+  )
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "address", value = "Address", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(
+        name = "body",
+        value = "Json array with order ids",
+        required = true,
+        paramType = "body",
+        dataTypeClass = classOf[Array[String]]
+      ),
+    )
+  )
+  def cancelAllById: Route = (path("orders" / AddressPM / "cancel") & post & withAuth & withUserPublicKeyOpt) { (address, userPublicKey) =>
+    userPublicKey match {
+      case Some(upk) if upk.toAddress != address => invalidUserPublicKey
+      case _ =>
+        entity(as[Set[ByteStr]]) { xs =>
+          complete { askAddressActor(address, AddressActor.Command.CancelOrders(xs)) }
+        }
+    }
+  }
+
   @Path("/orderbook/{amountAsset}/{priceAsset}/delete")
   @Deprecated
   @ApiOperation(
@@ -652,13 +686,23 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
   )
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "orderId", value = "Order Id", required = true, dataType = "string", paramType = "path")
+      new ApiImplicitParam(name = "orderId", value = "Order Id", required = true, dataType = "string", paramType = "path"),
+      new ApiImplicitParam(
+        name = `X-User-Public-Key`.headerName,
+        value = "User's public key",
+        required = false,
+        dataType = "string",
+        paramType = "header",
+        defaultValue = ""
+      ),
     )
   )
-  def forceCancelOrder: Route = (path("orders" / "cancel" / ByteStrPM) & post & withAuth) { orderId =>
-    DBUtils.order(db, orderId) match {
-      case Some(order) => handleCancelRequest(None, order.sender, Some(orderId), None)
-      case None        => complete(OrderCancelRejected(error.OrderNotFound(orderId)))
+  def forceCancelOrder: Route = (path("orders" / "cancel" / ByteStrPM) & post & withAuth & withUserPublicKeyOpt) { (orderId, userPublicKey) =>
+    def reject = complete(OrderCancelRejected(error.OrderNotFound(orderId)))
+    (DBUtils.order(db, orderId), userPublicKey) match {
+      case (None, _)                                                         => reject
+      case (Some(order), Some(pk)) if pk.toAddress != order.sender.toAddress => reject
+      case (Some(order), _)                                                  => handleCancelRequest(None, order.sender, Some(orderId), None)
     }
   }
 
@@ -683,9 +727,13 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
       ),
     )
   )
-  def getAllOrderHistory: Route = (path("orders" / AddressPM) & get & withAuth) { address =>
-    parameters('activeOnly.as[Boolean].?) { activeOnly =>
-      loadOrders(address, None, activeOnly.getOrElse(true))
+  def getAllOrderHistory: Route = (path("orders" / AddressPM) & get & withAuth & withUserPublicKeyOpt) { (address, userPublicKey) =>
+    userPublicKey match {
+      case Some(upk) if upk.toAddress != address => invalidUserPublicKey
+      case _ =>
+        parameters('activeOnly.as[Boolean].?) { activeOnly =>
+          loadOrders(address, None, activeOnly.getOrElse(true))
+        }
     }
   }
 
@@ -732,12 +780,14 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
     )
   )
   def reservedBalance: Route = (path("balance" / "reserved" / PublicKeyPM) & get) { publicKey =>
-    signedGet(publicKey) {
-      complete {
-        askMapAddressActor[AddressActor.Reply.Balance](publicKey, AddressActor.Query.GetReservedBalance) { r =>
-          stringifyAssetIds(r.balance)
+    (signedGet(publicKey).tmap(_ => Option.empty[PublicKey]) | (withAuth & withUserPublicKeyOpt)) {
+      case Some(upk) if upk != publicKey => invalidUserPublicKey
+      case _ =>
+        complete {
+          askMapAddressActor[AddressActor.Reply.Balance](publicKey, AddressActor.Query.GetReservedBalance) { r =>
+            stringifyAssetIds(r.balance)
+          }
         }
-      }
     }
   }
 

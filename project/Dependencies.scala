@@ -12,7 +12,7 @@ object Dependencies {
     val scalaCheck         = "1.14.3"
     val scalaTestPlusCheck = "3.1.0.1"
     val scalaMock          = "4.4.0"
-    val diffx              = "0.3.16"
+    val diffx              = "0.3.19"
 
     val cats              = "2.0.0"
     val catsTaglessMacros = "0.11"
@@ -46,6 +46,7 @@ object Dependencies {
 
     val testContainers          = "0.35.2"
     val testContainersPostgres  = "1.12.5"
+    val testContainersKafka     = "1.13.0"
     val testContainersToxiProxy = "1.12.5"
 
     val jackson  = "2.10.0"
@@ -135,7 +136,8 @@ object Dependencies {
 
   private val testContainers: Seq[ModuleID] = Seq(
     "com.dimafeng"       %% "testcontainers-scala" % Version.testContainers,
-    "org.testcontainers" % "postgresql"            % Version.testContainersPostgres
+    "org.testcontainers" % "postgresql"            % Version.testContainersPostgres,
+    "org.testcontainers" % "kafka"                 % Version.testContainersKafka
   )
 
   private val testKit: Seq[ModuleID] = Seq(

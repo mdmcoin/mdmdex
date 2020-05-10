@@ -1,8 +1,11 @@
 package com.wavesplatform.it.sync.networking
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.order.OrderType
+import com.wavesplatform.dex.domain.order.OrderType.SELL
 import com.wavesplatform.dex.it.api.HasToxiProxy
+import com.wavesplatform.dex.it.api.responses.dex.OrderStatus
 import com.wavesplatform.dex.it.docker.WavesNodeContainer
 import com.wavesplatform.it.MatcherSuiteBase
 import com.wavesplatform.it.tags.NetworkTests
@@ -76,6 +79,42 @@ class NetworkIssuesTestSuite extends MatcherSuiteBase with HasToxiProxy {
       makeAndMatchOrders()
       matchingShouldBeSuccess()
     }
+  }
+
+  "DEXClient should connect to another node from pool if linked node had lost the connection to network " in {
+
+   val conf = ConfigFactory.parseString(s"""waves.dex {
+                                 |  price-assets = [ "$UsdId", "WAVES" ]
+                                 |  waves-blockchain-client.grpc.target = "${WavesNodeContainer.netAlias}:${WavesNodeContainer.dexGrpcExtensionPort}"
+                                 |}""".stripMargin)
+
+    dex1.restartWithNewSuiteConfig(conf)
+
+    val account = createAccountWithBalance(5.004.waves -> Waves)
+
+    markup("Place order")
+    val order = mkOrder(account, wavesUsdPair, SELL, 5.waves, 5.usd)
+    placeAndAwaitAtDex(order)
+
+    markup("Up node 2")
+    wavesNode2.start()
+    wavesNode2.api.connect(wavesNode1.networkAddress)
+    wavesNode2.api.waitForConnectedPeer(wavesNode1.networkAddress)
+
+    wavesNode2.api.waitForHeight(wavesNode1.api.currentHeight)
+    wavesNode2.api.waitForTransaction(IssueUsdTx)
+
+    wavesNode1.disconnectFromNetwork()
+
+    Thread.sleep(25000) // waiting for dex's grpc connection to node-2
+
+    broadcastAndAwait(wavesNode2.api, mkTransfer(account, bob, amount = 4.waves, asset = Waves))
+
+    markup("Now DEX receives balances stream from the node 2 and cancels order")
+    dex1.api.waitForOrderStatus(order, OrderStatus.Cancelled)
+
+    markup("Place order")
+    placeAndAwaitAtDex(mkOrder(account, wavesUsdPair, SELL, 1.waves, 5.usd))
   }
 
   private def clearOrderBook(): Unit = {

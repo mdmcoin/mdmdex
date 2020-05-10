@@ -1,14 +1,12 @@
 package com.wavesplatform.it.sync
 
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
 
 import com.typesafe.config.{Config, ConfigFactory}
 import com.wavesplatform.dex.domain.account.KeyPair
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.AssetPair
-import com.wavesplatform.dex.domain.bytes.ByteStr
-import com.wavesplatform.dex.domain.order.OrderType
+import com.wavesplatform.dex.domain.order.{Order, OrderType}
 import com.wavesplatform.dex.it.api.responses.dex.OrderStatus
 import com.wavesplatform.dex.it.time.GlobalTimer
 import com.wavesplatform.dex.it.time.GlobalTimer.TimerOpsImplicits
@@ -23,54 +21,26 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "$BtcId", "TN" ]""")
 
+  private var knownAccounts = List(alice, bob)
+
   override protected def beforeAll(): Unit = {
     wavesNode1.start()
     broadcastAndAwait(IssueUsdTx, IssueBtcTx)
     dex1.start()
   }
 
-  "Order can be canceled" - {
+  override protected def beforeEach(): Unit = {
+    super.beforeEach()
 
-    "After cancelAllOrders (200) all of them should be cancelled" in {
-      val totalAccounts    = 20
-      val ordersPerAccount = 200
-
-      val accounts = (1 to totalAccounts).map(i => KeyPair(ByteStr(s"account-test-$i".getBytes(StandardCharsets.UTF_8)))).toList
-      broadcastAndAwait(mkMassTransfer(alice, Waves, accounts.map(account => new Transfer(account.toAddress, 1000.TN))))
-
-      def place(account: KeyPair, startPrice: Long, numOrders: Int): Future[Unit] = {
-        val futures = (1 to numOrders).map { i =>
-          dex1.asyncApi.place(mkOrder(account, wavesUsdPair, OrderType.SELL, 1.TN, startPrice + i)) // version 2
-        }
-
-        Future.sequence(futures).map(_ => ())
-      }
-
-      Await.ready(
-        for {
-          _ <- {
-            val pairs = accounts.zipWithIndex.map { case (account, i) => (account, (i + 1) * 1000) }
-            Future.inSeries(pairs)(Function.tupled(place(_, _, ordersPerAccount)))
-          }
-          _ <- Future.traverse(accounts) { account =>
-            dex1.asyncApi.orderHistoryByPair(account, wavesUsdPair).map { orders =>
-              withClue(s"account $account: ") {
-                orders.size shouldBe ordersPerAccount
-              }
-            }
-          }
-          _ <- Future.traverse(accounts)(dex1.asyncApi.cancelAll(_))
-        } yield (),
-        5.minutes
-      )
-
-      eventually {
-        val orderBook = dex1.api.orderBook(wavesUsdPair)
-        orderBook.bids should be(empty)
-        orderBook.asks should be(empty)
-      }
+    knownAccounts.foreach(dex1.api.cancelAll(_))
+    eventually {
+      val orderBook = dex1.api.orderBook(wavesUsdPair)
+      orderBook.bids shouldBe empty
+      orderBook.asks shouldBe empty
     }
+  }
 
+  "Order can be canceled" - {
     "by sender" in {
       val order = mkBobOrder
       placeAndAwaitAtDex(order)
@@ -83,20 +53,77 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
       }
     }
 
-    "with API key" in {
-      val order = mkBobOrder
-      placeAndAwaitAtDex(order)
+    "array of orders could be cancelled with API key" in {
+      val acc = createAccountWithBalance(100.TN -> Waves)
+      knownAccounts = acc :: knownAccounts
 
-      dex1.api.cancelWithApiKey(order)
-      dex1.api.waitForOrderStatus(order, OrderStatus.Cancelled)
+      val ids = for { i <- 1 to 10 } yield {
+        val o = mkOrder(acc, wavesUsdPair, OrderType.SELL, i.TN, 100 + i)
+        placeAndAwaitAtDex(o)
+        o.id.value
+      }
 
-      dex1.api.orderHistory(bob).find(_.id == order.id()).get.status shouldBe OrderStatus.Cancelled
+      dex1.api.cancelAllByIdsWithApiKey(acc, ids.toSet)
 
-      dex1.api.orderHistoryByPair(bob, wavesUsdPair).find(_.id == order.id()).get.status shouldBe OrderStatus.Cancelled
+      ids.map(dex1.api.waitForOrderStatus(wavesUsdPair, _, OrderStatus.Cancelled))
+    }
 
-      val orderBook = dex1.api.orderBook(wavesUsdPair)
-      orderBook.bids shouldBe empty
-      orderBook.asks shouldBe empty
+    "only owners orders should be cancelled with API key if one of them from another owner" in {
+      val acc = createAccountWithBalance(100.TN -> Waves)
+      knownAccounts = acc :: knownAccounts
+
+      val o = mkOrder(alice, wavesUsdPair, OrderType.SELL, 1.TN, 100)
+      placeAndAwaitAtDex(o)
+
+      val ids = for { i <- 1 to 10 } yield {
+        val o = mkOrder(acc, wavesUsdPair, OrderType.SELL, i.TN, 100 + i)
+        placeAndAwaitAtDex(o)
+        o.id()
+      }
+
+      val allIds = ids :+ o.id()
+
+      dex1.api.cancelAllByIdsWithApiKey(acc, allIds.toSet)
+
+      dex1.api.waitForOrderStatus(o, OrderStatus.Accepted)
+      ids.map(dex1.api.waitForOrderStatus(wavesUsdPair, _, OrderStatus.Cancelled))
+
+      dex1.api.cancel(alice, o)
+    }
+
+    "with API key" - {
+      "and without X-User-Public-Key" in {
+        val order = mkBobOrder
+        placeAndAwaitAtDex(order)
+
+        dex1.api.cancelWithApiKey(order)
+        dex1.api.waitForOrderStatus(order, OrderStatus.Cancelled)
+
+        dex1.api.orderHistory(bob).find(_.id == order.id()).get.status shouldBe OrderStatus.Cancelled
+
+        dex1.api.orderHistoryByPair(bob, wavesUsdPair).find(_.id == order.id()).get.status shouldBe OrderStatus.Cancelled
+      }
+
+      "and with a valid X-User-Public-Key" in {
+        val order = mkBobOrder
+        placeAndAwaitAtDex(order)
+
+        dex1.api.cancelWithApiKey(order, Some(order.senderPublicKey))
+        dex1.api.waitForOrderStatus(order, OrderStatus.Cancelled)
+
+        dex1.api.orderHistory(bob).find(_.id == order.id()).get.status shouldBe OrderStatus.Cancelled
+
+        dex1.api.orderHistoryByPair(bob, wavesUsdPair).find(_.id == order.id()).get.status shouldBe OrderStatus.Cancelled
+      }
+
+      "and with an invalid X-User-Public-Key" in {
+        val order = mkBobOrder
+        placeAndAwaitAtDex(order)
+
+        dex1.api.tryCancelWithApiKey(order.id(), Some(alice.publicKey)) should failWith(9437193) // OrderNotFound
+        dex1.api.cancelWithApiKey(order)
+        dex1.api.waitForOrderStatus(order, OrderStatus.Cancelled)
+      }
     }
   }
 
@@ -129,7 +156,6 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
       orders.foreach(dex1.api.waitForOrderStatus(_, OrderStatus.Accepted))
 
       dex1.api.cancelAll(bob)
-
       orders.foreach(dex1.api.waitForOrderStatus(_, OrderStatus.Cancelled))
     }
 
@@ -144,16 +170,65 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
 
       wavesBtcOrders.foreach(dex1.api.waitForOrderStatus(_, OrderStatus.Cancelled))
       wavesUsdOrders.foreach(dex1.api.waitForOrderStatus(_, OrderStatus.Accepted))
+
+      dex1.api.cancelAllByPair(bob, wavesUsdPair)
+      wavesUsdOrders.foreach(dex1.api.waitForOrderStatus(_, OrderStatus.Cancelled))
+    }
+  }
+
+  "Batch cancel by id" - {
+    "works for specified orders placed by an address" in {
+      val orders = mkBobOrders(wavesUsdPair) ::: mkBobOrders(wavesBtcPair)
+      orders.foreach(dex1.api.place)
+      orders.foreach(dex1.api.waitForOrderStatus(_, OrderStatus.Accepted))
+
+      dex1.api.cancelAllByIdsWithApiKey(bob, orders.map(_.id()).toSet)
+
+      orders.foreach(dex1.api.waitForOrderStatus(_, OrderStatus.Cancelled))
+    }
+
+    // DEX-548
+    "returns a rejected orders if an owner is invalid" ignore {
+      val orders = mkBobOrders(wavesUsdPair)
+      orders.foreach(dex1.api.place)
+      orders.foreach(dex1.api.waitForOrderStatus(_, OrderStatus.Accepted))
+
+      dex1.api.cancelAllByIdsWithApiKey(alice, orders.map(_.id()).toSet)
+      // here is validation
     }
   }
 
   "Auto cancel" - {
-    "wrong auto cancel when match on all coins" in {
-      val accounts       = (1 to 30).map(i => KeyPair(s"auto-cancel-$i".getBytes(StandardCharsets.UTF_8)))
+    "wrong cancel when executing a big order by small amount" in {
+      val amount             = 835.85722414.TN
+      val traderTotalBalance = amount + matcherFee
+      val trader             = createAccountWithBalance(traderTotalBalance -> Waves)
+
+      eventually {
+        dex1.api.tradableBalance(trader, wavesUsdPair).getOrElse(Waves, 0L) shouldBe traderTotalBalance
+      }
+
+      knownAccounts = trader :: knownAccounts
+
+      // Spending all assets
+      val counterOrder   = mkOrderDP(trader, wavesUsdPair, OrderType.SELL, amount, 9032, version = 3)
+      val submittedOrder = mkOrderDP(alice, wavesUsdPair, OrderType.BUY, 0.0001.TN, 9097)
+
+      placeAndAwaitAtDex(counterOrder)
+      placeAndAwaitAtNode(submittedOrder)
+
+      dex1.api.orderStatus(counterOrder).status shouldBe OrderStatus.PartiallyFilled
+      dex1.api.orderStatus(submittedOrder).status shouldBe OrderStatus.Filled
+    }
+
+    "wrong cancel when match on all coins" in {
+      val accounts = (1 to 30).map(_ => createAccountWithBalance(issueFee -> Waves))
+      knownAccounts = knownAccounts ++ accounts
+
       val oneOrderAmount = 10000
       val orderPrice     = 3000000000000L
 
-      broadcastAndAwait(mkMassTransfer(alice, Waves, accounts.map(x => new Transfer(x.toAddress, issueFee)).toList))
+      broadcastAndAwait(mkMassTransfer(alice, Waves, accounts.map(x => new Transfer(x.toAddress, issueFee + matcherFee)).toList))
 
       val accountsAndAssets = accounts.zipWithIndex.map {
         case (account, i) => account -> mkIssue(account, s"WowSoMuchCoin-$i", quantity = oneOrderAmount, decimals = 2)
@@ -162,12 +237,15 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
 
       val sells = accountsAndAssets.map {
         case (account, asset) =>
-          val assetPair = AssetPair(IssuedAsset(asset.getId), Waves)
+          val issuedAsset = IssuedAsset(asset.getId)
+          val assetPair   = AssetPair(issuedAsset, Waves)
+          eventually {
+            dex1.api.tradableBalance(account, assetPair).getOrElse(issuedAsset, 0L) shouldBe oneOrderAmount
+          }
           mkOrder(account, assetPair, OrderType.SELL, oneOrderAmount, orderPrice)
       }
 
-      sells.foreach(dex1.api.place)
-      sells.foreach(dex1.api.waitForOrderStatus(_, OrderStatus.Accepted))
+      sells.foreach(placeAndAwaitAtDex(_))
 
       val buyOrders = for {
         (_, asset) <- accountsAndAssets
@@ -205,6 +283,52 @@ class CancelOrderTestSuite extends MatcherSuiteBase {
     }
   }
 
-  private def mkBobOrder                        = mkOrder(bob, wavesUsdPair, OrderType.SELL, 100.TN, 800)
+  "After cancelAllOrders (200) all of them should be cancelled" in {
+    val totalAccounts    = 20
+    val ordersPerAccount = 200
+
+    val accounts = (1 to totalAccounts).map(_ => createAccountWithBalance(1000.TN -> Waves)).toList
+    knownAccounts = knownAccounts ++ accounts
+
+    accounts.foreach { account =>
+      eventually {
+        dex1.api.tradableBalance(account, wavesUsdPair).getOrElse(Waves, 0L) shouldBe 1000.TN
+      }
+    }
+
+    def place(account: KeyPair, startPrice: Long, numOrders: Int): Future[Seq[Order.Id]] = {
+      val orders = (1 to numOrders).map { i =>
+        mkOrder(account, wavesUsdPair, OrderType.SELL, 1.TN, startPrice + i) // version 2
+      }
+
+      val futures = orders.map(dex1.asyncApi.place)
+      Future.sequence(futures).map(_ => orders.map(_.id()))
+    }
+
+    Await.ready(
+      for {
+        orderIds <- {
+          val pairs = accounts.zipWithIndex.map { case (account, i) => (account, (i + 1) * 1000) }
+          Future.inSeries(pairs)(Function.tupled(place(_, _, ordersPerAccount))).map(_.flatten)
+        }
+        _ <- Future.traverse(accounts) { account =>
+          dex1.asyncApi.orderHistoryByPair(account, wavesUsdPair).map { orders =>
+            withClue(s"account $account: ") {
+              orders.size shouldBe ordersPerAccount
+            }
+          }
+        }
+        _         <- Future.traverse(accounts)(dex1.asyncApi.cancelAll(_))
+        _         <- Future.inSeries(orderIds)(dex1.asyncApi.waitForOrderStatus(wavesUsdPair, _, OrderStatus.Cancelled))
+        orderBook <- dex1.asyncApi.orderBook(wavesUsdPair)
+      } yield {
+        orderBook.bids should be(empty)
+        orderBook.asks should be(empty)
+      },
+      5.minutes
+    )
+  }
+
+  private def mkBobOrder                        = mkOrderDP(bob, wavesUsdPair, OrderType.SELL, 100.TN, 8)
   private def mkBobOrders(assetPair: AssetPair) = (1 to 5).map(i => mkOrder(bob, assetPair, OrderType.SELL, 100.TN + i, 400)).toList
 }

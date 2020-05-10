@@ -23,7 +23,7 @@ import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.transaction.TxValidationError.GenericError
 import com.wavesplatform.transaction.smart.script.ScriptRunner
 import com.wavesplatform.utils.ScorexLogging
-import io.grpc.stub.StreamObserver
+import io.grpc.stub.{ServerCallStreamObserver, StreamObserver}
 import io.grpc.{Status, StatusRuntimeException}
 import monix.eval.{Coeval, Task}
 import monix.execution.{CancelableFuture, Scheduler}
@@ -40,6 +40,7 @@ class WavesBlockchainApiGrpcService(context: ExtensionContext, balanceChangesBat
   // A clean logic requires more actions, see DEX-606
   private val balanceChangesSubscribers = ConcurrentHashMap.newKeySet[StreamObserver[BalanceChangesResponse]](2)
   private val cleanupTask: Task[Unit] = Task {
+    log.info("Closing balance changes stream...")
     // https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
     val shutdownError = new StatusRuntimeException(Status.UNAVAILABLE) // Because it should try to connect to other DEX Extension
     balanceChangesSubscribers.forEach(_.onError(shutdownError))
@@ -58,7 +59,12 @@ class WavesBlockchainApiGrpcService(context: ExtensionContext, balanceChangesBat
       .doOnSubscriptionCancel(cleanupTask)
       .doOnComplete(cleanupTask)
       .foreach { x =>
-        balanceChangesSubscribers.forEach(_.onNext(x))
+        balanceChangesSubscribers.forEach { subscriber =>
+          try subscriber.onNext(x)
+          catch {
+            case e: Throwable => log.warn(s"Can't send balance changes to $subscriber", e)
+          }
+        }
       }
   }
 
@@ -165,7 +171,14 @@ class WavesBlockchainApiGrpcService(context: ExtensionContext, balanceChangesBat
   }
 
   override def getBalanceChanges(request: Empty, responseObserver: StreamObserver[BalanceChangesResponse]): Unit =
-    if (!balanceChanges().isCompleted) balanceChangesSubscribers.add(responseObserver)
+    if (!balanceChanges().isCompleted) {
+      responseObserver match {
+        case x: ServerCallStreamObserver[_] => x.setOnCancelHandler(() => balanceChangesSubscribers.remove(x))
+        case x                              => log.warn(s"Can't register cancel handler for $x")
+      }
+
+      balanceChangesSubscribers.add(responseObserver)
+    }
 
   private def parseScriptResult(raw: => Either[String, Terms.EVALUATED]): RunScriptResponse.Result = {
     import RunScriptResponse.Result
