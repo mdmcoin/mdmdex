@@ -431,9 +431,9 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase {
 
   "Postgres order history should save orders that are filled with rounding issues" in {
     Seq(limitOrderType, marketOrderType).foreach { orderType =>
-      val buyOrder = mkOrderDP(alice, wavesUsdPair, BUY, 1.23456789.waves, 1.03)
+      val buyOrder = mkOrderDP(alice, wavesUsdPair, BUY, 1.23456789.TN, 1.03)
 
-      dex1.api.place(mkOrderDP(bob, wavesUsdPair, SELL, 2.waves, 1.03))
+      dex1.api.place(mkOrderDP(bob, wavesUsdPair, SELL, 2.TN, 1.03))
       if (orderType == limitOrderType) dex1.api.place(buyOrder) else dex1.api.placeMarket(buyOrder)
 
       eventually {

@@ -27,10 +27,10 @@ class KafkaIssuesTestSuite extends MatcherSuiteBase {
       }
     }
 
-  override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""waves.dex.price-assets = [ "$UsdId", "WAVES" ]""")
+  override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "TN" ]""")
 
   override protected lazy val dexRunConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex.events-queue {
+    s"""TN.dex.events-queue {
        |  type = kafka
        |  kafka {
        |    servers = "$kafkaIp:9092"
@@ -69,18 +69,18 @@ class KafkaIssuesTestSuite extends MatcherSuiteBase {
 
   "Matcher should free reserved balances if order wasn't placed into the queue" in {
 
-    val order = mkOrderDP(alice, wavesUsdPair, SELL, 10.waves, 3.0)
+    val order = mkOrderDP(alice, wavesUsdPair, SELL, 10.TN, 3.0)
     placeAndAwaitAtDex(order)
 
     dex1.api.currentOffset shouldBe 0
-    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.waves))
+    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.TN))
 
     disconnectKafkaFromNetwork()
 
     dex1.api.tryCancel(alice, order) shouldBe 'left
-    dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, 30.waves, 3.0)) shouldBe 'left
+    dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, 30.TN, 3.0)) shouldBe 'left
 
-    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.waves))
+    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.TN))
 
     val oh = dex1.api.orderHistory(alice, Some(true))
     oh should have size 1
@@ -92,8 +92,8 @@ class KafkaIssuesTestSuite extends MatcherSuiteBase {
     dex1.api.orderHistory(alice, Some(true)) should have size 0
     dex1.api.reservedBalance(alice) shouldBe empty
 
-    dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, 30.waves, 3.0)) shouldBe 'right
+    dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, 30.TN, 3.0)) shouldBe 'right
     dex1.api.orderHistory(alice, Some(true)) should have size 1
-    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 30.003.waves))
+    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 30.003.TN))
   }
 }

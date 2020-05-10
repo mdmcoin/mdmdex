@@ -59,10 +59,10 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase {
   }
 
   "Dex 2 should continue getting the balance changes if Dex 1 has been disconnected from network" in {
-    val acc = createAccountWithBalance(10.waves -> Waves)
+    val acc = createAccountWithBalance(10.TN -> Waves)
     dex1.disconnectFromNetwork()
-    broadcastAndAwait(mkTransfer(acc, alice.toAddress, 4.waves, Waves, 0.05.waves))
-    dex2.api.tradableBalance(acc, ethWavesPair)(Waves) shouldBe 5.95.waves
+    broadcastAndAwait(mkTransfer(acc, alice.toAddress, 4.TN, Waves, 0.05.TN))
+    dex2.api.tradableBalance(acc, ethWavesPair)(Waves) shouldBe 5.95.TN
     dex1.connectToNetwork()
   }
 

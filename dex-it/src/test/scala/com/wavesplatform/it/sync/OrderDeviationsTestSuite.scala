@@ -77,7 +77,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
         mkTransfer(alice, bob, defaultAssetQuantity / 2, asset, 0.005.TN)
       )
     }
-    broadcastAndAwait(mkTransfer(bob, alice, defaultAssetQuantity / 2, btc, 0.005.waves))
+    broadcastAndAwait(mkTransfer(bob, alice, defaultAssetQuantity / 2, btc, 0.005.TN))
 
     dex1.start()
   }

@@ -83,17 +83,17 @@ class NetworkIssuesTestSuite extends MatcherSuiteBase with HasToxiProxy {
 
   "DEXClient should connect to another node from pool if linked node had lost the connection to network " in {
 
-   val conf = ConfigFactory.parseString(s"""waves.dex {
-                                 |  price-assets = [ "$UsdId", "WAVES" ]
+   val conf = ConfigFactory.parseString(s"""TN.dex {
+                                 |  price-assets = [ "$UsdId", "TN" ]
                                  |  waves-blockchain-client.grpc.target = "${WavesNodeContainer.netAlias}:${WavesNodeContainer.dexGrpcExtensionPort}"
                                  |}""".stripMargin)
 
     dex1.restartWithNewSuiteConfig(conf)
 
-    val account = createAccountWithBalance(5.004.waves -> Waves)
+    val account = createAccountWithBalance(5.004.TN -> Waves)
 
     markup("Place order")
-    val order = mkOrder(account, wavesUsdPair, SELL, 5.waves, 5.usd)
+    val order = mkOrder(account, wavesUsdPair, SELL, 5.TN, 5.usd)
     placeAndAwaitAtDex(order)
 
     markup("Up node 2")
@@ -108,13 +108,13 @@ class NetworkIssuesTestSuite extends MatcherSuiteBase with HasToxiProxy {
 
     Thread.sleep(25000) // waiting for dex's grpc connection to node-2
 
-    broadcastAndAwait(wavesNode2.api, mkTransfer(account, bob, amount = 4.waves, asset = Waves))
+    broadcastAndAwait(wavesNode2.api, mkTransfer(account, bob, amount = 4.TN, asset = Waves))
 
     markup("Now DEX receives balances stream from the node 2 and cancels order")
     dex1.api.waitForOrderStatus(order, OrderStatus.Cancelled)
 
     markup("Place order")
-    placeAndAwaitAtDex(mkOrder(account, wavesUsdPair, SELL, 1.waves, 5.usd))
+    placeAndAwaitAtDex(mkOrder(account, wavesUsdPair, SELL, 1.TN, 5.usd))
   }
 
   private def clearOrderBook(): Unit = {
