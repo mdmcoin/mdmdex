@@ -20,7 +20,13 @@ jobs:
 
   - script: 'sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  dex-it/test'
     displayName: 'Run docker tests '
-
+  - task: Docker@2
+    inputs:
+      containerRegistry: 'turtlenetwork docker'
+      repository: 'tn-dex'
+      command: 'push'
+      tags: 'latest'
+      
   - task: PublishTestResults@2
     displayName: 'Publish Test Results target/test-reports/*.xml copy'
     inputs:
