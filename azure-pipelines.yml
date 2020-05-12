@@ -33,7 +33,6 @@ jobs:
     name: Hosted Ubuntu 1604
 
   steps:
-
   - script: 'sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  checkPR'
     displayName: 'Run checkPR tests '
 
