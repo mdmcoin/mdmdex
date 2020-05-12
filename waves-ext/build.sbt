@@ -49,7 +49,7 @@ inConfig(Compile)(Seq(
 ))
 
 // Packaging
-executableScriptName := "waves-dex-extension"
+executableScriptName := "tn-dex-extension"
 
 // Add waves-grpc's JAR, dependency modules are ignored by ExtensionPackaging plugin
 classpathOrdering += ExtensionPackaging.linkedProjectJar(
@@ -67,7 +67,7 @@ Runtime / dependencyClasspath := {
 // ZIP archive
 inConfig(Universal)(
   Seq(
-    packageName := s"TN-dex-extension-${version.value}", // An archive file name
+    packageName := s"tn-dex-extension-${version.value}", // An archive file name
     mappings ++= sbt.IO
       .listFiles((Compile / packageSource).value / "doc")
       .map { file =>
@@ -80,7 +80,7 @@ inConfig(Universal)(
 
 // DEB package
 inConfig(Linux)(Seq(
-  name := s"TN-dex-extension${network.value.packageSuffix}", // A staging directory name
+  name := s"tn-dex-extension${network.value.packageSuffix}", // A staging directory name
   normalizedName := name.value, // An archive file name
   packageName := name.value // In a control file
 ))

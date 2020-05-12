@@ -176,7 +176,8 @@ object Dependencies {
       googleGuava,
       slf4j,
       grpcNetty,
-      "io.netty" % "netty-codec-http2" % "4.1.33.Final"
+      "io.netty" % "netty-codec-http2" % "4.1.33.Final",
+      "javax.xml.bind" % "jaxb-api" % "2.3.0"
     )
   )
 

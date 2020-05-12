@@ -12,7 +12,7 @@ object DexDockerPlugin extends AutoPlugin {
   override def projectSettings: Seq[Def.Setting[_]] =
     inTask(docker)(
       Seq(
-        imageNames := Seq(ImageName("turtlenetwork/waves-dex:latest")),
+        imageNames := Seq(ImageName("turtlenetwork/tn-dex:latest")),
         additionalFiles := Seq.empty,
         exposedPorts := Set(
           6886, // REST API
@@ -22,18 +22,18 @@ object DexDockerPlugin extends AutoPlugin {
         dockerfile := new Dockerfile {
           from(baseImage.value)
           val yourKitArchive = "YourKit-JavaProfiler-2019.8-docker.zip"
-          val bin            = "/opt/waves-dex/start.sh"
+          val bin            = "/opt/tn-dex/start.sh"
 
           // See https://www.yourkit.com/docs/java/help/docker.jsp
-          runRaw(s"""mkdir -p /opt/waves-dex && \\
+          runRaw(s"""mkdir -p /opt/tn-dex && \\
                     |apk update && \\
                     |apk add --no-cache openssl ca-certificates && \\
-                    |wget --quiet "https://search.maven.org/remotecontent?filepath=org/aspectj/aspectjweaver/1.9.1/aspectjweaver-1.9.1.jar" -O /opt/waves-dex/aspectjweaver.jar && \\
+                    |wget --quiet "https://search.maven.org/remotecontent?filepath=org/aspectj/aspectjweaver/1.9.1/aspectjweaver-1.9.1.jar" -O /opt/tn-dex/aspectjweaver.jar && \\
                     |wget --quiet "https://www.yourkit.com/download/docker/$yourKitArchive" -P /tmp/ && \\
                     |unzip /tmp/$yourKitArchive -d /usr/local && \\
                     |rm -f /tmp/$yourKitArchive""".stripMargin)
 
-          add(additionalFiles.value, "/opt/waves-dex/")
+          add(additionalFiles.value, "/opt/tn-dex/")
           runShell("chmod", "+x", bin)
           entryPoint(bin)
           expose(exposedPorts.value.toSeq: _*)
@@ -43,7 +43,7 @@ object DexDockerPlugin extends AutoPlugin {
 }
 
 object DexDockerKeys {
-  val additionalFiles = taskKey[Seq[File]]("Additional files to copy to /opt/waves-dex/")
+  val additionalFiles = taskKey[Seq[File]]("Additional files to copy to /opt/tn-dex/")
   val exposedPorts    = taskKey[Set[Int]]("Exposed ports")
   val baseImage       = taskKey[String]("A base image for this container")
 }

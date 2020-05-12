@@ -68,12 +68,12 @@ inTask(docker)(
 )
 
 // Packaging
-executableScriptName := "waves-dex"
+executableScriptName := "tn-dex"
 
 // ZIP archive and mappings for all artifacts
 inConfig(Universal)(
   Seq(
-    packageName := s"TN-dex-${version.value}", // An archive file name
+    packageName := s"tn-dex-${version.value}", // An archive file name
     // Common JVM parameters
     // -J prefix is required by a parser
     javaOptions ++= Seq(
@@ -90,7 +90,7 @@ inConfig(Universal)(
 
 // DEB package
 inConfig(Linux)(Seq(
-  name := "waves-dex", // A staging directory name
+  name := "tn-dex", // A staging directory name
   normalizedName := name.value, // An archive file name
   packageName := name.value // In a control file
 ))

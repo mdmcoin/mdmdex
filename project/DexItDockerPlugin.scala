@@ -17,11 +17,11 @@ object DexItDockerPlugin extends AutoPlugin {
       Seq(
         additionalFiles := Seq.empty,
         exposedPorts := Set(6886),
-        baseImage := "turtlenetwork/waves-dex:latest",
+        baseImage := "turtlenetwork/tn-dex:latest",
         dockerfile := {
           new Dockerfile {
             from(baseImage.value)
-            add(additionalFiles.value, "/opt/waves-dex/")
+            add(additionalFiles.value, "/opt/tn-dex/")
             expose(exposedPorts.value.toSeq: _*)
           }
         },
@@ -32,7 +32,7 @@ object DexItDockerPlugin extends AutoPlugin {
 }
 
 object DexItDockerKeys {
-  val additionalFiles = taskKey[Seq[File]]("Additional files to copy to /opt/waves-dex")
+  val additionalFiles = taskKey[Seq[File]]("Additional files to copy to /opt/tn-dex")
   val exposedPorts    = taskKey[Set[Int]]("Exposed ports")
   val baseImage       = taskKey[String]("A base image for this container")
 }
