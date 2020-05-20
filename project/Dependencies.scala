@@ -203,7 +203,8 @@ object Dependencies {
       kamonModule("system-metrics", Version.kamonSystemMetrics),
       influxDb,
       commonsNet,
-      swaggerUi
+      swaggerUi,
+      "javax.xml.bind" % "jaxb-api" % "2.3.1", // Required for Swagger UI in JRE 11 because of javax/xml/bind/annotation/XmlRootElement
     ) ++ testKit ++ quill ++ silencer
 
     lazy val dexIt: Seq[ModuleID] = integrationTestKit
