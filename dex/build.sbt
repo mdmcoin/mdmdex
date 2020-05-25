@@ -22,7 +22,7 @@ resolvers += "dnvriend" at "https://dl.bintray.com/dnvriend/maven"
 libraryDependencies ++= Dependencies.Module.dex
 
 val packageSettings = Seq(
-  maintainer := "wavesplatform.com",
+  maintainer := "turtlenetwork.eu",
   packageSummary := "DEX",
   packageDescription := "Decentralized Exchange for Turtle Network."
 )
@@ -50,7 +50,7 @@ inConfig(Compile)(
     sourceGenerators += swaggerUiVersionSourceTask.taskValue,
     discoveredMainClasses := Seq(
       "com.wavesplatform.dex.Application",
-      "com.wavesplatform.dex.WavesDexCli"
+      "com.wavesplatform.dex.TnDexCli"
     ),
     mainClass := discoveredMainClasses.value.headOption,
     run / fork := true

@@ -15,7 +15,7 @@ import cats.syntax.option._
 
 import scala.util.{Failure, Success, Try}
 
-object WavesDexCli {
+object TnDexCli {
   // todo commands:
   // base64
   // get account by seed [and nonce]
