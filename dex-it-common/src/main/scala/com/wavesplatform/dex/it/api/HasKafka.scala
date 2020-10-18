@@ -16,7 +16,7 @@ trait HasKafka { self: BaseContainersKit with InformativeTestStart =>
   protected val kafkaIp = getIp(12)
 
   protected def dexKafkaConfig(topic: String = ThreadLocalRandom.current.nextInt(0, Int.MaxValue).toString): Config = ConfigFactory.parseString(
-    s"""waves.dex.events-queue {
+    s"""TN.dex.events-queue {
        |  type = kafka
        |  kafka {
        |    servers = "$kafkaIp:9092"

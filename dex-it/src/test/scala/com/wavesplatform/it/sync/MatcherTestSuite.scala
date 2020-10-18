@@ -49,8 +49,8 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
   private val maxOrders = 99
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
-       |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", "WAVES" ]
+    s"""TN.dex {
+       |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", "TN ]
        |  order-db.max-orders = $maxOrders
        |}""".stripMargin
   )

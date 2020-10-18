@@ -32,7 +32,7 @@ object TankGenerator {
     println(s"Generating $count assets... ")
     val assets = (1 to count).map(_ => mkAsset()).toList
     val asset  = assets(new Random().nextInt(assets.length))
-    val pair   = new AssetPair(asset, "WAVES")
+    val pair   = new AssetPair(asset, "TN)
 
     do {
       waitForHeightArise()
@@ -82,7 +82,7 @@ object TankGenerator {
       .map(account => new Transfer(account.getAddress, settings.defaults.wavesPerAccount))
       .grouped(100)
       .foreach(group => {
-        try services.node.send(Transactions.makeMassTransferTx(issuer, "WAVES", group.asJava, massTransferFee(group), null))
+        try services.node.send(Transactions.makeMassTransferTx(issuer, "TN, group.asJava, massTransferFee(group), null))
         catch {
           case e: Exception => println(e)
         }
@@ -91,7 +91,7 @@ object TankGenerator {
 
     val asset   = assets(new Random().nextInt(assets.length))
     val account = accounts(new Random().nextInt(accounts.length))
-    val pair    = new AssetPair(asset, "WAVES")
+    val pair    = new AssetPair(asset, "TN)
 
     while (services.matcher.getTradableBalance(pair, account.getAddress()).getOrDefault(asset, 0L) == 0) waitForHeightArise()
   }
@@ -161,11 +161,11 @@ object TankGenerator {
             val id = (o \ "id").as[String]
             val aa = ((o \ "assetPair").as[JsValue] \ "amountAsset").validate[String] match {
               case JsSuccess(name, _) => name
-              case _: JsError         => "WAVES"
+              case _: JsError         => "TN
             }
             val pa = ((o \ "assetPair").as[JsValue] \ "priceAsset").validate[String] match {
               case JsSuccess(name, _) => name
-              case _: JsError         => "WAVES"
+              case _: JsError         => "TN
             }
             Request(RequestType.POST,
                     s"/matcher/orderbook/$aa/$pa/cancel",
@@ -233,11 +233,11 @@ object TankGenerator {
             val id = (o \ "id").as[String]
             val aa = ((o \ "assetPair").as[JsValue] \ "amountAsset").validate[String] match {
               case JsSuccess(name, _) => name
-              case _: JsError         => "WAVES"
+              case _: JsError         => "TN
             }
             val pa = ((o \ "assetPair").as[JsValue] \ "priceAsset").validate[String] match {
               case JsSuccess(name, _) => name
-              case _: JsError         => "WAVES"
+              case _: JsError         => "TN
             }
             Request(
               RequestType.GET,

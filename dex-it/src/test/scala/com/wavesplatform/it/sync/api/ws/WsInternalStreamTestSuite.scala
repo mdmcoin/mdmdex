@@ -20,8 +20,8 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
 
   private val messagesInterval = 100.millis
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
-    .parseString(s"""waves.dex {
-         |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
+    .parseString(s"""tn.dex {
+         |  price-assets = [ "$UsdId", "$BtcId", "TN ]
          |  web-sockets.internal-broadcast.messages-interval = $messagesInterval
          |}""".stripMargin)
     .withFallback(jwtPublicKeyConfig)

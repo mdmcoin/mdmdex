@@ -16,7 +16,7 @@ trait MultipleVersions extends HasDex with HasWavesNode { self: BaseContainersKi
 
   protected def dex2SuiteConfig: Config = dexInitialSuiteConfig.withFallback {
     ConfigFactory.parseString(
-      s"""waves.dex {
+      s"""tn.dex {
          |  waves-blockchain-client.grpc.target = "${wavesNode2.networkAddress.getHostName}:6887"
          |}""".stripMargin
     )
