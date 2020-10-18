@@ -25,7 +25,7 @@ else
 	printf "\n\n" | tee -a ${LOG_FILE}
 fi
 
-JAVA_OPTS="${JAVA_OPTS} -Dwaves.dex.root-directory=${USER_PATH}"
+JAVA_OPTS="${JAVA_OPTS} -DTN.dex.root-directory=${USER_PATH}"
 
 echo "Matcher is starting..." |  tee -a ${LOG_FILE}
 echo "MATCHER_HEAP_SIZE='${MATCHER_HEAP_SIZE}'" |  tee -a ${LOG_FILE}

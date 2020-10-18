@@ -50,7 +50,7 @@ object SuperConnector {
 
     def loadMatcherSettings(confPath: String): ErrorOr[MatcherSettings] =
       Try {
-        val matcherSettings: MatcherSettings = loadConfig { parseFile(new File(dexConfigPath)) }.as[MatcherSettings]("waves.dex")
+        val matcherSettings: MatcherSettings = loadConfig { parseFile(new File(dexConfigPath)) }.as[MatcherSettings]("TN.dex")
         AddressScheme.current = new AddressScheme { override val chainId: Byte = matcherSettings.addressSchemeCharacter.toByte }
         matcherSettings
       }.toEither.leftMap(ex => s"Cannot load matcher settings by path $confPath: ${ex.getWithStackTrace}")

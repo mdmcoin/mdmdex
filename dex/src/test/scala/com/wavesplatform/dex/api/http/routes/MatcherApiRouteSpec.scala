@@ -116,7 +116,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
 
   private val settings =
     MatcherSettings.valueReader
-      .read(ConfigFactory.load(), "waves.dex")
+      .read(ConfigFactory.load(), "TN.dex")
       .copy(
         priceAssets = Seq(badOrder.assetPair.priceAsset, okOrder.assetPair.priceAsset, priceAsset, Waves),
         orderRestrictions = Map(smartWavesPair -> orderRestrictions)

@@ -31,7 +31,7 @@ import scala.concurrent.duration.DurationInt
 
 class MatcherApiRouteV1Spec extends RouteSpec("/api/v1") with MatcherSpecBase with PathMockFactory with Eventually with WithDB {
 
-  private val settings = MatcherSettings.valueReader.read(ConfigFactory.load(), "waves.dex").copy(priceAssets = Seq(usd, Waves))
+  private val settings = MatcherSettings.valueReader.read(ConfigFactory.load(), "TN.dex").copy(priceAssets = Seq(usd, Waves))
 
   private implicit val efc: ErrorFormatterContext = {
     case `usd` => 2.some

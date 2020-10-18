@@ -35,7 +35,7 @@ class MatcherWebSocketRouteSpec extends RouteSpec("/ws/v0") with MatcherSpecBase
 
   private val settings =
     MatcherSettings.valueReader
-      .read(ConfigFactory.load(), "waves.dex")
+      .read(ConfigFactory.load(), "TN.dex")
       .copy(priceAssets = Seq(Waves))
 
   routePath("/connections") - {
