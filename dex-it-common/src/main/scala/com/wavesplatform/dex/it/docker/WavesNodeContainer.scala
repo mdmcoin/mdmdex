@@ -9,7 +9,6 @@ import cats.instances.try_._
 import com.dimafeng.testcontainers.GenericContainer
 import com.typesafe.config.Config
 import com.wavesplatform.dex.domain.utils.ScorexLogging
-import com.wavesplatform.dex.it.api.HasWaitReady
 import com.wavesplatform.dex.it.api.node.NodeApi
 import com.wavesplatform.dex.it.cache.CachedData
 import com.wavesplatform.dex.it.fp
@@ -39,8 +38,8 @@ final case class WavesNodeContainer(override val internalIp: String, underlying:
 
   def grpcApiTarget: String = s"${grpcApiAddress.getHostName}:${grpcApiAddress.getPort}"
 
-  override def api: NodeApi[Id]               = fp.sync { NodeApi[Try](apiKey, cachedRestApiAddress.get()) }
-  override def asyncApi: HasWaitReady[Future] = NodeApi[Future](apiKey, cachedRestApiAddress.get())
+  override def api: NodeApi[Id]          = fp.sync { NodeApi[Try](apiKey, cachedRestApiAddress.get()) }
+  override def asyncApi: NodeApi[Future] = NodeApi[Future](apiKey, cachedRestApiAddress.get())
 
   override def invalidateCaches(): Unit = {
     super.invalidateCaches()
@@ -58,7 +57,7 @@ object WavesNodeContainer extends ScorexLogging {
   private val networkPort: Int  = 6860 // application.conf waves.network.port
   val dexGrpcExtensionPort: Int = 6887 // application.conf waves.dex.grpc.integration.port
 
-  val netAlias: String = "TN.nodes"
+  val wavesNodeNetAlias: String = "TN.nodes"
 
   def apply(name: String,
             networkName: String,
@@ -66,19 +65,21 @@ object WavesNodeContainer extends ScorexLogging {
             internalIp: String,
             runConfig: Config,
             suiteInitialConfig: Config,
-            localLogsDir: Path)(implicit
-                                tryHttpBackend: LoggingSttpBackend[Try, Nothing],
-                                futureHttpBackend: LoggingSttpBackend[Future, Nothing],
-                                ec: ExecutionContext): WavesNodeContainer = {
+            localLogsDir: Path,
+            image: String,
+            netAlias: Option[String] = Some(wavesNodeNetAlias))(implicit
+                                                                tryHttpBackend: LoggingSttpBackend[Try, Nothing],
+                                                                futureHttpBackend: LoggingSttpBackend[Future, Nothing],
+                                                                ec: ExecutionContext): WavesNodeContainer = {
 
     val underlying = GenericContainer(
-      dockerImage = "turtlenetwork/waves-integration-it:latest",
+      dockerImage = image,
       exposedPorts = List(restApiPort, networkPort, dexGrpcExtensionPort),
       env = getEnv(name, internalIp),
       waitStrategy = ignoreWaitStrategy
     ).configure { c =>
       c.withNetwork(network)
-      c.withNetworkAliases(netAlias)
+      netAlias.foreach { c.withNetworkAliases(_) }
       c.withFileSystemBind(localLogsDir.toString, containerLogsPath, BindMode.READ_WRITE)
       c.withCreateContainerCmdModifier {
         _.withName(s"$networkName-$name") // network.getName returns random id
@@ -87,7 +88,7 @@ object WavesNodeContainer extends ScorexLogging {
 
       // Copy files to container
       List(
-        ("waves-base.conf", getRawContentFromResource(s"nodes/waves-base.conf"), false),
+        ("waves-base.conf", getRawContentFromResource("nodes/waves-base.conf"), false),
         (s"$name.conf", getRawContentFromResource(s"nodes/$name.conf"), false),
         ("run.conf", runConfig.rendered, true),
         ("suite.conf", suiteInitialConfig.rendered, true),
@@ -105,9 +106,10 @@ object WavesNodeContainer extends ScorexLogging {
   }
 
   private def getEnv(containerName: String, ip: String): Map[String, String] = Map(
-    "BRIEF_LOG_PATH"        -> s"$containerLogsPath/container-$containerName.log",
-    "DETAILED_LOG_PATH"     -> "/dev/null",
-    "WAVES_NODE_CONFIGPATH" -> s"$baseContainerPath/$containerName.conf",
+    "BRIEF_LOG_PATH"               -> s"$containerLogsPath/container-$containerName.log",
+    "DETAILED_LOG_PATH"            -> "/dev/null",
+    "WAVES_NODE_DETAILED_LOG_PATH" -> "/dev/null", // Backward compatibility for v1.1.10+v2.0.3
+    "WAVES_NODE_CONFIGPATH"        -> s"$baseContainerPath/$containerName.conf",
     "WAVES_OPTS" -> List(
       "-Xmx1024M",
       s"-Djava.util.logging.config.file=$baseContainerPath/jul.properties",

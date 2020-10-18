@@ -6,9 +6,9 @@ import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.crypto
 import com.wavesplatform.dex.domain.utils.EitherExt2
 import com.wavesplatform.dex.it.config.genesis._
-import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.{NameMapper, ValueReader}
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -38,7 +38,7 @@ object GenesisConfigGenerator {
 
   object Settings {
     implicit val chosenCase: NameMapper                = net.ceedubs.ficus.readers.namemappers.implicits.hyphenCase
-    implicit val settingsReader: ValueReader[Settings] = arbitraryTypeValueReader[Settings]
+    implicit val settingsReader: ValueReader[Settings] = arbitraryTypeValueReader[Settings].value
   }
 
   case class FullAddressInfo(seedText: SeedText,
@@ -114,6 +114,7 @@ object GenesisConfigGenerator {
     ConfigFactory.parseString(
       s"""TN.blockchain.custom {
          |  address-scheme-character = "${generatorSettings.chainId.toChar}"
+         |  functionality.min-block-time = ${settings.averageBlockDelay.toMillis}ms
          |  genesis {
          |    timestamp: ${settings.timestamp}
          |    signature: ${genesisBlock.signerData.signature}

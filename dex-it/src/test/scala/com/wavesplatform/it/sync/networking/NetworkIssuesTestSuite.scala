@@ -1,28 +1,36 @@
 package com.wavesplatform.it.sync.networking
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpOrderStatus
+import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.order.OrderType
 import com.wavesplatform.dex.domain.order.OrderType.SELL
+import com.wavesplatform.dex.effect.FutureOps.Implicits
 import com.wavesplatform.dex.it.api.HasToxiProxy
-import com.wavesplatform.dex.it.api.responses.dex.OrderStatus
 import com.wavesplatform.dex.it.docker.WavesNodeContainer
-import com.wavesplatform.it.MatcherSuiteBase
+import com.wavesplatform.it.WsSuiteBase
 import com.wavesplatform.it.tags.NetworkTests
 import eu.rekawek.toxiproxy.model.ToxicDirection
 import org.testcontainers.containers.ToxiproxyContainer.ContainerProxy
 
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future, blocking}
+
 @NetworkTests
-class NetworkIssuesTestSuite extends MatcherSuiteBase with HasToxiProxy {
+class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
 
-  private val wavesNodeProxy: ContainerProxy = mkToxiProxy(WavesNodeContainer.netAlias, WavesNodeContainer.dexGrpcExtensionPort)
+  private val wavesNodeProxy: ContainerProxy = mkToxiProxy(WavesNodeContainer.wavesNodeNetAlias, WavesNodeContainer.dexGrpcExtensionPort)
 
-  override protected def dexInitialSuiteConfig: Config = {
-    ConfigFactory.parseString(s"""TN.dex {
-                                 |  price-assets = [ "$UsdId", "TN" ]
-                                 |  waves-blockchain-client.grpc.target = "$toxiProxyHostName:${getInnerToxiProxyPort(wavesNodeProxy)}"
-                                 |}""".stripMargin)
-  }
+  override protected def dexInitialSuiteConfig: Config =
+    ConfigFactory
+      .parseString(
+        s"""TN.dex {
+           |  price-assets = [ "$UsdId", "TN" ]
+           |  waves-blockchain-client.grpc.target = "$toxiProxyHostName:${getInnerToxiProxyPort(wavesNodeProxy)}"
+           |}""".stripMargin
+      )
+      .withFallback(jwtPublicKeyConfig)
 
   lazy val wavesNode2: WavesNodeContainer = createWavesNode("waves-2")
 
@@ -37,8 +45,61 @@ class NetworkIssuesTestSuite extends MatcherSuiteBase with HasToxiProxy {
     clearOrderBook()
   }
 
-  "DEXClient should works correctly despite of latency: " - {
+  "DEXClient should place orders despite of short time disconnect from network" in {
+    val orders = (0 to 100).map { i =>
+      mkOrder(alice, wavesUsdPair, OrderType.SELL, 1.waves, 100 + i)
+    }
 
+    Await.result(
+      for {
+        _ <- Future.inSeries(orders)(dex1.asyncApi.place(_).recover { case _ => () }).zip {
+          Future(blocking(wavesNode1.reconnectToNetwork(500, 500)))
+        }
+        orderBook <- dex1.asyncApi.orderBook(wavesUsdPair)
+      } yield {
+        orderBook.asks should have size 100
+      },
+      2.minute
+    )
+
+    orders.foreach(dex1.api.waitForOrderStatus(_, HttpOrderStatus.Status.Accepted))
+    dex1.api.cancelAllByPair(alice, wavesUsdPair)
+  }
+
+  "DEXClient should obtain balance changes when it reconnects after losing connection: " - {
+
+    "user has a balances snapshot (got by ws connection)" in {
+      val acc = mkAccountWithBalance(100.waves -> Waves)
+      val wsc = mkWsAddressConnection(acc, dex1)
+
+      eventually { wsc.addressStateChanges should have size 1 }
+
+      wsc.close()
+      dex1.disconnectFromNetwork()
+
+      broadcastAndAwait(mkTransfer(acc, alice.toAddress, 99.waves, Waves))
+      wavesNode1.api.balance(acc.toAddress, Waves) should be(0.999.waves)
+
+      dex1.connectToNetwork()
+
+      dex1.api.tryPlace(mkOrder(acc, wavesUsdPair, SELL, 50.waves, 1.usd)) should failWith(3147270)
+    }
+
+    "user doesn't have a balances snapshot (got by ws connection)" in {
+      val acc = mkAccountWithBalance(100.waves -> Waves)
+
+      dex1.disconnectFromNetwork()
+
+      broadcastAndAwait(mkTransfer(acc, alice.toAddress, 99.waves, Waves))
+      wavesNode1.api.balance(acc.toAddress, Waves) should be(0.999.waves)
+
+      dex1.connectToNetwork()
+
+      dex1.api.tryPlace(mkOrder(acc, wavesUsdPair, SELL, 50.waves, 1.usd)) should failWith(3147270)
+    }
+  }
+
+  "DEXClient should works correctly despite of latency: " - {
     "high latency (from node to dex)" in {
       wavesNodeProxy.toxics().latency("latency", ToxicDirection.DOWNSTREAM, 4500)
       makeAndMatchOrders()
@@ -83,14 +144,14 @@ class NetworkIssuesTestSuite extends MatcherSuiteBase with HasToxiProxy {
 
   "DEXClient should connect to another node from pool if linked node had lost the connection to network " in {
 
-   val conf = ConfigFactory.parseString(s"""TN.dex {
+    val conf = ConfigFactory.parseString(s"""TN.dex {
                                  |  price-assets = [ "$UsdId", "TN" ]
-                                 |  waves-blockchain-client.grpc.target = "${WavesNodeContainer.netAlias}:${WavesNodeContainer.dexGrpcExtensionPort}"
+                                 |  waves-blockchain-client.grpc.target = "${WavesNodeContainer.wavesNodeNetAlias}:${WavesNodeContainer.dexGrpcExtensionPort}"
                                  |}""".stripMargin)
 
     dex1.restartWithNewSuiteConfig(conf)
 
-    val account = createAccountWithBalance(5.004.TN -> Waves)
+    val account = mkAccountWithBalance(5.004.TN -> Waves)
 
     markup("Place order")
     val order = mkOrder(account, wavesUsdPair, SELL, 5.TN, 5.usd)
@@ -111,7 +172,7 @@ class NetworkIssuesTestSuite extends MatcherSuiteBase with HasToxiProxy {
     broadcastAndAwait(wavesNode2.api, mkTransfer(account, bob, amount = 4.TN, asset = Waves))
 
     markup("Now DEX receives balances stream from the node 2 and cancels order")
-    dex1.api.waitForOrderStatus(order, OrderStatus.Cancelled)
+    dex1.api.waitForOrderStatus(order, Status.Cancelled)
 
     markup("Place order")
     placeAndAwaitAtDex(mkOrder(account, wavesUsdPair, SELL, 1.TN, 5.usd))

@@ -1,10 +1,12 @@
 package com.wavesplatform.it.sync.smartcontracts
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
-import com.wavesplatform.dex.it.api.responses.dex.{MatcherError, OrderStatus}
+import com.wavesplatform.dex.domain.utils.EitherExt2
+import com.wavesplatform.dex.it.api.responses.dex.MatcherError
 import com.wavesplatform.dex.it.test.Scripts
 import com.wavesplatform.it.MatcherSuiteBase
 
@@ -121,17 +123,17 @@ class OrderTypeTestSuite extends MatcherSuiteBase {
         val bobOrd2 = mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartMatcherFee, version = 1)
         dex1.api.place(bobOrd2)
 
-        dex1.api.waitForOrderStatus(aliceOrd1, OrderStatus.Filled)
-        dex1.api.waitForOrderStatus(aliceOrd2, OrderStatus.Filled)
-        dex1.api.waitForOrderStatus(bobOrd1, OrderStatus.Filled)
-        dex1.api.waitForOrderStatus(bobOrd2, OrderStatus.Filled)
+        dex1.api.waitForOrderStatus(aliceOrd1, Status.Filled)
+        dex1.api.waitForOrderStatus(aliceOrd2, Status.Filled)
+        dex1.api.waitForOrderStatus(bobOrd1, Status.Filled)
+        dex1.api.waitForOrderStatus(bobOrd2, Status.Filled)
 
         waitForOrderAtNode(bobOrd1)
 
         val txs = dex1.api.waitForTransactionsByOrder(bobOrd2, 1)
         val r   = wavesNode1.api.tryBroadcast(txs.head)
-        r shouldBe 'left
-        r.left.get.error shouldBe 307 // node's ApiError TransactionNotAllowedByAccountScript.Id
+        r shouldBe Symbol("left")
+        r.swap.explicitGet().error shouldBe 307 // node's ApiError TransactionNotAllowedByAccountScript.Id
       }
     }
   }

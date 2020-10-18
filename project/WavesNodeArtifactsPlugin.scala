@@ -4,6 +4,7 @@ import java.nio.file.Paths
 import gigahorse.Request
 import sbt.Keys.{streams, unmanagedBase}
 import sbt._
+import sbt.internal.util.ManagedLogger
 import sbt.io.Using
 import sbt.librarymanagement.Http
 import sjsonnew.shaded.scalajson.ast.unsafe._
@@ -32,9 +33,9 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
       filesToRemove
     },
     downloadWavesNodeArtifacts := {
-      val version   = wavesNodeVersion.value
-      val targetDir = unmanagedBase.value
-      val log       = streams.value.log
+      val version      = wavesNodeVersion.value
+      val targetDir    = unmanagedBase.value
+      implicit val log = streams.value.log
 
       val unmanagedJarsToDownload = artifactNames(version).filterNot(x => (targetDir / x).isFile)
       if (unmanagedJarsToDownload.isEmpty) log.info("TN Node artifacts have been downloaded")
@@ -49,12 +50,13 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
 
         if (artifactsToDownload.isEmpty) log.info("TN Node artifacts have been cached")
         else {
+          log.info(s"Artifacts to download: ${artifactsToDownload.mkString(", ")}")
           log.info("Opening releases page...")
-          val request = Request("https://api.github.com/repos/BlackTurtle123/TurtleNetwork/releases").withHeaders("User-Agent" -> "SBT")
+          val request = Request("https://api.github.com/repos/TurtleNetwork/TurtleNetwork/releases").withHeaders("User-Agent" -> "SBT")
           val r = Http.http.run(request).map {
             releasesContent =>
               log.info(s"Looking for TN Node $version...")
-              getFilesToDownload(releasesContent.bodyAsString, version, _ => artifactsToDownload).map { rawUrl =>
+              getFilesDownloadUrls(releasesContent.bodyAsString, version, artifactsToDownload).map { rawUrl =>
                 val url        = new URL(rawUrl)
                 val fileName   = url.getPath.split('/').last
                 val cachedFile = cacheDir / fileName
@@ -76,28 +78,32 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
     downloadWavesNodeArtifacts := downloadWavesNodeArtifacts.dependsOn(cleanupWavesNodeArtifacts).value
   )
 
-  private def artifactNames(version: String): List[String] = List(s"TN-all-$version.jar", s"TN_${version}_all.deb")
+  private def artifactNames(version: String): List[String] = List(
+    s"TN-all-$version.jar",
+    s"TN_${version}_all.deb",
+    s"TN-stagenet_${version}_all.deb"
+  )
 
-  /**
-    * @param toDownload version => file names to download
-    */
-  private def getFilesToDownload(rawJson: String, version: String, toDownload: String => List[String]): List[String] =
+  private def getFilesDownloadUrls(rawJson: String, version: String, fileNamesToDownload: List[String])(implicit log: ManagedLogger): List[String] =
     Parser.parseFromString(rawJson).get match {
       case JArray(jReleases) =>
         jReleases
           .collectFirst {
             case JObject(jRelease) if jRelease.contains(JField("tag_name", JString(s"v$version"))) =>
               jRelease.find(_.field == "assets") match {
-                case Some(JField(_, JArray(jAssets))) => toDownload(version).map(findAssetUrl(jAssets, _))
+                case Some(JField(_, JArray(jAssets))) => fileNamesToDownload.flatMap(findAssetUrl(jAssets, _))
                 case x                                => throw new RuntimeException(s"Can't find assets in: $x")
               }
           }
-          .getOrElse(throw new RuntimeException(s"Can't find version: $version (tag_name=v$version)"))
+          .getOrElse {
+            log.warn(s"Can't find version: $version (tag_name=v$version)")
+            List.empty
+          }
       case x => throw new RuntimeException(s"Can't parse releases as array: $x")
     }
 
-  private def findAssetUrl(jAssets: Array[JValue], name: String): String = {
-    jAssets
+  private def findAssetUrl(jAssets: Array[JValue], name: String)(implicit log: ManagedLogger): Option[String] = {
+    val r = jAssets
       .collectFirst {
         case JObject(jAsset) if jAsset.contains(JField("name", JString(name))) =>
           jAsset
@@ -108,7 +114,8 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
             case x          => throw new RuntimeException(s"Can't parse url: $x")
           }
       }
-      .getOrElse(throw new RuntimeException(s"Can't find $name"))
+    if (r.isEmpty) log.warn(s"Can't find $name")
+    r
   }
 }
 

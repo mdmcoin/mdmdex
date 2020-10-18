@@ -26,11 +26,17 @@ service WavesBlockchainApi {
 
     rpc RunAddressScript (RunAddressScriptRequest) returns (RunScriptResponse);
 
-    rpc SpendableAssetBalance (SpendableAssetBalanceRequest) returns (SpendableAssetBalanceResponse);
+    rpc SpendableAssetsBalances (SpendableAssetsBalancesRequest) returns (SpendableAssetsBalancesResponse);
 
     rpc ForgedOrder (ForgedOrderRequest) returns (ForgedOrderResponse);
 
-    rpc GetBalanceChanges (google.protobuf.Empty) returns (stream BalanceChangesResponse);
+    // TODO after release 2.1.2:
+    // 1. Add GetBalanceChanges with the same functionality
+    // 2. Use it in a new version
+    // 3. Remove GetRealTimeBalanceChanges in a next version
+    rpc GetRealTimeBalanceChanges (google.protobuf.Empty) returns (stream BalanceChangesFlattenResponse);
+
+    rpc AllAssetsSpendableBalance (AddressRequest) returns (AllAssetsSpendableBalanceResponse);
 
     rpc GetNodeAddress (google.protobuf.Empty) returns (NodeAddressResponse);
 }
@@ -126,13 +132,31 @@ message HasAddressScriptRequest {
     bytes address = 1;
 }
 
+// TODO remove after release 2.1.3
 message SpendableAssetBalanceRequest {
     bytes address = 1;
     bytes asset_id = 2;
 }
 
+// TODO remove after release 2.1.3
 message SpendableAssetBalanceResponse {
     int64 balance = 1;
+}
+
+message SpendableAssetsBalancesRequest {
+    bytes address = 1;
+    message Record {
+        bytes asset_id = 1;
+    }
+    repeated Record asset_ids = 2;
+}
+
+message SpendableAssetsBalancesResponse {
+    message Record {
+        bytes asset_id = 1;
+        int64 balance = 2;
+    }
+    repeated Record balances = 1;
 }
 
 message ForgedOrderRequest {
@@ -143,6 +167,14 @@ message ForgedOrderResponse {
     bool is_forged = 1;
 }
 
+// TODO rename to BalanceChangesResponse after release 2.1.2
+message BalanceChangesFlattenResponse {
+    bytes address = 1;
+    bytes asset = 2;
+    int64 balance = 3;
+}
+
+// TODO remove after release 2.1.2
 message BalanceChangesResponse {
     message Record {
         bytes address = 1;
@@ -150,6 +182,14 @@ message BalanceChangesResponse {
         int64 balance = 3;
     }
     repeated Record batch = 1;
+}
+
+message AllAssetsSpendableBalanceResponse {
+    message Record {
+        bytes asset_id = 1;
+        int64 balance = 2;
+    }
+    repeated Record balances = 1;
 }
 
 message NodeAddressResponse {

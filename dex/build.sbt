@@ -1,19 +1,22 @@
 import java.nio.charset.StandardCharsets
 
 import Dependencies.Version
-import DexDockerKeys._
+import ImageVersionPlugin.autoImport.nameOfImage
 import VersionSourcePlugin.V
 import com.typesafe.sbt.SbtNativePackager.Universal
 import com.typesafe.sbt.packager.archetypes.TemplateWriter
 
-enablePlugins(RewriteSwaggerConfigPlugin,
-              JavaServerAppPackaging,
-              UniversalDeployPlugin,
-              JDebPackaging,
-              SystemdPlugin,
-              DexDockerPlugin,
-              GitVersioning,
-              VersionSourcePlugin)
+enablePlugins(
+  RewriteSwaggerConfigPlugin,
+  JavaServerAppPackaging,
+  UniversalDeployPlugin,
+  JDebPackaging,
+  SystemdPlugin,
+  GitVersioning,
+  VersionSourcePlugin,
+  sbtdocker.DockerPlugin,
+  ImageVersionPlugin
+)
 
 V.scalaPackage := "com.wavesplatform.dex"
 V.subProject := "dex"
@@ -50,20 +53,50 @@ inConfig(Compile)(
     sourceGenerators += swaggerUiVersionSourceTask.taskValue,
     discoveredMainClasses := Seq(
       "com.wavesplatform.dex.Application",
-      "com.wavesplatform.dex.TnDexCli"
+      "com.wavesplatform.dex.cli.TnDexCli"
     ),
     mainClass := discoveredMainClasses.value.headOption,
     run / fork := true
-  ))
+  )
+)
 
 // Docker
 inTask(docker)(
   Seq(
-    additionalFiles ++= Seq(
-      (Universal / stage).value,
-      (Compile / sourceDirectory).value / "container" / "start.sh",
-      (Compile / sourceDirectory).value / "container" / "default.conf"
-    )
+    nameOfImage := "wavesplatform/matcher-server",
+    dockerfile := new Dockerfile {
+
+      val (user, userId)   = ("waves-dex", "113")
+      val (group, groupId) = ("waves-dex", "116")
+
+      val runtimePath = s"/var/lib/$user"
+      val appPath     = s"/usr/share/$user"
+
+      val entryPointSh = s"$appPath/bin/start-matcher-server.sh"
+
+      from("openjdk:8-jre-slim-buster")
+
+      runRaw(s"""mkdir -p $runtimePath $appPath $runtimePath/runtime && \\
+                |groupadd -g $groupId $group && \\
+                |useradd -d $runtimePath -g $groupId -u $userId -s /bin/bash -M $user && \\
+                |chown -R $userId:$groupId $runtimePath $appPath && \\
+                |chmod -R 755 $runtimePath $appPath && \\
+                |ln -fs $runtimePath/log var/log/waves-dex""".stripMargin)
+
+      Seq(
+        (Universal / stage).value                                                   -> s"$appPath/", // sources
+        (Compile / sourceDirectory).value / "container" / "start-matcher-server.sh" -> s"$appPath/bin/", // entry point
+        (Compile / sourceDirectory).value / "container" / "dex.conf"                -> s"$appPath/conf/" // base config
+      ) foreach { case (source, destination) => add(source = source, destination = destination, chown = s"$userId:$groupId") }
+
+      user(s"$userId:$groupId")
+
+      runShell("chmod", "+x", entryPointSh)
+      workDir(runtimePath)
+      entryPoint(entryPointSh)
+      expose(6886)
+    },
+    buildOptions := BuildOptions(removeIntermediateContainers = BuildOptions.Remove.OnSuccess)
   )
 )
 
@@ -76,24 +109,23 @@ inConfig(Universal)(
     packageName := s"tn-dex-${version.value}", // An archive file name
     // Common JVM parameters
     // -J prefix is required by a parser
-    javaOptions ++= Seq(
-      "-Xmx2g",
-      "-Xms128m",
-    ).map(x => s"-J$x"),
-    mappings ++= sbt.IO
-      .listFiles((Compile / packageSource).value / "doc")
-      .map { file =>
-        file -> s"doc/${file.getName}"
-      }
-      .toSeq
-  ))
+    javaOptions ++= Seq("-Xmx2g", "-Xms128m").map(x => s"-J$x"),
+    mappings ++=
+      sbt.IO
+        .listFiles((Compile / packageSource).value / "doc")
+        .map(file => file -> s"doc/${file.getName}")
+        .toSeq
+  )
+)
 
 // DEB package
-inConfig(Linux)(Seq(
-  name := "tn-dex", // A staging directory name
-  normalizedName := name.value, // An archive file name
-  packageName := name.value // In a control file
-))
+inConfig(Linux)(
+  Seq(
+    name := "TN-dex", // A staging directory name
+    normalizedName := name.value, // An archive file name
+    packageName := name.value // In a control file
+  )
+)
 
 inConfig(Debian)(
   Seq(

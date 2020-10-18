@@ -4,9 +4,10 @@ import java.io.File
 
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
-import com.wavesplatform.dex.api.OrderBookSnapshotHttpCache
-import com.wavesplatform.dex.db.{AccountStorage, OrderDB}
+import com.wavesplatform.dex.actors.address.AddressActor
+import com.wavesplatform.dex.api.http.OrderBookHttpInfo
 import com.wavesplatform.dex.db.AccountStorage.Settings.{valueReader => accountStorageSettingsReader}
+import com.wavesplatform.dex.db.{AccountStorage, OrderDB}
 import com.wavesplatform.dex.domain.asset.AssetPair._
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.grpc.integration.settings.WavesBlockchainClientSettings
@@ -14,7 +15,7 @@ import com.wavesplatform.dex.model.OrderValidator
 import com.wavesplatform.dex.settings.DenormalizedMatchingRule.denormalizedMatchingRuleNelReader
 import com.wavesplatform.dex.settings.DeviationsSettings._
 import com.wavesplatform.dex.settings.EventsQueueSettings.eventsQueueSettingsReader
-import com.wavesplatform.dex.settings.OrderFeeSettings.{OrderFeeSettings, _}
+import com.wavesplatform.dex.settings.OrderFeeSettings._
 import com.wavesplatform.dex.settings.OrderHistorySettings._
 import com.wavesplatform.dex.settings.OrderRestrictionsSettings.orderRestrictionsSettingsReader
 import com.wavesplatform.dex.settings.PostgresConnection._
@@ -26,12 +27,12 @@ import net.ceedubs.ficus.readers.{NameMapper, ValueReader}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
-case class MatcherSettings(addressSchemeCharacter: Char,
+case class MatcherSettings(id: String,
+                           addressSchemeCharacter: Char,
                            accountStorage: AccountStorage.Settings,
                            wavesBlockchainClient: WavesBlockchainClientSettings,
                            ntpServer: String,
                            restApi: RestAPISettings,
-                           maxActiveOrders: Int,
                            exchangeTxBaseFee: Long,
                            actorResponseTimeout: FiniteDuration,
                            dataDir: String,
@@ -47,7 +48,7 @@ case class MatcherSettings(addressSchemeCharacter: Char,
                            orderDb: OrderDB.Settings,
                            // this is not a Set[Address] because to parse an address, global AddressScheme must be initialized
                            blacklistedAddresses: Set[String],
-                           orderBookSnapshotHttpCache: OrderBookSnapshotHttpCache.Settings,
+                           orderBookSnapshotHttpCache: OrderBookHttpInfo.Settings,
                            eventsQueue: EventsQueueSettings,
                            processConsumedTimeout: FiniteDuration,
                            orderFee: Map[Long, OrderFeeSettings],
@@ -59,7 +60,9 @@ case class MatcherSettings(addressSchemeCharacter: Char,
                            allowedOrderVersions: Set[Byte],
                            exchangeTransactionBroadcast: ExchangeTransactionBroadcastSettings,
                            postgresConnection: PostgresConnection,
-                           orderHistory: Option[OrderHistorySettings]) {
+                           orderHistory: Option[OrderHistorySettings],
+                           webSocketSettings: WebSocketSettings,
+                           addressActorSettings: AddressActor.Settings) {
 
   def mentionedAssets: Set[Asset] = {
     priceAssets.toSet ++
@@ -80,6 +83,9 @@ object MatcherSettings {
 
   implicit val chosenCase: NameMapper                    = net.ceedubs.ficus.readers.namemappers.implicits.hyphenCase
   implicit val valueReader: ValueReader[MatcherSettings] = (cfg, path) => fromConfig(cfg getConfig path)
+
+  implicit val subscriptionsSettingsReader: ValueReader[SubscriptionsSettings] =
+    com.wavesplatform.dex.settings.SubscriptionsSettings.subscriptionSettingsReader
 
   private def unsafeParseAsset(x: String): Asset = {
     AssetPair.extractAsset(x).getOrElse(throw new IllegalArgumentException(s"Can't parse '$x' as asset"))
@@ -128,31 +134,32 @@ object MatcherSettings {
         }
         .toSet
 
-    val blacklistedNames           = config.as[List[String]]("blacklisted-names").map(_.r)
-    val maxActiveOrders            = config.as[Int]("max-active-orders")
-    val blacklistedAddresses       = config.as[Set[String]]("blacklisted-addresses")
-    val orderBookSnapshotHttpCache = config.as[OrderBookSnapshotHttpCache.Settings]("order-book-snapshot-http-cache")
-    val eventsQueue                = config.as[EventsQueueSettings]("events-queue")
-    val processConsumedTimeout     = config.as[FiniteDuration]("process-consumed-timeout")
-    val orderFee                   = config.getValidatedMap[Long, OrderFeeSettings]("order-fee")(validateOffset)
-    val deviation                  = config.as[DeviationsSettings]("max-price-deviations")
-    val orderRestrictions          = config.getValidatedMap[AssetPair, OrderRestrictionsSettings]("order-restrictions")(validateAssetPairKey)
-    val matchingRules              = config.getValidatedMap[AssetPair, NonEmptyList[DenormalizedMatchingRule]]("matching-rules")(validateAssetPairKey)
-    val whiteListOnly              = config.as[Boolean]("white-list-only")
-    val allowedAssetPairs          = config.getValidatedSet[AssetPair]("allowed-asset-pairs")
-    val allowedOrderVersions       = config.as[Set[Int]]("allowed-order-versions").map(_.toByte)
-    val broadcastUntilConfirmed    = config.as[ExchangeTransactionBroadcastSettings]("exchange-transaction-broadcast")
-    val postgresConnection         = config.as[PostgresConnection]("postgres")
-    val orderHistory               = config.as[Option[OrderHistorySettings]]("order-history")
-    val orderDb                    = config.as[OrderDB.Settings]("order-db")
+    val blacklistedNames        = config.as[List[String]]("blacklisted-names").map(_.r)
+    val blacklistedAddresses    = config.as[Set[String]]("blacklisted-addresses")
+    val orderBookHttp           = config.as[OrderBookHttpInfo.Settings]("order-book-http")
+    val eventsQueue             = config.as[EventsQueueSettings]("events-queue")
+    val processConsumedTimeout  = config.as[FiniteDuration]("process-consumed-timeout")
+    val orderFee                = config.getValidatedMap[Long, OrderFeeSettings]("order-fee")(validateOffset)
+    val deviation               = config.as[DeviationsSettings]("max-price-deviations")
+    val orderRestrictions       = config.getValidatedMap[AssetPair, OrderRestrictionsSettings]("order-restrictions")(validateAssetPairKey)
+    val matchingRules           = config.getValidatedMap[AssetPair, NonEmptyList[DenormalizedMatchingRule]]("matching-rules")(validateAssetPairKey)
+    val whiteListOnly           = config.as[Boolean]("white-list-only")
+    val allowedAssetPairs       = config.getValidatedSet[AssetPair]("allowed-asset-pairs")
+    val allowedOrderVersions    = config.as[Set[Int]]("allowed-order-versions").map(_.toByte)
+    val broadcastUntilConfirmed = config.as[ExchangeTransactionBroadcastSettings]("exchange-transaction-broadcast")
+    val postgresConnection      = config.as[PostgresConnection]("postgres")
+    val orderHistory            = config.as[Option[OrderHistorySettings]]("order-history")
+    val orderDb                 = config.as[OrderDB.Settings]("order-db")
+    val webSocketSettings       = config.as[WebSocketSettings]("web-sockets")
+    val addressActorSettings    = config.as[AddressActor.Settings]("address-actor")
 
     MatcherSettings(
+      config.as[String]("id"),
       addressSchemeCharacter,
       accountStorage,
       wavesBlockchainClient,
       ntpServer,
       restApiSettings,
-      maxActiveOrders,
       exchangeTxBaseFee,
       actorResponseTimeout,
       dataDirectory,
@@ -167,7 +174,7 @@ object MatcherSettings {
       blacklistedNames,
       orderDb,
       blacklistedAddresses,
-      orderBookSnapshotHttpCache,
+      orderBookHttp,
       eventsQueue,
       processConsumedTimeout,
       orderFee,
@@ -179,7 +186,9 @@ object MatcherSettings {
       allowedOrderVersions,
       broadcastUntilConfirmed,
       postgresConnection,
-      orderHistory
+      orderHistory,
+      webSocketSettings,
+      addressActorSettings
     )
   }
 }

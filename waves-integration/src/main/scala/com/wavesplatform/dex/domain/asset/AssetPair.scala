@@ -6,21 +6,24 @@ import com.wavesplatform.dex.domain.validation.Validation
 import com.wavesplatform.dex.domain.validation.Validation.booleanOperators
 import io.swagger.annotations.{ApiModel, ApiModelProperty}
 import net.ceedubs.ficus.readers.ValueReader
-import play.api.libs.json.{Format, JsObject, Json}
+import play.api.libs.functional.syntax._
+import play.api.libs.json._
 
-import scala.annotation.meta.field
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
-@ApiModel
-case class AssetPair(@(ApiModelProperty @field)(
-                       value = "Base58 encoded amount asset id",
+@ApiModel(
+  description = """A pair of assets sorted by two rules:
+      1. A price asset is chosen by a priority from priceAssets of /matcher/settings;
+      2. If both assets are not present among priceAssets, they are sorted lexicographically: price asset bytes < amount asset bytes""")
+case class AssetPair(@ApiModelProperty(
+                       value = "Base58 encoded amount asset ID. Waves is used if field isn't specified",
                        dataType = "string",
-                       example = "TN"
+                       example = "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS",
                      ) amountAsset: Asset,
-                     @(ApiModelProperty @field)(
-                       value = "Base58 encoded amount price id",
+                     @ApiModelProperty(
+                       value = "Base58 encoded price asset ID. Waves is used if field isn't specified",
                        dataType = "string",
-                       example = "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"
+                       example = "DG2xFkPdDwKUoBkzGAhQtLpSGzfXLiCYPEzeKH2Ad24p",
                      ) priceAsset: Asset) {
 
   @ApiModelProperty(hidden = true)
@@ -36,11 +39,6 @@ case class AssetPair(@(ApiModelProperty @field)(
   def isValid: Validation = (amountAsset != priceAsset) :| "Invalid AssetPair"
   def bytes: Array[Byte]  = amountAsset.byteRepr ++ priceAsset.byteRepr
 
-  def json: JsObject = Json.obj(
-    "amountAsset" -> amountAsset.maybeBase58Repr,
-    "priceAsset"  -> priceAsset.maybeBase58Repr
-  )
-
   def reverse: AssetPair = AssetPair(priceAsset, amountAsset)
 
   def assets: Set[Asset] = Set(amountAsset, priceAsset)
@@ -53,30 +51,49 @@ object AssetPair {
     case other           => ByteStr.decodeBase58(other).map(IssuedAsset)
   }
 
+  def extractAssetPair(s: String): Try[AssetPair] = s.split('-') match {
+    case Array(amtAssetStr, prcAssetStr) =>
+      AssetPair.createAssetPair(amtAssetStr, prcAssetStr).recoverWith {
+        case e => Failure(new Exception(s"$s (${e.getMessage})", e))
+      }
+
+    case xs => Failure(new Exception(s"$s (incorrect assets count, expected 2 but got ${xs.length})"))
+  }
+
   def createAssetPair(amountAsset: String, priceAsset: String): Try[AssetPair] =
     for {
       a1 <- extractAsset(amountAsset)
       a2 <- extractAsset(priceAsset)
     } yield AssetPair(a1, a2)
 
-  def fromBytes(xs: Array[Byte]): AssetPair = {
-    val (amount, offset) = deser.parseByteArrayOption(xs, 0, Asset.AssetIdLength)
-    val (price, _)       = deser.parseByteArrayOption(xs, offset, Asset.AssetIdLength)
-    AssetPair(
-      Asset.fromCompatId(amount.map(ByteStr(_))),
-      Asset.fromCompatId(price.map(ByteStr(_)))
+  def fromBytes(xs: Array[Byte]): (AssetPair, Int) = {
+    val (amount, offset1) = deser.parseByteArrayOption(xs, 0, Asset.AssetIdLength)
+    val (price, offset2)  = deser.parseByteArrayOption(xs, offset1, Asset.AssetIdLength)
+    (
+      AssetPair(
+        Asset.fromCompatId(amount.map(ByteStr(_))),
+        Asset.fromCompatId(price.map(ByteStr(_)))
+      ),
+      offset2
     )
   }
 
   implicit val assetPairReader: ValueReader[AssetPair] = { (cfg, path) =>
-    val source    = cfg.getString(path)
-    val sourceArr = source.split("-")
-    val res = sourceArr match {
-      case Array(amtAssetStr, prcAssetStr) => AssetPair.createAssetPair(amtAssetStr, prcAssetStr)
-      case _                               => throw new Exception(s"$source (incorrect assets count, expected 2 but got ${sourceArr.size})")
-    }
-    res fold (ex => throw new Exception(s"$source (${ex.getMessage})"), identity)
+    val source = cfg.getString(path)
+    extractAssetPair(source).fold(e => throw e, identity)
   }
 
-  implicit val assetPairFormat: Format[AssetPair] = Json.format[AssetPair]
+  implicit val assetPairFormat: OFormat[AssetPair] = (
+    (JsPath \ "amountAsset").formatWithDefault[Asset](Waves) and (JsPath \ "priceAsset").formatWithDefault[Asset](Waves)
+  )(AssetPair.apply, Function.unlift(AssetPair.unapply))
+
+  val assetPairKeyAsStringFormat: Format[AssetPair] = Format(
+    fjs = Reads {
+      case JsString(x) => AssetPair.extractAssetPair(x).fold(e => JsError(e.getMessage), JsSuccess(_))
+      case x           => JsError(JsPath, s"Expected a string, but got ${x.toString().take(10)}...")
+    },
+    tjs = Writes { x =>
+      JsString(x.key)
+    }
+  )
 }

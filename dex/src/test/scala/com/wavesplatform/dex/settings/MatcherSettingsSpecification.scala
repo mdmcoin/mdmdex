@@ -2,7 +2,9 @@ package com.wavesplatform.dex.settings
 
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
-import com.wavesplatform.dex.api.OrderBookSnapshotHttpCache
+import com.wavesplatform.dex.actors.address.AddressActor
+import com.wavesplatform.dex.api.http.OrderBookHttpInfo
+import com.wavesplatform.dex.api.ws.actors.{WsExternalClientHandlerActor, WsHealthCheckSettings, WsInternalBroadcastActor, WsInternalClientHandlerActor}
 import com.wavesplatform.dex.db.{AccountStorage, OrderDB}
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.AssetPair
@@ -11,7 +13,8 @@ import com.wavesplatform.dex.domain.utils.EitherExt2
 import com.wavesplatform.dex.grpc.integration.settings.{GrpcClientSettings, WavesBlockchainClientSettings}
 import com.wavesplatform.dex.model.Implicits.AssetPairOps
 import com.wavesplatform.dex.queue.LocalMatcherQueue
-import com.wavesplatform.dex.settings.OrderFeeSettings.{OrderFeeSettings, PercentSettings}
+import com.wavesplatform.dex.settings.EventsQueueSettings.CircuitBreakerSettings
+import com.wavesplatform.dex.settings.OrderFeeSettings.PercentSettings
 import com.wavesplatform.dex.test.matchers.DiffMatcherWithImplicits
 import com.wavesplatform.dex.test.matchers.ProduceError.produce
 import net.ceedubs.ficus.Ficus._
@@ -25,6 +28,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     val config   = configWithSettings()
     val settings = config.as[MatcherSettings]("TN.dex")
 
+    settings.id should be("matcher-1")
     settings.accountStorage should be(AccountStorage.Settings.InMem(ByteStr.decodeBase64("c3lrYWJsZXlhdA==").get))
     settings.restApi shouldBe RestAPISettings(
       address = "127.1.2.3",
@@ -33,6 +37,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
       cors = false,
       apiKeyDifferentHost = false
     )
+
     settings.wavesBlockchainClient should matchTo(
       WavesBlockchainClientSettings(
         grpc = GrpcClientSettings(
@@ -47,7 +52,8 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
             connectTimeout = 99.seconds
           )
         ),
-        defaultCachesExpiration = 101.millis
+        defaultCachesExpiration = 101.millis,
+        balanceStreamBufferSize = 100
       )
     )
     settings.exchangeTxBaseFee should be(4000000)
@@ -66,8 +72,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     settings.blacklistedAssets shouldBe Set(AssetPair.extractAsset("AbunLGErT5ctzVN8MVjb4Ad9YgjpubB8Hqb17VxzfAck").get.asInstanceOf[IssuedAsset])
     settings.blacklistedNames.map(_.pattern.pattern()) shouldBe Seq("b")
     settings.blacklistedAddresses shouldBe Set("3N5CBq8NYBMBU3UVS3rfMgaQEpjZrkWcBAD")
-    settings.orderBookSnapshotHttpCache shouldBe OrderBookSnapshotHttpCache.Settings(
-      cacheTimeout = 11.minutes,
+    settings.orderBookSnapshotHttpCache shouldBe OrderBookHttpInfo.Settings(
       depthRanges = List(1, 5, 333),
       defaultDepth = Some(5)
     )
@@ -78,9 +83,15 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     settings.eventsQueue.kafka.consumer.maxBufferSize shouldBe 777
     settings.eventsQueue.kafka.consumer.client.getInt("foo") shouldBe 2
     settings.eventsQueue.kafka.producer.client.getInt("bar") shouldBe 3
+    settings.eventsQueue.circuitBreaker should matchTo(
+      CircuitBreakerSettings(
+        maxFailures = 999,
+        callTimeout = 123.seconds,
+        resetTimeout = 1.day
+      ))
     settings.processConsumedTimeout shouldBe 663.seconds
     settings.orderFee should matchTo(Map[Long, OrderFeeSettings](-1L -> PercentSettings(AssetType.AMOUNT, 0.1)))
-    settings.deviation shouldBe DeviationsSettings(true, 1000000, 1000000, 1000000)
+    settings.deviation shouldBe DeviationsSettings(enabled = true, 1000000, 1000000, 1000000)
     settings.allowedAssetPairs shouldBe Set.empty[AssetPair]
     settings.allowedOrderVersions shouldBe Set(11, 22)
     settings.orderRestrictions shouldBe Map.empty[AssetPair, OrderRestrictionsSettings]
@@ -89,6 +100,17 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
       interval = 1.day,
       maxPendingTime = 30.days
     )
+    val expectedJwtPublicKey = """foo
+bar
+baz"""
+    settings.webSocketSettings should matchTo(
+      WebSocketSettings(
+        externalClientHandler = WsExternalClientHandlerActor.Settings(1.day, 3.days, expectedJwtPublicKey, SubscriptionsSettings(20, 20), WsHealthCheckSettings(9.minutes, 129.minutes)),
+        internalBroadcast = WsInternalBroadcastActor.Settings(923.millis),
+        internalClientHandler = WsInternalClientHandlerActor.Settings(WsHealthCheckSettings(10.minutes, 374.minutes))
+      )
+    )
+    settings.addressActorSettings should matchTo(AddressActor.Settings(100.milliseconds, 18.seconds, 400))
   }
 
   "DeviationsSettings in MatcherSettings" should "be validated" in {
@@ -453,5 +475,21 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
       getSettingByConfig(configStr(incorrectRulesOrder(100, 88))) should produce(
         "Invalid setting matching-rules value: Rules should be ordered by offset, but they are: 100, 88")
     }
+  }
+
+  "Subscriptions settings" should "be validated" in {
+
+    val invalidSubscriptionsSettings =
+      s"""
+         | subscriptions {
+         |   max-order-book-number = 0
+         |   max-address-number = 1
+         | }
+         """.stripMargin
+
+    getSettingByConfig(configWithSettings(subscriptionsSettings = invalidSubscriptionsSettings)) should produce(
+      "Invalid setting web-sockets.external-client-handler.subscriptions.max-order-book-number value: 0 (max order book number should be > 1), " +
+        "Invalid setting web-sockets.external-client-handler.subscriptions.max-address-number value: 1 (max address number should be > 1)"
+    )
   }
 }

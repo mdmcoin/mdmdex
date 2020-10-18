@@ -3,6 +3,9 @@ package com.wavesplatform.dex.db
 import com.wavesplatform.dex.domain.account.Address
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.order.Order
+import com.wavesplatform.dex.domain.order.Order.Id
+import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
+import com.wavesplatform.dex.model.OrderInfo.FinalOrderInfo
 import com.wavesplatform.dex.model.{OrderInfo, OrderStatus}
 
 class TestOrderDB(maxFinalizedOrders: Int) extends OrderDB {
@@ -11,6 +14,7 @@ class TestOrderDB(maxFinalizedOrders: Int) extends OrderDB {
   private var orderInfo     = Map.empty[Order.Id, OrderInfo[OrderStatus.Final]]
   private var idsForPair    = Map.empty[(Address, AssetPair), Seq[Order.Id]].withDefaultValue(Seq.empty)
   private var idsForAddress = Map.empty[Address, Seq[Order.Id]].withDefaultValue(Seq.empty)
+  private val txsByOrder    = Map.empty[Order.Id, Seq[ExchangeTransaction]]
 
   override def containsInfo(id: Order.Id): Boolean = orderInfo.contains(id)
 
@@ -32,4 +36,8 @@ class TestOrderDB(maxFinalizedOrders: Int) extends OrderDB {
       info <- orderInfo.get(id)
     } yield id -> info)
       .sortBy { case (_, oi) => -oi.timestamp }
+
+  override def getOrderInfo(id: Id): Option[FinalOrderInfo] = orderInfo.get(id)
+
+  override def transactionsByOrder(orderId: Id): Seq[ExchangeTransaction] = txsByOrder.getOrElse(orderId, Seq.empty)
 }

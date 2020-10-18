@@ -11,7 +11,7 @@ import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
 import com.wavesplatform.dex.domain.transaction.ExchangeTransactionV2
 import com.wavesplatform.dex.domain.utils.EitherExt2
-import com.wavesplatform.dex.grpc.integration.clients.WavesBlockchainClient.SpendableBalanceChanges
+import com.wavesplatform.dex.grpc.integration.clients.WavesBlockchainClient.BalanceChanges
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import com.wavesplatform.dex.grpc.integration.settings.{GrpcClientSettings, WavesBlockchainClientSettings}
 import com.wavesplatform.dex.grpc.integration.{IntegrationSuiteBase, WavesBlockchainClientBuilder}
@@ -54,7 +54,8 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
           idleTimeout = 1.minute,
           channelOptions = GrpcClientSettings.ChannelOptionsSettings(connectTimeout = 5.seconds)
         ),
-        defaultCachesExpiration = 100.milliseconds
+        defaultCachesExpiration = 100.milliseconds,
+        balanceStreamBufferSize = 100
       ),
       monixScheduler,
       ExecutionContext.fromExecutor(grpcExecutor)
@@ -67,10 +68,13 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
   @volatile private var balanceChanges = Map.empty[Address, Map[Asset, Long]]
 
-  private val eventsObserver: Observer[SpendableBalanceChanges] = new Observer[SpendableBalanceChanges] {
-    override def onError(ex: Throwable): Unit                       = Unit
-    override def onComplete(): Unit                                 = Unit
-    override def onNext(elem: SpendableBalanceChanges): Future[Ack] = { balanceChanges ++= elem; Continue }
+  private val eventsObserver: Observer[BalanceChanges] = new Observer[BalanceChanges] {
+    override def onError(ex: Throwable): Unit = ()
+    override def onComplete(): Unit           = ()
+    override def onNext(elem: BalanceChanges): Future[Ack] = {
+      balanceChanges += elem.address -> (balanceChanges.getOrElse(elem.address, Map.empty) + (elem.asset -> elem.balance))
+      Continue
+    }
   }
 
   private val trueScript = Option(Scripts.alwaysTrue)
@@ -78,9 +82,12 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
   private def assertBalanceChanges(expectedBalanceChanges: Map[Address, Map[Asset, Long]]): Assertion = eventually {
     // Remove pairs (address, asset) those expectedBalanceChanges has not
     val actual = simplify(
-      balanceChanges.filterKeys(expectedBalanceChanges.keys.toSet).map {
-        case (address, balance) => address -> balance.filterKeys(expectedBalanceChanges(address).contains)
-      }
+      balanceChanges.view
+        .filterKeys(expectedBalanceChanges.keys.toSet)
+        .map {
+          case (address, balance) => address -> balance.view.filterKeys(expectedBalanceChanges(address).contains).toMap
+        }
+        .toMap
     )
     val expected = simplify(expectedBalanceChanges)
     actual should matchTo(expected)
@@ -107,7 +114,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
   override def beforeAll(): Unit = {
     super.beforeAll()
     broadcastAndAwait(IssueUsdTx)
-    client.spendableBalanceChanges.subscribe(eventsObserver)
+    client.realTimeBalanceChanges.subscribe(eventsObserver)
   }
 
   "DEX client should receive balance changes via gRPC" in {
@@ -285,9 +292,9 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
     }
   }
 
-  "spendableBalance" in {
-    wait(client.spendableBalance(bob, Waves)) shouldBe 494994798999996L
-    wait(client.spendableBalance(bob, randomIssuedAsset)) shouldBe 0L
+  "spendableBalances" in {
+    val issuedAsset = randomIssuedAsset
+    wait { client.spendableBalances(bob, Set(Waves, issuedAsset)) } should matchTo { Map[Asset, Long](Waves -> 494994798999996L) }
   }
 
   "forgedOrder" - {

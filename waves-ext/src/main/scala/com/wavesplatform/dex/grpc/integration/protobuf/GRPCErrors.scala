@@ -15,12 +15,10 @@ object GRPCErrors {
 
   def toStatusException(api: ApiError): StatusException = {
     val code = api match {
-      case WalletNotExist | WalletAddressDoesNotExist | TransactionDoesNotExist | AliasDoesNotExist(_) | BlockDoesNotExist | MissingSenderPrivateKey |
-          DataKeyDoesNotExist =>
+      case TransactionDoesNotExist | AliasDoesNotExist(_) | BlockDoesNotExist | MissingSenderPrivateKey | DataKeyDoesNotExist =>
         Status.NOT_FOUND
-      case WalletAlreadyExists => Status.ALREADY_EXISTS
-      case WalletLocked        => Status.PERMISSION_DENIED
-      case _                   => Status.INVALID_ARGUMENT
+      case _: AlreadyInState => Status.ALREADY_EXISTS
+      case _ => Status.INVALID_ARGUMENT
     }
 
     val metadata = new Metadata()

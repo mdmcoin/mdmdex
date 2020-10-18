@@ -4,6 +4,7 @@ import akka.http.scaladsl.marshalling.{Marshaller, PredefinedToEntityMarshallers
 import akka.http.scaladsl.model.MediaTypes.{`application/json`, `text/plain`}
 import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, PredefinedFromEntityUnmarshallers, Unmarshaller}
 import akka.util.ByteString
+import com.wavesplatform.dex.api.http.json.CustomJson
 import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
 import play.api.libs.json._
 
@@ -11,7 +12,7 @@ import scala.util.control.Exception.nonFatalCatch
 import scala.util.control.NoStackTrace
 
 case class PlayJsonException(cause: Option[Throwable] = None, errors: Seq[(JsPath, Seq[JsonValidationError])] = Seq.empty)
-    extends IllegalArgumentException
+    extends IllegalArgumentException(s"JSON parsing errors:\n${errors.mkString("\n")}", cause.orNull)
     with NoStackTrace
 
 trait ApiMarshallers {
@@ -36,7 +37,7 @@ trait ApiMarshallers {
 
       json.validate[A] match {
         case JsSuccess(value, _) => value
-        case JsError(errors)     => throw PlayJsonException(errors = errors)
+        case JsError(errors)     => throw PlayJsonException(errors = errors.map { case (jp, errorsSeq) => jp -> errorsSeq.to(Seq) } to Seq)
       }
     }
 

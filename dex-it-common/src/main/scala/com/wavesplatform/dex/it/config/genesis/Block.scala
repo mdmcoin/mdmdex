@@ -84,6 +84,6 @@ object Block {
                    consensusData: NxtLikeConsensusBlockData,
                    transactionData: Seq[GenesisTransaction],
                    signer: KeyPair): Either[GenericError, Block] =
-    build(version, timestamp, reference, consensusData, transactionData, SignerData(signer, ByteStr.empty)).right
-      .map(unsigned => unsigned.copy(signerData = SignerData(signer, ByteStr(crypto.sign(signer, unsigned.bytes.value)))))
+    build(version, timestamp, reference, consensusData, transactionData, SignerData(signer, ByteStr.empty))
+      .map(unsigned => unsigned.copy(signerData = SignerData(signer, ByteStr(crypto.sign(signer, unsigned.bytes.value())))))
 }

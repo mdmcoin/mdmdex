@@ -1,11 +1,11 @@
 package com.wavesplatform.it.sync
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.account.KeyPair
 import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
-import com.wavesplatform.dex.it.api.responses.dex.OrderStatus
 import com.wavesplatform.it.MatcherSuiteBase
 
 import scala.concurrent.duration._
@@ -17,7 +17,7 @@ class MatcherMassOrdersTestSuite extends MatcherSuiteBase {
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString(
     s"""TN.dex {
-       |  max-active-orders = $maxActiveOrders
+       |  address-actor.max-active-orders = $maxActiveOrders
        |  order-db.max-orders = $maxFinalizedOrders
        |  price-assets = [ "$UsdId", "TN" ]
        |}""".stripMargin
@@ -47,16 +47,16 @@ class MatcherMassOrdersTestSuite extends MatcherSuiteBase {
       List(aliceOrderFill, alicePartialOrder, aliceOrderToCancel, aliceActiveOrder).foreach(dex1.api.place)
 
       dex1.api.cancel(alice, aliceOrderToCancel) // TODO: remove this line in DEX-160
-      dex1.api.waitForOrderStatus(aliceOrderToCancel, OrderStatus.Cancelled)
+      dex1.api.waitForOrderStatus(aliceOrderToCancel, Status.Cancelled)
 
       // Bob orders should partially fill one Alice order and fill another
       genAndPlaceOrders(2, bob, ethWavesPair, OrderType.BUY, 2)
 
       // Check orders after filling
-      dex1.api.waitForOrderStatus(alicePartialOrder, OrderStatus.PartiallyFilled)
+      dex1.api.waitForOrderStatus(alicePartialOrder, Status.PartiallyFilled)
 
-      dex1.api.waitForOrderStatus(aliceOrderFill, OrderStatus.Filled)
-      dex1.api.waitForOrderStatus(alicePartialOrder, OrderStatus.PartiallyFilled)
+      dex1.api.waitForOrderStatus(aliceOrderFill, Status.Filled)
+      dex1.api.waitForOrderStatus(alicePartialOrder, Status.PartiallyFilled)
     }
 
     "Mass orders creation with random lifetime. Active orders still in list" in {
@@ -74,11 +74,11 @@ class MatcherMassOrdersTestSuite extends MatcherSuiteBase {
 
       genAndPlaceOrders(maxActiveOrders - activeAliceOrders1, alice, wavesUsdPair, OrderType.SELL, 3)
       val bobsOrderIds = genAndPlaceOrders(maxActiveOrders, bob, wavesUsdPair, OrderType.BUY, 2).reverse
-      bobsOrderIds.foreach(dex1.api.waitForOrderStatus(wavesUsdPair, _, OrderStatus.Filled))
+      bobsOrderIds.foreach(dex1.api.waitForOrderStatus(wavesUsdPair, _, Status.Filled))
 
       // Alice check that order Active order is still in list
-      dex1.api.waitForOrderStatus(aliceActiveOrder, OrderStatus.Accepted)
-      dex1.api.waitForOrderStatus(alicePartialOrder, OrderStatus.PartiallyFilled)
+      dex1.api.waitForOrderStatus(aliceActiveOrder, Status.Accepted)
+      dex1.api.waitForOrderStatus(alicePartialOrder, Status.PartiallyFilled)
 
       withClue("no flag") {
         val orderIdsAfterMatching1 = dex1.api.orderHistory(alice).map(_.id)
@@ -105,8 +105,9 @@ class MatcherMassOrdersTestSuite extends MatcherSuiteBase {
 
     "Filled and Cancelled orders should be after Partial And Accepted" in {
       val lastIdxOfActiveOrder =
-        dex1.api.orderHistory(alice).lastIndexWhere(o => o.status == OrderStatus.Accepted || o.status == OrderStatus.PartiallyFilled)
-      val firstIdxOfClosedOrder = dex1.api.orderHistory(alice).indexWhere(o => o.status == OrderStatus.Filled || o.status == OrderStatus.Cancelled)
+        dex1.api.orderHistory(alice).lastIndexWhere(o => o.status == Status.Accepted.name || o.status == Status.PartiallyFilled.name)
+      val firstIdxOfClosedOrder =
+        dex1.api.orderHistory(alice).indexWhere(o => o.status == Status.Filled.name || o.status == Status.Cancelled.name)
       lastIdxOfActiveOrder should be < firstIdxOfClosedOrder
     }
 
@@ -114,26 +115,26 @@ class MatcherMassOrdersTestSuite extends MatcherSuiteBase {
       val activeAndPartialOrders =
         dex1.api
           .orderHistory(alice)
-          .filter(o => o.status == OrderStatus.Accepted || o.status == OrderStatus.PartiallyFilled)
+          .filter(o => o.status == Status.Accepted.name || o.status == Status.PartiallyFilled.name)
           .map(_.timestamp)
       activeAndPartialOrders.reverse shouldBe sorted
     }
 
     "Filled and Cancelled orders should be sorted by timestamp." in {
       val filledAndCancelledOrders =
-        dex1.api.orderHistory(alice).filter(o => o.status == OrderStatus.Filled || o.status == OrderStatus.Cancelled).map(_.timestamp)
+        dex1.api.orderHistory(alice).filter(o => o.status === Status.Filled.name || o.status == Status.Cancelled.name).map(_.timestamp)
       filledAndCancelledOrders.reverse shouldBe sorted
     }
 
     "check order history orders count after fill" in {
       val aliceAllActiveOrders = dex1.api.orderHistory(alice, activeOnly = Some(true))
-      val aliceAllOrders = dex1.api.orderHistory(alice)
-      val expectedAllOrders = maxFinalizedOrders + aliceAllActiveOrders.size
+      val aliceAllOrders       = dex1.api.orderHistory(alice)
+      val expectedAllOrders    = maxFinalizedOrders + aliceAllActiveOrders.size
       aliceAllOrders.size shouldBe expectedAllOrders
 
       val alicePairActiveOrders = dex1.api.orderHistoryByPair(alice, wavesUsdPair, activeOnly = Some(true))
-      val alicePairOrders = dex1.api.orderHistoryByPair(alice, wavesUsdPair)
-      val expectedPairOrders = maxFinalizedOrders + alicePairActiveOrders.size
+      val alicePairOrders       = dex1.api.orderHistoryByPair(alice, wavesUsdPair)
+      val expectedPairOrders    = maxFinalizedOrders + alicePairActiveOrders.size
       alicePairOrders.size shouldBe expectedPairOrders
     }
   }

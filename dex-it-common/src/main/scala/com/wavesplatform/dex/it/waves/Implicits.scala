@@ -13,7 +13,7 @@ import com.wavesplatform.wavesj.transactions.{
 }
 import com.wavesplatform.wavesj.{ByteString, PrivateKeyAccount, PublicKeyAccount, AssetPair => JAssetPair}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait ToWavesJConversions {
 

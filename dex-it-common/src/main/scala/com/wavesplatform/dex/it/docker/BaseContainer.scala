@@ -6,9 +6,9 @@ import java.nio.file._
 
 import cats.Id
 import com.dimafeng.testcontainers.GenericContainer
+import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.exception.{NotFoundException, NotModifiedException}
-import com.github.dockerjava.api.model.{ContainerNetwork, ExposedPort, Ports}
-import com.github.dockerjava.core.command.ExecStartResultCallback
+import com.github.dockerjava.api.model.{ContainerNetwork, ExposedPort, Frame, Ports}
 import com.typesafe.config.Config
 import com.wavesplatform.dex.domain.utils.ScorexLogging
 import com.wavesplatform.dex.it.api.HasWaitReady
@@ -16,8 +16,8 @@ import com.wavesplatform.dex.it.cache.CachedData
 import com.wavesplatform.dex.settings.utils.ConfigOps.ConfigOps
 import org.testcontainers.images.builder.Transferable
 
-import scala.collection.JavaConverters._
 import scala.concurrent.Future
+import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
 abstract class BaseContainer(protected val baseContainerPath: String, private val underlying: GenericContainer)
@@ -61,7 +61,7 @@ abstract class BaseContainer(protected val baseContainerPath: String, private va
     val containerState = dockerClient.inspectContainerCmd(underlying.containerId).exec().getState
 
     log.debug(s"""$prefix Information:
-                 |Exit code:  ${containerState.getExitCode}
+                 |Exit code:  ${containerState.getExitCodeLong}
                  |Error:      ${containerState.getError}
                  |Status:     ${containerState.getStatus}
                  |OOM killed: ${containerState.getOOMKilled}""".stripMargin)
@@ -76,7 +76,7 @@ abstract class BaseContainer(protected val baseContainerPath: String, private va
 
   def printDebugMessage(text: String): Unit = {
     try {
-      if (dockerClient.inspectContainerCmd(underlying.containerId).exec().getState.getRunning) {
+      if (Option(underlying.containerId).exists(dockerClient.inspectContainerCmd(_).exec().getState.getRunning)) {
 
         val escaped = text.replace('\'', '\"')
 
@@ -91,7 +91,7 @@ abstract class BaseContainer(protected val baseContainerPath: String, private va
 
         val execCmdId = execCmd.exec().getId
 
-        try dockerClient.execStartCmd(execCmdId).exec(new ExecStartResultCallback)
+        try dockerClient.execStartCmd(execCmdId).exec(new ResultCallback.Adapter[Frame])
         catch {
           case NonFatal(_) => /* ignore */
         } finally execCmd.close()
@@ -131,6 +131,13 @@ abstract class BaseContainer(protected val baseContainerPath: String, private va
       .exec()
 
   def invalidateCaches(): Unit = cachedRestApiAddress.invalidate()
+
+  def reconnectToNetwork(delay: Long = 0, duration: Long = 100): Unit = {
+    Thread.sleep(delay)
+    disconnectFromNetwork()
+    Thread.sleep(duration)
+    connectToNetwork()
+  }
 
   def connectToNetwork(): Unit = {
     invalidateCaches()

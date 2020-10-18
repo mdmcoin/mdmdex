@@ -1,9 +1,21 @@
 description := "Node integration extension for the Waves DEX"
 
+import ImageVersionPlugin.autoImport.{imageTagMakeFunction, nameOfImage}
+import VersionSourcePlugin.V
 import WavesNodeArtifactsPlugin.autoImport.wavesNodeVersion
 import com.typesafe.sbt.SbtNativePackager.Universal
+import sbtdocker.DockerPlugin.autoImport._
 
-enablePlugins(RunApplicationSettings, WavesNodeArtifactsPlugin, ExtensionPackaging, GitVersioning)
+enablePlugins(RunApplicationSettings,
+              WavesNodeArtifactsPlugin,
+              ExtensionPackaging,
+              GitVersioning,
+              VersionSourcePlugin,
+              sbtdocker.DockerPlugin,
+              ImageVersionPlugin)
+
+V.scalaPackage := "com.wavesplatform.dex.grpc.integration"
+V.subProject := "ext"
 
 resolvers += "dnvriend" at "https://dl.bintray.com/dnvriend/maven"
 libraryDependencies ++= Dependencies.Module.wavesExt
@@ -68,24 +80,38 @@ Runtime / dependencyClasspath := {
 inConfig(Universal)(
   Seq(
     packageName := s"tn-dex-extension-${version.value}", // An archive file name
-    mappings ++= sbt.IO
-      .listFiles((Compile / packageSource).value / "doc")
-      .map { file =>
-        file -> s"doc/${file.getName}"
-      }
-      .toSeq,
     topLevelDirectory := None
   )
 )
 
 // DEB package
-inConfig(Linux)(Seq(
-  name := s"tn-dex-extension${network.value.packageSuffix}", // A staging directory name
-  normalizedName := name.value, // An archive file name
-  packageName := name.value // In a control file
-))
+inConfig(Linux)(
+  Seq(
+    name := s"tn-dex-extension${network.value.packageSuffix}", // A staging directory name
+    normalizedName := name.value, // An archive file name
+    packageName := name.value // In a control file
+  )
+)
 
 Debian / debianPackageConflicts := Seq(
   "grpc-server",
-  "waves-node-grpc-server" // TODO NODE-1999
+  "tn-node-grpc-server" // TODO NODE-1999
+)
+
+inTask(docker)(
+  Seq(
+    nameOfImage := "turtlenetwork/matcher-node",
+    imageTagMakeFunction := (gitTag => s"${wavesNodeVersion.value}_$gitTag"),
+    dockerfile := new Dockerfile {
+      from(s"turtlenetwork/tnnode:${wavesNodeVersion.value}")
+      user("143:143") // waves:waves
+      add(
+        sources = Seq((Universal / stage).value / "lib"), // sources
+        destination = "/usr/share/TN/lib/plugins/",
+        chown = "143:143"
+      )
+      expose(6887, 6871) // DEX Extension, Stagenet REST API
+    },
+    buildOptions := BuildOptions(removeIntermediateContainers = BuildOptions.Remove.OnSuccess)
+  )
 )

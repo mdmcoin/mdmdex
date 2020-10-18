@@ -4,14 +4,14 @@ import java.util.concurrent.Executors
 import java.util.{Timer, TimerTask}
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
-import com.wavesplatform.dex.LocalQueueStore
+import com.wavesplatform.dex.db.LocalQueueStore
 import com.wavesplatform.dex.domain.utils.ScorexLogging
 import com.wavesplatform.dex.queue.LocalMatcherQueue._
 import com.wavesplatform.dex.queue.MatcherQueue.{IgnoreProducer, Producer}
 import com.wavesplatform.dex.time.Time
 
+import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.control.NonFatal
 
 class LocalMatcherQueue(settings: Settings, store: LocalQueueStore, time: Time) extends MatcherQueue with ScorexLogging {
@@ -20,7 +20,7 @@ class LocalMatcherQueue(settings: Settings, store: LocalQueueStore, time: Time) 
 
   private val executor = Executors.newSingleThreadExecutor {
     new ThreadFactoryBuilder()
-      .setDaemon(true)
+      .setDaemon(false)
       .setNameFormat("queue-local-consumer-%d")
       .build()
   }
@@ -74,10 +74,14 @@ class LocalMatcherQueue(settings: Settings, store: LocalQueueStore, time: Time) 
 
   override def lastEventOffset: Future[QueueEventWithMeta.Offset] = Future(store.newestOffset.getOrElse(-1L))
 
-  override def close(timeout: FiniteDuration): Unit = {
-    timer.cancel()
-    producer.close(timeout)
-  }
+  override def close(timeout: FiniteDuration): Future[Unit] =
+    Future {
+      blocking {
+        timer.cancel()
+        producer.close(timeout)
+        executor.shutdown()
+      }
+    }(scala.concurrent.ExecutionContext.global)
 }
 
 object LocalMatcherQueue {
@@ -94,7 +98,7 @@ object LocalMatcherQueue {
     private implicit val executionContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(executor)
 
     override def storeEvent(event: QueueEvent): Future[Option[QueueEventWithMeta]] = {
-      val p = Promise[QueueEventWithMeta]
+      val p = Promise[QueueEventWithMeta]()
       // Need to guarantee the order
       executor.submit(new Runnable {
         override def run(): Unit = {

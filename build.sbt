@@ -7,7 +7,10 @@ import sbt.internal.inc.ReflectUtilities
 Global / resolvers += Resolver.bintrayRepo("ethereum", "maven") // JNI LevelDB
 
 // Scalafix
-scalafixDependencies in ThisBuild += "org.scalatest" %% "autofix" % "3.1.0.0"
+scalafixDependencies in ThisBuild ++= List(
+  "org.scalatest"          %% "autofix"                     % "3.1.0.0",
+  "org.scala-lang.modules" %% "scala-collection-migrations" % "2.1.4"
+)
 addCompilerPlugin(scalafixSemanticdb)
 
 lazy val commonOwaspSettings = Seq(
@@ -39,6 +42,13 @@ lazy val `dex-it` = project
     `dex-it-common`
   )
 
+lazy val `dex-load` = project
+  .settings(commonOwaspSettings)
+  .dependsOn(
+    dex,
+    `dex-it-common`
+  )
+
 lazy val `waves-grpc` = project.settings(commonOwaspSettings)
 
 lazy val `waves-ext` = project
@@ -57,15 +67,19 @@ lazy val `waves-integration-it` = project
     `dex-it-common`
   )
 
+lazy val `dex-jmh` = project.dependsOn(dex % "compile;test->test")
+
 lazy val it = project
   .settings(
     description := "Hack for near future to support builds in TeamCity for old and new branches both",
-    Test / test := Def.sequential(
-      root / Compile / cleanAll,
-      Def.task {
-        Command.process("fullCheck", state.value)
-      }
-    ).value
+    Test / test := Def
+      .sequential(
+        root / Compile / cleanAll,
+        Def.task {
+          Command.process("fullCheck", state.value)
+        }
+      )
+      .value
   )
 
 lazy val root = (project in file("."))
@@ -74,7 +88,9 @@ lazy val root = (project in file("."))
   .aggregate(
     dex,
     `dex-it`,
+    `dex-load`,
     `dex-it-common`,
+    `dex-jmh`,
     `dex-test-common`,
     `waves-ext`,
     `waves-grpc`,
@@ -84,7 +100,9 @@ lazy val root = (project in file("."))
 
 inScope(Global)(
   Seq(
-    scalaVersion := "2.12.10",
+    scalaVersion := "2.13.3",
+    semanticdbEnabled := true,
+    semanticdbVersion := scalafixSemanticdb.revision,
     organization := "com.wavesplatform",
     organizationName := "TurtleNetwork",
     organizationHomepage := Some(url("https://Turtlenetwork.eu")),
@@ -97,12 +115,14 @@ inScope(Global)(
       "-language:higherKinds",
       "-language:implicitConversions",
       "-language:postfixOps",
+      "-opt-warnings",
       "-Ywarn-unused:-implicits",
+      "-Ywarn-macros:after", // https://github.com/scala/bug/issues/11099
       "-Xlint",
-      "-Ypartial-unification",
       "-opt:l:inline",
       "-opt-inline-from:**",
-      "-Yrangepos" // required for scalafix
+      "-Yrangepos", // required for scalafix
+      "-P:semanticdb:synthetics:on"
     ),
     crossPaths := false,
     scalafmtOnCompile := false,
@@ -120,7 +140,7 @@ inScope(Global)(
      * F - show full stack traces
      * u - select the JUnit XML reporter with output directory
      */
-    testOptions += Tests.Argument("-oIDOF", "-u", "target/test-reports"),
+    testOptions += Tests.Argument("-oIDOF", "-u", "target/test-reports", "-C", "io.qameta.allure.scalatest.AllureScalatest"),
     testOptions += Tests.Setup(_ => sys.props("sbt-testing") = "true"),
     concurrentRestrictions := {
       val threadNumber = Option(System.getenv("SBT_THREAD_NUMBER")).fold(1)(_.toInt)
@@ -136,6 +156,13 @@ inScope(Global)(
 // ThisBuild options
 git.useGitDescribe := true
 git.uncommittedSignifier := Some("DIRTY")
+
+// FIX https://github.com/sbt/sbt-git/issues/161#issuecomment-469342173
+git.gitDescribedVersion := git.gitDescribedVersion { _ =>
+  import scala.sys.process._
+  val nativeGitDescribeResult = s"git describe --tags".!!.trim
+  git.defaultTagByVersionStrategy(nativeGitDescribeResult)
+}.value
 
 // root project settings
 enablePlugins(ReleasePlugin)
@@ -177,7 +204,6 @@ def mkCheckCommand(name: String, task: TaskKey[Unit]): Command = Command.command
   val updatedState = Project
     .extract(state)
     .appendWithoutSession(Seq(Global / scalacOptions ++= Seq("-Xfatal-warnings", "-Ywarn-unused:-imports")), state)
-
   Project.extract(updatedState).runTask(task, updatedState)
   state
 }

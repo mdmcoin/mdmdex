@@ -19,8 +19,8 @@ import com.wavesplatform.dex.waves.WavesFeeConstants._
 import com.wavesplatform.wavesj.transactions.{ExchangeTransaction => JExchangeTransaction, _}
 import com.wavesplatform.wavesj.{Transactions, Transfer}
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration.{Duration, DurationInt}
+import scala.jdk.CollectionConverters._
 
 // TODO Rename
 trait MkWavesEntities {
@@ -188,7 +188,7 @@ trait MkWavesEntities {
                  matcherFee: Long = matcherFee,
                  timestamp: Long = System.currentTimeMillis,
                  matcher: KeyPair): JExchangeTransaction =
-    toWavesJ(mkDomainExchange(buyOrderOwner, sellOrderOwner, pair, amount, price, matcherFee, matcher = matcher))
+    toWavesJ(mkDomainExchange(buyOrderOwner, sellOrderOwner, pair, amount, price, matcherFee, ts = timestamp, matcher = matcher))
 
   def mkDomainExchange(buyOrderOwner: KeyPair,
                        sellOrderOwner: KeyPair,
@@ -215,6 +215,10 @@ trait MkWavesEntities {
         timestamp = ts
       )
       .explicitGet()
+  }
+
+  def mkBurn(sender: KeyPair, asset: Asset, amount: Long, fee: Long = burnFee, ts: Long = System.currentTimeMillis): BurnTransaction = {
+    Transactions.makeBurnTx(sender, AddressScheme.current.chainId, asset, amount, burnFee, ts)
   }
 }
 

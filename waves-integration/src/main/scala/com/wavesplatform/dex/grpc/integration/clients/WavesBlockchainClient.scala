@@ -8,19 +8,25 @@ import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
 import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
-import com.wavesplatform.dex.grpc.integration.clients.WavesBlockchainClient.SpendableBalanceChanges
+import com.wavesplatform.dex.grpc.integration.clients.WavesBlockchainClient.BalanceChanges
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import monix.reactive.Observable
 
 object WavesBlockchainClient {
+
+  final case class BalanceChanges(address: Address, asset: Asset, balance: Long)
+
   type SpendableBalance        = Map[Asset, Long]
   type SpendableBalanceChanges = Map[Address, SpendableBalance]
 }
 
 trait WavesBlockchainClient[F[_]] {
 
-  def spendableBalanceChanges: Observable[SpendableBalanceChanges]
-  def spendableBalance(address: Address, asset: Asset): F[Long]
+  // TODO rename to spendableBalanceChanges after release 2.1.2
+  def realTimeBalanceChanges: Observable[BalanceChanges]
+
+  def spendableBalances(address: Address, assets: Set[Asset]): F[Map[Asset, Long]]
+  def allAssetsSpendableBalance(address: Address): F[Map[Asset, Long]]
 
   def isFeatureActivated(id: Short): F[Boolean]
 

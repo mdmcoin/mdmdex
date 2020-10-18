@@ -1,6 +1,6 @@
 package com.wavesplatform.dex.meta
 
-import com.wavesplatform.dex.domain.account.{Address, PublicKey}
+import com.wavesplatform.dex.domain.account.{Address, KeyPair, PublicKey}
 import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.bytes.ByteStr
@@ -8,6 +8,7 @@ import com.wavesplatform.dex.domain.feature.BlockchainFeature
 import com.wavesplatform.dex.domain.order.{Order, OrderV3}
 import shapeless._
 
+import scala.annotation.nowarn
 import scala.reflect.ClassTag
 
 trait Sample[T] {
@@ -58,9 +59,10 @@ object Sample {
   implicit val byteStr: Sample[ByteStr]         = mk("byteStr".getBytes)
   implicit val issuedAsset: Sample[IssuedAsset] = mk(IssuedAsset(ByteStr.decodeBase58("Emn8cyGDFgnLCKLTXqVWhKJARhtR2muBUuZaSmqNzDfn").get))
   implicit val assetPair: Sample[AssetPair]     = mk(AssetPair(issuedAsset.sample, asset.sample))
-  implicit val address: Sample[Address]         = mk(Address.createUnsafe("address".getBytes))
+  implicit val address: Sample[Address]         = mk(KeyPair(ByteStr("address".getBytes)).toAddress)
   implicit val publicKey: Sample[PublicKey]     = mk(PublicKey(Sample[ByteStr]))
-  implicit val order: Sample[Order]             = mk(Sample[OrderV3])
+
+  @nowarn implicit val order: Sample[Order] = mk(Sample[OrderV3])
 
   implicit val blockchainFeature: Sample[BlockchainFeature] = mk(BlockchainFeature(777, "The most stronger feature"))
 }

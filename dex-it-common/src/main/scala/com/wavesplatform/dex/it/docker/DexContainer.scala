@@ -9,9 +9,9 @@ import cats.instances.try_._
 import com.dimafeng.testcontainers.GenericContainer
 import com.typesafe.config.Config
 import com.wavesplatform.dex.domain.utils.ScorexLogging
-import com.wavesplatform.dex.it.api.dex.DexApi
 import com.wavesplatform.dex.it.cache.CachedData
 import com.wavesplatform.dex.it.collections.Implicits.ListOps
+import com.wavesplatform.dex.it.dex.DexApi
 import com.wavesplatform.dex.it.fp
 import com.wavesplatform.dex.it.resources.getRawContentFromResource
 import com.wavesplatform.dex.it.sttp.LoggingSttpBackend
@@ -39,7 +39,7 @@ final case class DexContainer private (override val internalIp: String, underlyi
 object DexContainer extends ScorexLogging {
 
   private val isProfilingEnabled: Boolean = Option(System.getenv("WAVES_DEX_PROFILING")).getOrElse("false").toBoolean
-  private val baseContainerPath: String   = "/opt/tn-dex"
+  private val baseContainerPath: String   = "/usr/share/tn-dex"
   private val containerLogsPath: String   = s"$baseContainerPath/logs"
 
   private val restApiPort: Int = 6886 // application.conf waves.dex.rest-api.port
@@ -50,19 +50,19 @@ object DexContainer extends ScorexLogging {
             internalIp: String,
             runConfig: Config,
             suiteInitialConfig: Config,
-            localLogsDir: Path)(implicit
-                                tryHttpBackend: LoggingSttpBackend[Try, Nothing],
-                                futureHttpBackend: LoggingSttpBackend[Future, Nothing],
-                                ec: ExecutionContext): DexContainer = {
+            localLogsDir: Path,
+            image: String)(implicit
+                           tryHttpBackend: LoggingSttpBackend[Try, Nothing],
+                           futureHttpBackend: LoggingSttpBackend[Future, Nothing],
+                           ec: ExecutionContext): DexContainer = {
 
     val underlying = GenericContainer(
-      dockerImage = "turtlenetwork/dex-it:latest",
+      dockerImage = image,
       exposedPorts = Seq(restApiPort),
       env = getEnv(name),
       waitStrategy = ignoreWaitStrategy
     ).configure { c =>
       c.withNetwork(network)
-      c.withNetworkAliases("d3x")
       c.withFileSystemBind(localLogsDir.toString, containerLogsPath, BindMode.READ_WRITE)
       c.withCreateContainerCmdModifier {
         _.withName(s"$networkName-$name") // network.getName returns random id
@@ -89,9 +89,10 @@ object DexContainer extends ScorexLogging {
   }
 
   private def getEnv(containerName: String): Map[String, String] = Map(
-    "BRIEF_LOG_PATH"       -> s"$containerLogsPath/container-$containerName.log",
-    "DETAILED_LOG_PATH"    -> s"$containerLogsPath/container-$containerName.detailed.log",
-    "WAVES_DEX_CONFIGPATH" -> s"$baseContainerPath/$containerName.conf",
+    "BRIEF_LOG_PATH"              -> s"$containerLogsPath/container-$containerName.log",
+    "DETAILED_LOG_PATH"           -> s"$containerLogsPath/container-$containerName.detailed.log",
+    "WAVES_DEX_CONFIGPATH"        -> s"$baseContainerPath/$containerName.conf",
+    "WAVES_DEX_DETAILED_LOG_PATH" -> s"$containerLogsPath/container-$containerName.detailed.log", // Backward compatibility for v2.0.3
     "WAVES_DEX_OPTS" ->
       List(
         "-J-Xmx1024M",
@@ -110,4 +111,10 @@ object DexContainer extends ScorexLogging {
         }
         .mkString(" ", " ", " ")
   )
+
+  /**
+    * @param resolve A relate to the base directory path of application
+    * @note Works only with /
+    */
+  def containerPath(resolve: String): String = s"$baseContainerPath/$resolve"
 }

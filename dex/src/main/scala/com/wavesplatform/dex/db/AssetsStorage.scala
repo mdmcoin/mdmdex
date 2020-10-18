@@ -2,7 +2,6 @@ package com.wavesplatform.dex.db
 
 import java.util.concurrent.ConcurrentHashMap
 
-import com.wavesplatform.dex.MatcherKeys
 import com.wavesplatform.dex.db.leveldb.DBExt
 import com.wavesplatform.dex.domain.asset.Asset
 import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
@@ -13,6 +12,7 @@ import org.iq80.leveldb.DB
 trait AssetsStorage {
   def put(asset: IssuedAsset, item: BriefAssetDescription): Unit
   def get(asset: IssuedAsset): Option[BriefAssetDescription]
+  def contains(asset: IssuedAsset): Boolean = get(asset).nonEmpty
 }
 
 object AssetsStorage {
@@ -31,11 +31,13 @@ object AssetsStorage {
     def get(asset: Asset.IssuedAsset): Option[BriefAssetDescription] = Option {
       assetsCache.computeIfAbsent(asset, inner.get(_).orNull)
     }
+
+    override def contains(asset: IssuedAsset): Boolean = assetsCache.contains(asset)
   }
 
   def levelDB(db: DB): AssetsStorage = new AssetsStorage {
-    def put(asset: IssuedAsset, record: BriefAssetDescription): Unit = db.readWrite(_.put(MatcherKeys.asset(asset), Some(record)))
-    def get(asset: IssuedAsset): Option[BriefAssetDescription]       = db.readOnly(_.get(MatcherKeys.asset(asset)))
+    def put(asset: IssuedAsset, record: BriefAssetDescription): Unit = db.readWrite(_.put(DbKeys.asset(asset), Some(record)))
+    def get(asset: IssuedAsset): Option[BriefAssetDescription]       = db.readOnly(_.get(DbKeys.asset(asset)))
   }
 
   def inMem: AssetsStorage = new AssetsStorage {

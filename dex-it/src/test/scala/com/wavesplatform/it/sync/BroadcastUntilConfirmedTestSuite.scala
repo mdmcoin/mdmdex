@@ -1,8 +1,8 @@
 package com.wavesplatform.it.sync
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.order.OrderType
-import com.wavesplatform.dex.it.api.responses.dex.OrderStatus
 import com.wavesplatform.dex.it.docker.WavesNodeContainer
 import com.wavesplatform.it.MatcherSuiteBase
 
@@ -27,10 +27,10 @@ class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
     wavesNode1.disconnectFromNetwork()
 
     markup("Place orders, those should match")
-    eventually { dex1.api.tryPlace(aliceOrder) shouldBe 'right }
+    eventually { dex1.api.tryPlace(aliceOrder) shouldBe Symbol("right") }
 
     dex1.api.place(bobOrder)
-    dex1.api.waitForOrderStatus(aliceOrder, OrderStatus.Filled)
+    dex1.api.waitForOrderStatus(aliceOrder, Status.Filled)
 
     markup("Wait for a transaction")
     val exchangeTxId = dex1.api.waitForTransactionsByOrder(aliceOrder, 1).head.getId

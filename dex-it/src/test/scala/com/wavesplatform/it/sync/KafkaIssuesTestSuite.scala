@@ -1,43 +1,46 @@
 package com.wavesplatform.it.sync
 
-import java.util.concurrent.ThreadLocalRandom
-
-import com.dimafeng.testcontainers.KafkaContainer
-import com.github.dockerjava.api.model.ContainerNetwork
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
+import com.wavesplatform.dex.api.ws.entities.{WsBalances, WsOrder}
 import com.wavesplatform.dex.domain.asset.Asset
 import com.wavesplatform.dex.domain.asset.Asset.Waves
+import com.wavesplatform.dex.domain.model.Denormalization._
 import com.wavesplatform.dex.domain.order.OrderType.SELL
-import com.wavesplatform.it.MatcherSuiteBase
+import com.wavesplatform.dex.it.api.HasKafka
+import com.wavesplatform.dex.it.api.websockets.HasWebSockets
+import com.wavesplatform.dex.model.{LimitOrder, OrderStatus}
+import com.wavesplatform.it.WsSuiteBase
 
-import scala.collection.JavaConverters._
+import scala.concurrent.duration.DurationInt
 
-class KafkaIssuesTestSuite extends MatcherSuiteBase {
+class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka {
 
-  private val kafkaContainerName = "kafka"
-  private val kafkaIp            = getIp(12)
+  private val requestTimeout = 15.seconds
+  private val maxFailures    = 5
 
-  private val kafka: KafkaContainer =
-    KafkaContainer().configure { k =>
-      k.withNetwork(network)
-      k.withNetworkAliases(kafkaContainerName)
-      k.withCreateContainerCmdModifier { cmd =>
-        cmd withName kafkaContainerName
-        cmd withIpv4Address getIp(12)
-      }
+  // Hacks, see DEX-794
+  private val deliveryTimeout         = requestTimeout + 1.second
+  private val waitAfterNetworkChanges = deliveryTimeout
+
+  override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex {
+  price-assets = [ "$UsdId", "TN" ]
+  events-queue {
+    kafka.producer.client {
+      acks = 1
+      request.timeout.ms = ${requestTimeout.toMillis}
+      delivery.timeout.ms = ${deliveryTimeout.toMillis}
+      connections.max.idle.ms = ${deliveryTimeout.toMillis}
     }
 
-  override protected val dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "TN" ]""")
+    circuit-breaker {
+      max-failures = $maxFailures
+      reset-timeout = 2000ms
+    }
+  }
+}""")
 
-  override protected lazy val dexRunConfig: Config = ConfigFactory.parseString(
-    s"""TN.dex.events-queue {
-       |  type = kafka
-       |  kafka {
-       |    servers = "$kafkaIp:9092"
-       |    topic = "dex-${ThreadLocalRandom.current.nextInt(0, Int.MaxValue)}"
-       |  }
-       |}""".stripMargin
-  )
+  override protected lazy val dexRunConfig = dexKafkaConfig().withFallback(jwtPublicKeyConfig)
 
   override protected def beforeAll(): Unit = {
     wavesNode1.start()
@@ -47,53 +50,92 @@ class KafkaIssuesTestSuite extends MatcherSuiteBase {
     dex1.start()
   }
 
-  private def disconnectKafkaFromNetwork(): Unit = {
-    kafka.dockerClient
-      .disconnectFromNetworkCmd()
-      .withContainerId(kafka.containerId)
-      .withNetworkId(kafka.network.getId)
-      .exec()
-  }
+  "Matcher should able to restore the work after kafka issues solved" in {
+    placeAndAwaitAtDex(mkOrderDP(alice, wavesUsdPair, SELL, 1.TN, 3.0))
 
-  private def connectKafkaToNetwork(): Unit = {
-    kafka.dockerClient
-      .connectToNetworkCmd()
-      .withContainerId(kafka.containerId)
-      .withNetworkId(kafka.network.getId)
-      .withContainerNetwork(
-        new ContainerNetwork()
-          .withIpamConfig(new ContainerNetwork.Ipam().withIpv4Address(kafkaIp))
-          .withAliases(kafka.networkAliases.asJava))
-      .exec()
+    disconnectKafkaFromNetwork()
+    Thread.sleep(waitAfterNetworkChanges.toMillis)
+
+    val offsetBefore = dex1.api.currentOffset
+
+    (1 to maxFailures).foreach { i =>
+      dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, i.TN, 3.0)) shouldBe Symbol("left")
+    }
+
+    Thread.sleep(requestTimeout.toMillis)
+    connectKafkaToNetwork()
+    Thread.sleep(waitAfterNetworkChanges.toMillis)
+
+    withClue("Messages weren't saved to the queue") {
+      dex1.api.currentOffset shouldBe offsetBefore
+    }
+
+    dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, 1.TN, 3.0)) shouldBe Symbol("right")
+
+    dex1.api.cancelAll(alice)
   }
 
   "Matcher should free reserved balances if order wasn't placed into the queue" in {
 
-    val order = mkOrderDP(alice, wavesUsdPair, SELL, 10.TN, 3.0)
-    placeAndAwaitAtDex(order)
+    val initialWavesBalance: Double = denormalizeWavesAmount(wavesNode1.api.balance(alice, Waves)).toDouble
+    val initialUsdBalance: Double   = denormalizeAmountAndFee(wavesNode1.api.balance(alice, usd), 2).toDouble
 
-    dex1.api.currentOffset shouldBe 0
+    val wsac = mkWsAddressConnection(alice, dex1)
+
+    assertChanges(wsac, squash = false) { Map(Waves -> WsBalances(initialWavesBalance, 0), usd -> WsBalances(initialUsdBalance, 0)) }()
+
+    val sellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 10.TN, 3.0)
+    placeAndAwaitAtDex(sellOrder)
+
     dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.TN))
+
+    assertChanges(wsac) { Map(Waves -> WsBalances(initialWavesBalance - 10.003, 10.003)) } {
+      WsOrder.fromDomain(LimitOrder(sellOrder))
+    }
 
     disconnectKafkaFromNetwork()
+    Thread.sleep(waitAfterNetworkChanges.toMillis)
 
-    dex1.api.tryCancel(alice, order) shouldBe 'left
-    dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, 30.TN, 3.0)) shouldBe 'left
+    dex1.api.tryCancel(alice, sellOrder) shouldBe Symbol("left")
+
+    val bigSellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 30.TN, 3.0)
+    dex1.api.tryPlace(bigSellOrder) shouldBe Symbol("left")
 
     dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.TN))
+
+    assertChanges(wsac, squash = false)(
+      Map(Waves -> WsBalances(initialWavesBalance - 40.006, 40.006)),
+      Map(Waves -> WsBalances(initialWavesBalance - 10.003, 10.003)),
+    )()
 
     val oh = dex1.api.orderHistory(alice, Some(true))
     oh should have size 1
-    oh.head.id shouldBe order.id()
+    oh.head.id shouldBe sellOrder.id()
 
     connectKafkaToNetwork()
+    Thread.sleep(waitAfterNetworkChanges.toMillis)
 
-    dex1.api.tryCancel(alice, order) shouldBe 'right
+    dex1.api.tryCancel(alice, sellOrder) shouldBe Symbol("right")
+    dex1.api.waitForOrderStatus(sellOrder, Status.Cancelled)
+
     dex1.api.orderHistory(alice, Some(true)) should have size 0
     dex1.api.reservedBalance(alice) shouldBe empty
 
-    dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, 30.TN, 3.0)) shouldBe 'right
+    assertChanges(wsac, squash = false) { Map(Waves -> WsBalances(initialWavesBalance, 0)) } {
+      WsOrder(id = sellOrder.id(), status = OrderStatus.Cancelled.name)
+    }
+
+    dex1.api.tryPlace(bigSellOrder) shouldBe Symbol("right")
+    dex1.api.waitForOrderStatus(bigSellOrder, Status.Accepted)
+
     dex1.api.orderHistory(alice, Some(true)) should have size 1
     dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 30.003.TN))
+
+    assertChanges(wsac, squash = false) { Map(Waves -> WsBalances(initialWavesBalance - 30.003, 30.003)) } {
+      WsOrder.fromDomain(LimitOrder(bigSellOrder))
+    }
+
+    dex1.api.cancelAll(alice)
+    wsac.close()
   }
 }

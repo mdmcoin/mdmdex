@@ -1,11 +1,11 @@
 package com.wavesplatform.it.sync.smartcontracts
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.feature.BlockchainFeatures
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
-import com.wavesplatform.dex.it.api.responses.dex.OrderStatus
 import com.wavesplatform.dex.it.api.responses.node.ActivationStatusResponse.FeatureStatus.BlockchainStatus
 import com.wavesplatform.dex.it.test.Scripts
 import com.wavesplatform.it.MatcherSuiteBase
@@ -63,7 +63,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
       updateBobScript("AgMGCQAAZgAAAAIFAAAABmhlaWdodAAAAAAAAAAAAAeEODpj")
       Thread.sleep(3000) // TODO Sometimes fail without this awaiting, probably issue in the cache
       dex1.api.tryPlace(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 2)) should failWith(
-        3147521, // AccountScriptException
+        3147520, // AccountScriptReturnedError
         "An access to the blockchain.height is denied on DEX"
       )
     }
@@ -128,8 +128,8 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
       dex1.api.place(aliceOrder).status shouldBe "OrderAccepted"
 
       // Alice checks that the order in order book
-      dex1.api.waitForOrderStatus(aliceOrder, OrderStatus.Filled)
-      dex1.api.orderHistory(alice).head.status shouldBe OrderStatus.Filled
+      dex1.api.waitForOrderStatus(aliceOrder, Status.Filled)
+      dex1.api.orderHistory(alice).head.status shouldBe Status.Filled.name
     }
   }
 }

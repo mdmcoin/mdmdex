@@ -1,6 +1,8 @@
 package com.wavesplatform.it.sync.api
 
+import com.softwaremill.diffx.{Derived, Diff}
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpV0OrderBook
 import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
@@ -15,13 +17,15 @@ class GetOrderBookTestSuite extends MatcherSuiteBase {
     ConfigFactory.parseString(
       s"""TN.dex {
          |  price-assets = [ "$UsdId", "TN", $EthId ]
-         |  order-book-snapshot-http-cache {
-         |    cache-timeout = 5s
+         |  order-book-http {
          |    depth-ranges = [10, 20, 40, 41, 43, 100, 1000]
          |    default-depth = 100
          |  }
          |}""".stripMargin
     )
+
+  // DEX-642
+  private implicit val orderBookResponseDiff: Diff[HttpV0OrderBook] = Derived[Diff[HttpV0OrderBook]].ignore(_.timestamp)
 
   override protected def beforeAll(): Unit = {
     wavesNode1.start()
@@ -30,7 +34,7 @@ class GetOrderBookTestSuite extends MatcherSuiteBase {
   }
 
   def checkDepth(forTheseDepths: Array[Int] = Array(), thisDepthWillBePicked: Int): Unit = {
-    val orderBook: OrderBookResponse = dex1.api.orderBook(wavesUsdPair, thisDepthWillBePicked)
+    val orderBook: HttpV0OrderBook = dex1.api.orderBook(wavesUsdPair, thisDepthWillBePicked)
 
     if (thisDepthWillBePicked < ordersCount) {
       orderBook.asks.size shouldBe thisDepthWillBePicked
@@ -55,8 +59,8 @@ class GetOrderBookTestSuite extends MatcherSuiteBase {
 
     withClue("check default depth value") {
       val defaultOrderBook = dex1.api.orderBook(wavesUsdPair)
-      defaultOrderBook shouldBe dex1.api.orderBook(wavesUsdPair, 100)
-      Array(44, 45, 60, 98, 99).foreach(depth => dex1.api.orderBook(wavesUsdPair, depth) shouldBe defaultOrderBook)
+      defaultOrderBook should matchTo(dex1.api.orderBook(wavesUsdPair, 100))
+      Array(44, 45, 60, 98, 99).foreach(depth => dex1.api.orderBook(wavesUsdPair, depth) should matchTo(defaultOrderBook))
     }
   }
 

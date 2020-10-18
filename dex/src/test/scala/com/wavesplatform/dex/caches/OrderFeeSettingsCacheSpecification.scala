@@ -1,8 +1,8 @@
 package com.wavesplatform.dex.caches
 
 import com.wavesplatform.dex.MatcherSpecBase
-import com.wavesplatform.dex.settings.AssetType
-import com.wavesplatform.dex.settings.OrderFeeSettings.{DynamicSettings, OrderFeeSettings, PercentSettings}
+import com.wavesplatform.dex.settings.OrderFeeSettings.{DynamicSettings, PercentSettings}
+import com.wavesplatform.dex.settings.{AssetType, OrderFeeSettings}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -15,7 +15,7 @@ class OrderFeeSettingsCacheSpecification extends AnyWordSpecLike with Matchers w
     }
 
     "throw error if there is no settings for the given offset" in {
-      a[IllegalStateException] should be thrownBy new OrderFeeSettingsCache(Map(100L -> DynamicSettings.symmetric(0.003.TN)))
+      a[IllegalStateException] should be thrownBy new OrderFeeSettingsCache(Map(100L -> DynamicSettings.symmetric(0.003.waves)))
         .getSettingsForOffset(1)
     }
 
@@ -23,9 +23,9 @@ class OrderFeeSettingsCacheSpecification extends AnyWordSpecLike with Matchers w
 
       val settingsMap =
         Map(
-          -1L   -> DynamicSettings.symmetric(0.003.TN),
-          2L    -> DynamicSettings(0.001.TN, 0.005.TN),
-          15L   -> DynamicSettings(0.002.TN, 0.004.TN),
+          -1L   -> DynamicSettings.symmetric(0.003.waves),
+          2L    -> DynamicSettings(0.001.waves, 0.005.waves),
+          15L   -> DynamicSettings(0.002.waves, 0.004.waves),
           1000L -> PercentSettings(AssetType.AMOUNT, 0.005)
         )
 
@@ -36,11 +36,11 @@ class OrderFeeSettingsCacheSpecification extends AnyWordSpecLike with Matchers w
         ofsc.getSettingsForOffset(offset + 1) should matchTo(actual)
       }
 
-      check(offset = -1L, current = DynamicSettings(0.003.TN, 0.003.TN), actual = DynamicSettings(0.003.TN, 0.003.TN))
-      check(offset = 0L, current = DynamicSettings(0.003.TN, 0.003.TN), actual = DynamicSettings(0.003.TN, 0.003.TN))
-      check(offset = 17L, current = DynamicSettings(0.002.TN, 0.004.TN), actual = DynamicSettings(0.002.TN, 0.004.TN))
-      check(offset = 100L, current = DynamicSettings(0.002.TN, 0.004.TN), actual = DynamicSettings(0.002.TN, 0.004.TN))
-      check(offset = 999L, current = DynamicSettings(0.002.TN, 0.004.TN), actual = PercentSettings(AssetType.AMOUNT, 0.005))
+      check(offset = -1L, current = DynamicSettings(0.003.waves, 0.003.waves), actual = DynamicSettings(0.003.waves, 0.003.waves))
+      check(offset = 0L, current = DynamicSettings(0.003.waves, 0.003.waves), actual = DynamicSettings(0.003.waves, 0.003.waves))
+      check(offset = 17L, current = DynamicSettings(0.002.waves, 0.004.waves), actual = DynamicSettings(0.002.waves, 0.004.waves))
+      check(offset = 100L, current = DynamicSettings(0.002.waves, 0.004.waves), actual = DynamicSettings(0.002.waves, 0.004.waves))
+      check(offset = 999L, current = DynamicSettings(0.002.waves, 0.004.waves), actual = PercentSettings(AssetType.AMOUNT, 0.005))
     }
   }
 }

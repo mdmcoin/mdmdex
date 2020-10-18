@@ -44,7 +44,7 @@ final case class ByteStr(arr: Array[Byte]) {
     case _              => false
   }
 
-  override def hashCode(): Int = java.util.Arrays.hashCode(arr)
+  override lazy val hashCode: Int = java.util.Arrays.hashCode(arr)
 }
 
 object ByteStr {
@@ -80,7 +80,7 @@ object ByteStr {
 
   implicit val byteStrFormat: Format[ByteStr] = Format(
     Reads {
-      case JsString(v) => decodeBase58(v).fold(e => JsError(s"Error parsing base58: ${e.getMessage}"), b => JsSuccess(b))
+      case JsString(v) => decodeBase58(v).fold(e => JsError(s"Error parsing base58: ${e.getMessage}"), JsSuccess(_))
       case _           => JsError("Expected JsString")
     },
     Writes(b => JsString(b.base58))

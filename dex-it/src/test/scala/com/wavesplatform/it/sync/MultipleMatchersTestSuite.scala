@@ -2,18 +2,18 @@ package com.wavesplatform.it.sync
 
 import cats.Id
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
+import com.wavesplatform.dex.api.http.entities.HttpSuccessfulBatchCancel
 import com.wavesplatform.dex.domain.account.KeyPair
 import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
-import com.wavesplatform.dex.it.api.dex.DexApi
-import com.wavesplatform.dex.it.api.responses.dex.OrderStatus
+import com.wavesplatform.dex.it.dex.DexApi
 import com.wavesplatform.dex.it.docker.DexContainer
-import com.wavesplatform.dex.it.fp.CanExtract._
 import com.wavesplatform.it._
 import com.wavesplatform.it.api.{MatcherCommand, MatcherState}
 import com.wavesplatform.it.config.DexTestConfig.createAssetPair
-import com.wavesplatform.it.tags.DexItKafkaRequired
+import com.wavesplatform.it.tags.DexItExternalKafkaRequired
 import org.scalacheck.Gen
 
 import scala.concurrent.duration.DurationInt
@@ -21,14 +21,14 @@ import scala.concurrent.{Await, Future}
 import scala.util.Random
 import scala.util.control.NonFatal
 
-@DexItKafkaRequired
+@DexItExternalKafkaRequired
 class MultipleMatchersTestSuite extends MatcherSuiteBase {
   override protected def dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
       """TN.dex {
-      |  price-assets = ["TN"]
-      |  snapshots-interval = 51
-      |}""".stripMargin
+        |  price-assets = ["TN"]
+        |  snapshots-interval = 51
+        |}""".stripMargin
     )
 
   protected lazy val dex2: DexContainer = createDex("dex-2")
@@ -59,7 +59,7 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase {
   }
 
   "Dex 2 should continue getting the balance changes if Dex 1 has been disconnected from network" in {
-    val acc = createAccountWithBalance(10.TN -> Waves)
+    val acc = mkAccountWithBalance(10.TN -> Waves)
     dex1.disconnectFromNetwork()
     broadcastAndAwait(mkTransfer(acc, alice.toAddress, 4.TN, Waves, 0.05.TN))
     dex2.api.tradableBalance(acc, ethWavesPair)(Waves) shouldBe 5.95.TN
@@ -72,12 +72,14 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase {
     val bobPlaces   = bobOrders.map(MatcherCommand.Place(dex2.asyncApi, _))
     val places      = Random.shuffle(alicePlaces ++ bobPlaces)
 
-    val aliceCancels = (1 to cancelsNumber).map(_ => choose(aliceOrders)).map(MatcherCommand.Cancel(dex1.asyncApi, alice, _))
-    val bobCancels   = (1 to cancelsNumber).map(_ => choose(bobOrders)).map(MatcherCommand.Cancel(dex2.asyncApi, bob, _))
+    // .toSet to remove duplications
+    val aliceCancels = (1 to cancelsNumber).map(_ => choose(aliceOrders)).toSet.map(MatcherCommand.Cancel(dex1.asyncApi, alice, _))
+    val bobCancels   = (1 to cancelsNumber).map(_ => choose(bobOrders)).toSet.map(MatcherCommand.Cancel(dex2.asyncApi, bob, _))
     val cancels      = Random.shuffle(aliceCancels ++ bobCancels)
 
     successfulCommandsNumber = executeCommands(places ++ cancels)
     successfulCommandsNumber += executeCommands(List(MatcherCommand.Place(dex1.asyncApi, lastOrder)))
+    log.info(s"Successful commands: $successfulCommandsNumber")
   }
 
   "Wait until all requests are processed" in {
@@ -86,7 +88,7 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase {
       dex2.api.waitForCurrentOffset(_ == offset1)
 
       withClue("Last command processed") {
-        List(dex1.asyncApi, dex2.asyncApi).foreach(_.waitForOrder(lastOrder)(_.status != OrderStatus.NotFound))
+        List(dex1.asyncApi, dex2.asyncApi).foreach(_.waitForOrder(lastOrder)(_.status != Status.NotFound))
       }
     } catch {
       case NonFatal(e) =>
@@ -114,19 +116,22 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase {
     log.info(s"Total orders: ${allOrders.size}")
 
     allOrders.foreach(dex1.api.place)
-    allOrders.foreach(order => dex1.api.waitForOrder(order)(_.status != OrderStatus.NotFound))
+    allOrders.foreach(order => dex1.api.waitForOrder(order)(_.status != Status.NotFound))
 
-    def singleCancels(owner: KeyPair, orders: Iterable[Order]): Future[Iterable[Unit.type]] = Future.sequence {
-      orders.map { order =>
-        dex1.asyncApi.tryCancel(owner, order).map {
-          case Left(x) if x.error != 9437194 => throw new RuntimeException(s"Unexpected error: $x") // OrderCanceled
-          case _                             => Unit
+    def singleCancels(owner: KeyPair, orders: Iterable[Order]): Future[Unit] =
+      Future
+        .sequence {
+          orders.map { order =>
+            dex1.asyncApi.tryCancel(owner, order).map {
+              case Left(x) if x.error != 9437194 => throw new RuntimeException(s"Unexpected error: $x") // OrderCanceled
+              case _                             => ()
+            }
+          }.toList
         }
-      }
-    }
+        .map(_ => ())
 
-    def batchCancels(owner: KeyPair, assetPairs: Iterable[AssetPair]): Future[Iterable[Unit]] = Future.sequence {
-      assetPairs.map(toDexExplicitGetOps(dex2.asyncApi).cancelAllByPair(owner, _, System.currentTimeMillis))
+    def batchCancels(owner: KeyPair, assetPairs: Iterable[AssetPair]): Future[List[HttpSuccessfulBatchCancel]] = Future.sequence {
+      assetPairs.map(toDexExplicitGetOps(dex2.asyncApi).cancelAllByPair(owner, _, System.currentTimeMillis)).toList
     }
 
     Await.result(

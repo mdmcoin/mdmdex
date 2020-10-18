@@ -1,10 +1,12 @@
 package com.wavesplatform.it.sync.smartcontracts
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
-import com.wavesplatform.dex.it.api.responses.dex.{MatcherError, OrderStatus}
+import com.wavesplatform.dex.domain.utils.EitherExt2
+import com.wavesplatform.dex.it.api.responses.dex.MatcherError
 import com.wavesplatform.dex.it.test.Scripts
 import com.wavesplatform.dex.it.waves.MkWavesEntities
 import com.wavesplatform.it.MatcherSuiteBase
@@ -56,8 +58,7 @@ class OrdersFromScriptedAssetTestSuite extends MatcherSuiteBase {
     placeAndAwaitAtDex(mkOrder(matcher, pair, OrderType.SELL, 100000, 2 * Order.PriceConstant, version = 2, matcherFee = smartTradeFee))
 
     info("place a submitted order")
-    placeAndAwaitAtDex(mkOrder(matcher, pair, OrderType.BUY, 100000, 2 * Order.PriceConstant, version = 2, matcherFee = smartTradeFee),
-                       OrderStatus.Filled)
+    placeAndAwaitAtDex(mkOrder(matcher, pair, OrderType.BUY, 100000, 2 * Order.PriceConstant, version = 2, matcherFee = smartTradeFee), Status.Filled)
   }
 
   "can execute against scripted, if both scripts returns TRUE" in {
@@ -75,8 +76,8 @@ class OrdersFromScriptedAssetTestSuite extends MatcherSuiteBase {
     dex1.api.place(submitted)
 
     info("both orders are cancelled")
-    dex1.api.waitForOrderStatus(submitted, OrderStatus.Filled)
-    dex1.api.waitForOrderStatus(counter, OrderStatus.Filled)
+    dex1.api.waitForOrderStatus(submitted, Status.Filled)
+    dex1.api.waitForOrderStatus(counter, Status.Filled)
   }
 
   "can't execute against unscripted, if the script returns FALSE" in {
@@ -90,20 +91,20 @@ class OrdersFromScriptedAssetTestSuite extends MatcherSuiteBase {
     broadcastAndAwait(setAssetScript)
 
     info("a counter order wasn't rejected")
-    dex1.api.orderStatus(counter).status shouldBe OrderStatus.Accepted
+    dex1.api.orderStatus(counter).status shouldBe Status.Accepted
 
     info("place a submitted order")
     val submitted = mkOrder(matcher, pair, OrderType.BUY, 100000, 2 * Order.PriceConstant, version = 2, matcherFee = smartTradeFee)
     dex1.api.place(submitted)
 
     info("two orders form an invalid transaction")
-    dex1.api.waitForOrderStatus(submitted, OrderStatus.Filled)
-    dex1.api.waitForOrderStatus(counter, OrderStatus.PartiallyFilled)
+    dex1.api.waitForOrderStatus(submitted, Status.Filled)
+    dex1.api.waitForOrderStatus(counter, Status.PartiallyFilled)
 
     val txs = dex1.api.waitForTransactionsByOrder(submitted, 1)
     val r   = wavesNode1.api.tryBroadcast(txs.head)
-    r shouldBe 'left
-    r.left.get.error shouldBe 308 // node's ApiError TransactionNotAllowedByAssetScript.Id
+    r shouldBe Symbol("left")
+    r.swap.explicitGet().error shouldBe 308 // node's ApiError TransactionNotAllowedByAssetScript.Id
   }
 
   "can't execute against scripted, if one script returns FALSE" in {
@@ -117,20 +118,20 @@ class OrdersFromScriptedAssetTestSuite extends MatcherSuiteBase {
     broadcastAndAwait(setAssetScriptTx)
 
     info("a counter order wasn't rejected")
-    dex1.api.orderStatus(counter).status shouldBe OrderStatus.Accepted
+    dex1.api.orderStatus(counter).status shouldBe Status.Accepted
 
     info("place a submitted order")
     val submitted = mkOrder(matcher, pair, OrderType.BUY, 100000, 2 * Order.PriceConstant, version = 2, matcherFee = twoSmartTradeFee)
     dex1.api.place(submitted)
 
     info("two orders form an invalid transaction")
-    dex1.api.waitForOrderStatus(submitted, OrderStatus.Filled)
-    dex1.api.waitForOrderStatus(counter, OrderStatus.PartiallyFilled)
+    dex1.api.waitForOrderStatus(submitted, Status.Filled)
+    dex1.api.waitForOrderStatus(counter, Status.PartiallyFilled)
 
     val txs = dex1.api.waitForTransactionsByOrder(submitted, 1)
     val r   = wavesNode1.api.tryBroadcast(txs.head)
-    r shouldBe 'left
-    r.left.get.error shouldBe 308 // node's ApiError TransactionNotAllowedByAssetScript.Id
+    r shouldBe Symbol("left")
+    r.swap.explicitGet().error shouldBe 308 // node's ApiError TransactionNotAllowedByAssetScript.Id
   }
 }
 

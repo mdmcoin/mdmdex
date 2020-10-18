@@ -12,27 +12,29 @@ class V3OrderPercentFeeAmountTestSuite extends OrderPercentFeeAmountTestSuite(3.
   s"buy order should be rejected is fee Asset not equal TN when fee asset-type = $assetType" in {
     dex1.api.tryPlace(
       mkOrder(
-        createAccountWithBalance(fullyAmountUsd + minimalFeeWaves -> usd, minimalFeeWaves -> Waves),
+        mkAccountWithBalance(fullyAmountUsd + minimalFeeWaves -> usd, minimalFeeWaves -> Waves),
         wavesUsdPair,
         BUY,
         fullyAmountWaves,
         price,
         minimalFeeWaves,
         usd
-      )) should failWith(9441540) // UnexpectedFeeAsset
+      )
+    ) should failWith(9441540) // UnexpectedFeeAsset
   }
 
   s"sell order should be rejected is fee Asset not equal WAVES when fee asset-type = $assetType" in {
     dex1.api.tryPlace(
       mkOrder(
-        createAccountWithBalance(minimalFeeWaves -> usd, fullyAmountWaves -> Waves),
+        mkAccountWithBalance(minimalFeeWaves -> usd, fullyAmountWaves -> Waves),
         wavesUsdPair,
         SELL,
         fullyAmountWaves,
         price,
         minimalFeeWaves,
         usd
-      )) should failWith(9441540) // UnexpectedFeeAsset
+      )
+    ) should failWith(9441540) // UnexpectedFeeAsset
   }
 }
 
@@ -63,8 +65,8 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
   s"V$version orders (fee asset type: $assetType) & fees processing" - {
 
     s"users should pay correct fee when fee asset-type = $assetType and order fully filled " in {
-      val accountBuyer  = createAccountWithBalance(fullyAmountUsd                     -> IssuedAsset(UsdId), minimalFeeWaves -> Waves)
-      val accountSeller = createAccountWithBalance(fullyAmountWaves + minimalFeeWaves -> Waves)
+      val accountBuyer  = mkAccountWithBalance(fullyAmountUsd                     -> IssuedAsset(UsdId), minimalFeeWaves -> Waves)
+      val accountSeller = mkAccountWithBalance(fullyAmountWaves + minimalFeeWaves -> Waves)
 
       placeAndAwaitAtDex(mkOrder(accountBuyer, wavesUsdPair, BUY, fullyAmountWaves, price, matcherFee = minimalFeeWaves, version = version))
       placeAndAwaitAtNode(mkOrder(accountSeller, wavesUsdPair, SELL, fullyAmountWaves, price, matcherFee = minimalFeeWaves, version = version))
@@ -81,8 +83,8 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
     }
 
     s"users should pay correct fee when fee asset-type = $assetType and order partially filled" in {
-      val accountBuyer  = createAccountWithBalance(fullyAmountUsd                         -> IssuedAsset(UsdId), minimalFeeWaves -> Waves)
-      val accountSeller = createAccountWithBalance(partiallyAmountWaves + minimalFeeWaves -> Waves)
+      val accountBuyer  = mkAccountWithBalance(fullyAmountUsd                         -> IssuedAsset(UsdId), minimalFeeWaves -> Waves)
+      val accountSeller = mkAccountWithBalance(partiallyAmountWaves + minimalFeeWaves -> Waves)
 
       placeAndAwaitAtDex(mkOrder(accountBuyer, wavesUsdPair, BUY, fullyAmountWaves, price, matcherFee = minimalFeeWaves, version = version))
       placeAndAwaitAtNode(mkOrder(accountSeller, wavesUsdPair, SELL, partiallyAmountWaves, price, matcherFee = minimalFeeWaves, version = version))
@@ -102,8 +104,8 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
     }
 
     s"order should be processed if amount less then fee when fee asset-type = $assetType" in {
-      val accountBuyer  = createAccountWithBalance(fullyAmountUsd                     -> IssuedAsset(UsdId), minimalFeeWaves -> Waves)
-      val accountSeller = createAccountWithBalance(fullyAmountWaves + tooHighFeeWaves -> Waves)
+      val accountBuyer  = mkAccountWithBalance(fullyAmountUsd                     -> IssuedAsset(UsdId), minimalFeeWaves -> Waves)
+      val accountSeller = mkAccountWithBalance(fullyAmountWaves + tooHighFeeWaves -> Waves)
 
       placeAndAwaitAtDex(mkOrder(accountBuyer, wavesUsdPair, BUY, fullyAmountWaves, price, matcherFee = minimalFeeWaves, version = version))
       placeAndAwaitAtNode(mkOrder(accountSeller, wavesUsdPair, SELL, fullyAmountWaves, price, matcherFee = tooHighFeeWaves, version = version))
@@ -129,23 +131,22 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
           price,
           minimalFeeWaves,
           version = version
-        )) should failWith(
-        3147270,
-        s"Not enough tradable balance. The order requires at least 18 ${UsdId} and 3.75 WAVES on balance, but available are 18 ${UsdId} and 0 WAVES"
-      )
+        )
+      ) should failWithBalanceNotEnough(required = Map(Waves -> 3.75.TN, usd -> 18.usd), available = Map(Waves -> 0.TN, usd -> 18.usd))
     }
 
     s"buy order should be rejected if fee less then minimum possible fee when fee asset-type = $assetType" in {
       dex1.api.tryPlace(
         mkOrder(
-          createAccountWithBalance(fullyAmountUsd -> usd, minimalFeeWaves -> Waves),
+          mkAccountWithBalance(fullyAmountUsd -> usd, minimalFeeWaves -> Waves),
           wavesUsdPair,
           BUY,
           fullyAmountWaves,
           price,
           tooLowFeeWaves,
           version = version
-        )) should failWith(
+        )
+      ) should failWith(
         9441542, // FeeNotEnough
         "Required 2.1 TN as fee for this order, but given 2.09 TN"
       )
@@ -153,13 +154,14 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
 
     s"sell order should be rejected if fee less then minimum possible fee when fee asset-type = $assetType" in {
       dex1.api.tryPlace(
-        mkOrder(createAccountWithBalance(fullyAmountWaves + minimalFeeWaves -> Waves),
+        mkOrder(mkAccountWithBalance(fullyAmountWaves + minimalFeeWaves -> Waves),
                 wavesUsdPair,
                 SELL,
                 fullyAmountWaves,
                 price,
                 tooLowFeeWaves,
-                version = version)) should failWith(
+                version = version)
+      ) should failWith(
         9441542, // FeeNotEnough
         "Required 2.1 TN as fee for this order, but given 2.09 TN"
       )

@@ -22,8 +22,8 @@ class BaseSettingsSpecification extends AnyFlatSpec {
        |      base-maker-fee = 700000
        |    }
        |    fixed {
-       |      asset = WAVES
-       |      min-fee = 300000
+       |      asset = TN
+       |      min-fee = 4000000
        |    }
        |    percent {
        |      asset-type = amount
@@ -58,15 +58,25 @@ class BaseSettingsSpecification extends AnyFlatSpec {
        |matching-rules = {}
      """.stripMargin
 
+  val correctSubscriptionsSettingsStr: String =
+    s"""
+       |subscriptions {
+       |  max-order-book-number = 20
+       |  max-address-number = 20
+       |}
+       """.stripMargin
+
   def configWithSettings(orderFeeStr: String = correctOrderFeeStr,
                          deviationsStr: String = correctDeviationsStr,
                          allowedAssetPairsStr: String = correctAllowedAssetPairsStr,
                          orderRestrictionsStr: String = correctOrderRestrictionsStr,
-                         matchingRulesStr: String = correctMatchingRulesStr): Config = {
+                         matchingRulesStr: String = correctMatchingRulesStr,
+                         subscriptionsSettings: String = correctSubscriptionsSettingsStr): Config = {
     val configStr =
       s"""TN {
          |  directory = /TN
          |  dex {
+         |    id = "matcher-1"
          |    account-storage {
          |      type = "in-mem"
          |      in-mem.seed-in-base64 = "c3lrYWJsZXlhdA=="
@@ -94,7 +104,8 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |          connect-timeout = 99s
          |        }
          |      }
-         |      default-caches-expiration = 101ms
+         |      default-caches-expiration = 101ms,
+         |      balance-stream-buffer-size = 100
          |    }
          |    exchange-tx-base-fee = 4000000
          |    actor-response-timeout = 11s
@@ -117,8 +128,7 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |    ]
          |    white-list-only = yes
          |    allowed-order-versions = [11, 22]
-         |    order-book-snapshot-http-cache {
-         |      cache-timeout = 11m
+         |    order-book-http {
          |      depth-ranges = [1, 5, 333]
          |      default-depth = 5
          |    }
@@ -146,6 +156,12 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |          client.bar = 3
          |        }
          |      }
+         |
+         |      circuit-breaker {
+         |        max-failures = 999
+         |        call-timeout = 123s
+         |        reset-timeout = 1d
+         |      }
          |    }
          |    process-consumed-timeout = 663s
          |    $orderFeeStr
@@ -157,6 +173,34 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |      broadcast-until-confirmed = yes
          |      interval = 1 day
          |      max-pending-time = 30 days
+         |    }
+         |    web-sockets {
+         |      external-client-handler {
+         |        messages-interval = 1d
+         |        max-connection-lifetime = 3d
+         |        jwt-public-key = \"\"\"foo
+         |bar
+         |baz\"\"\"
+         |        $subscriptionsSettings
+         |        health-check {
+         |          ping-interval = 9m
+         |          pong-timeout = 129m
+         |        }
+         |      }
+         |      internal-broadcast {
+         |        messages-interval = 923ms
+         |      }
+         |      internal-client-handler {
+         |        health-check {
+         |          ping-interval = 10m
+         |          pong-timeout = 374m
+         |        }
+         |      }
+         |    }
+         |    address-actor {
+         |      max-active-orders = 400
+         |      ws-messages-interval = 100ms
+         |      batch-cancel-timeout = 18 seconds
          |    }
          |  }
          |}""".stripMargin

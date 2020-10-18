@@ -20,9 +20,10 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.{WakeupException, TimeoutException => KafkaTimeoutException}
 import org.apache.kafka.common.serialization._
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise, blocking}
+import scala.jdk.CollectionConverters._
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 class KafkaMatcherQueue(settings: Settings) extends MatcherQueue with ScorexLogging {
   private val producerThreadPool =
@@ -110,17 +111,17 @@ class KafkaMatcherQueue(settings: Settings) extends MatcherQueue with ScorexLogg
       }
   }
 
-  override def close(timeout: FiniteDuration): Unit = {
+  override def close(timeout: FiniteDuration): Future[Unit] = {
     duringShutdown.set(true)
-
-    producer.close(timeout)
-    producerThreadPool.shutdown()
-
-    // Fix by scala.jdk.DurationConverters after migration to Scala 2.13
-    val duration = java.time.Duration.ofNanos(timeout.toNanos)
-    Await.ready(Future(consumer.close(duration))(consumerExecutionContext), timeout)
-    consumerTask.cancel()
-    consumerThreadPool.shutdown()
+    Future {
+      blocking {
+        producer.close(timeout)
+        producerThreadPool.shutdown()
+        consumer.close(timeout.toJava)
+        consumerTask.cancel()
+        consumerThreadPool.shutdown()
+      }
+    }(scala.concurrent.ExecutionContext.global)
   }
 }
 
@@ -154,7 +155,7 @@ object KafkaMatcherQueue {
           new Callback {
             override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
               if (exception == null) {
-                log.debug(s"$event stored, offset=${metadata.offset()}, timestamp=${metadata.timestamp()}")
+                log.debug(s"Stored $event, offset=${metadata.offset()}, timestamp=${metadata.timestamp()}")
                 p.success(
                   QueueEventWithMeta(
                     offset = metadata.offset(),
