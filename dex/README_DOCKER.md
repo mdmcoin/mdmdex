@@ -74,7 +74,7 @@ Worth to note here that we specified container name by means of `--name matcher-
 #### Running Matcher Server
 ```
 docker run \
--v /docker/matcher-server:/var/lib/waves-dex \
+-v /docker/matcher-server:/var/lib/tn-dex \
 -p 6886:6886 \
 -e MATCHER_HEAP_SIZE=4g \
 -e JAVA_OPTS="-Dwaves.dex.rest-api.api-key-hash=MyRestApiBase58EncodedKeyHash" \
@@ -83,7 +83,7 @@ docker run \
 wavesplatform/matcher-server:latest
 ```
 
-Here we specified link to Matcher Node container `--link matcher-node:matcher-node` and the mapping between directory on your host machine `/docker/matcher-server` and inner container directory `/var/lib/waves-dex`. 
+Here we specified link to Matcher Node container `--link matcher-node:matcher-node` and the mapping between directory on your host machine `/docker/matcher-server` and inner container directory `/var/lib/tn-dex`. 
 
 Directory `/docker/matcher-server/data` will be used for storing Matcher Server data. If you want to move from JAR/DEB installation to the Docker, you can put your own Matcher Server state here.
 
@@ -171,7 +171,7 @@ sudo chown -R 113:116 /docker/matcher-server  <-- prefered
 4. Add the appropriate arguments `-v` to ```docker run``` command: 
 ```
 docker run \
--v /docker/matcher-server:/var/lib/waves-dex \
+-v /docker/matcher-server:/var/lib/tn-dex \
 -p 6886:6886 \
 --link matcher-node:matcher-node \
 --name matcher-server \

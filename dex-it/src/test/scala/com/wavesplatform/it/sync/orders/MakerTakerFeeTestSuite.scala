@@ -21,8 +21,8 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
        |  order-fee.-1 {
        |    mode = dynamic
        |    dynamic {
-       |      base-maker-fee = ${0.001.TN}
-       |      base-taker-fee = ${0.005.TN}
+       |      base-maker-fee = ${0.001.waves}
+       |      base-taker-fee = ${0.005.waves}
        |    }
        |  }
        |}
@@ -42,12 +42,12 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
   "DEX with static non-default DynamicSettings" - {
 
     "should reject orders with insufficient fee" in {
-      dex1.api.tryPlace(mkOrderDP(maker, wavesUsdPair, SELL, 1.TN, 3.00, 0.00499999.TN)) should failWith(
+      dex1.api.tryPlace(mkOrderDP(maker, wavesUsdPair, SELL, 1.waves, 3.00, 0.00499999.waves)) should failWith(
         9441542, // FeeNotEnough
         s"Required 0.005 WAVES as fee for this order, but given 0.00499999 WAVES"
       )
 
-      dex1.api.tryPlace(mkOrderDP(maker, wavesUsdPair, SELL, 1.TN, 3.00, 0.00002837.eth, eth)) should failWith(
+      dex1.api.tryPlace(mkOrderDP(maker, wavesUsdPair, SELL, 1.waves, 3.00, 0.00002837.eth, eth)) should failWith(
         9441542, // FeeNotEnough
         s"Required 0.00002838 $EthId as fee for this order, but given 0.00002837 $EthId"
       )
@@ -58,19 +58,19 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
       forAll(
         Table(
           ("M amt", "M fee", "M fee asset", "T amt", "T fee", "T fee asset", "M expected balance change", "T expected balance change", "is T market"),
-          (1.TN,  0.005, Waves, 1.TN,  0.005, Waves, -1.001.TN,  0.995.TN, false), // symmetric
-          (2.TN,  0.005, Waves, 10.TN, 0.005, Waves, -2.001.TN,  1.999.TN, false), // little maker - big taker
-          (10.TN, 0.005, Waves, 2.TN,  0.005, Waves, -2.0002.TN, 1.995.TN, false), //    big maker - little taker
-          (1.TN,  0.005, Waves, 1.TN,  0.005, Waves, -1.001.TN,  0.995.TN, true),  // symmetric, MARKET taker
-          (2.TN,  0.005, Waves, 10.TN, 0.005, Waves, -2.001.TN,  1.999.TN, true),  // little maker - big MARKET taker
-          (10.TN, 0.005, Waves, 2.TN,  0.005, Waves, -2.0002.TN, 1.995.TN, true),  //    big maker - little MARKET taker
-          /** fee in ETH, 0.001.TN = 0.00000568.eth, 0.005.TN = 0.00002838.eth */
-          (1.TN,  0.00002838, eth, 1.TN,  0.00002838, eth, -0.00000568.eth, -0.00002838.eth, false), // symmetric
-          (2.TN,  0.00002838, eth, 10.TN, 0.00002838, eth, -0.00000568.eth, -0.00000567.eth, false), // little maker - big taker
-          (10.TN, 0.00002838, eth, 2.TN,  0.00002838, eth, -0.00000113.eth, -0.00002838.eth, false), //    big maker - little taker
-          (1.TN,  0.00002838, eth, 1.TN,  0.00002838, eth, -0.00000568.eth, -0.00002838.eth, true),  // symmetric, MARKET taker
-          (2.TN,  0.00002838, eth, 10.TN, 0.00002838, eth, -0.00000568.eth, -0.00000567.eth, true),  // little maker - big MARKET taker
-          (10.TN, 0.00002838, eth, 2.TN,  0.00002838, eth, -0.00000113.eth, -0.00002838.eth, true)   //    big maker - little MARKET taker
+          (1.waves,  0.005, Waves, 1.waves,  0.005, Waves, -1.001.waves,  0.995.waves, false), // symmetric
+          (2.waves,  0.005, Waves, 10.waves, 0.005, Waves, -2.001.waves,  1.999.waves, false), // little maker - big taker
+          (10.waves, 0.005, Waves, 2.waves,  0.005, Waves, -2.0002.waves, 1.995.waves, false), //    big maker - little taker
+          (1.waves,  0.005, Waves, 1.waves,  0.005, Waves, -1.001.waves,  0.995.waves, true),  // symmetric, MARKET taker
+          (2.waves,  0.005, Waves, 10.waves, 0.005, Waves, -2.001.waves,  1.999.waves, true),  // little maker - big MARKET taker
+          (10.waves, 0.005, Waves, 2.waves,  0.005, Waves, -2.0002.waves, 1.995.waves, true),  //    big maker - little MARKET taker
+          /** fee in ETH, 0.001.waves = 0.00000568.eth, 0.005.waves = 0.00002838.eth */
+          (1.waves,  0.00002838, eth, 1.waves,  0.00002838, eth, -0.00000568.eth, -0.00002838.eth, false), // symmetric
+          (2.waves,  0.00002838, eth, 10.waves, 0.00002838, eth, -0.00000568.eth, -0.00000567.eth, false), // little maker - big taker
+          (10.waves, 0.00002838, eth, 2.waves,  0.00002838, eth, -0.00000113.eth, -0.00002838.eth, false), //    big maker - little taker
+          (1.waves,  0.00002838, eth, 1.waves,  0.00002838, eth, -0.00000568.eth, -0.00002838.eth, true),  // symmetric, MARKET taker
+          (2.waves,  0.00002838, eth, 10.waves, 0.00002838, eth, -0.00000568.eth, -0.00000567.eth, true),  // little maker - big MARKET taker
+          (10.waves, 0.00002838, eth, 2.waves,  0.00002838, eth, -0.00000113.eth, -0.00002838.eth, true)   //    big maker - little MARKET taker
         )
       ) { (mAmt: Long, mFee: Double, mFeeAsset: Asset, tAmt: Long, tFee: Double, tFeeAsset: Asset, mExpectedBalanceChange: Long, tExpectedBalanceChange: Long, isTMarket: Boolean) =>
         // format: on
@@ -132,29 +132,29 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
            |    -1: {
            |      mode = dynamic
            |      dynamic {
-           |        base-maker-fee = ${0.003.TN}
-           |        base-taker-fee = ${0.003.TN}
+           |        base-maker-fee = ${0.003.waves}
+           |        base-taker-fee = ${0.003.waves}
            |      }
            |    }
            |    $offset0: {
            |      mode = dynamic
            |      dynamic {
-           |        base-maker-fee = ${0.003.TN}
-           |        base-taker-fee = ${0.003.TN}
+           |        base-maker-fee = ${0.003.waves}
+           |        base-taker-fee = ${0.003.waves}
            |      }
            |    }
            |    $offset1: {
            |      mode = dynamic
            |      dynamic {
-           |        base-maker-fee = ${0.001.TN}
-           |        base-taker-fee = ${0.005.TN}
+           |        base-maker-fee = ${0.001.waves}
+           |        base-taker-fee = ${0.005.waves}
            |      }
            |    }
            |    $offset3: {
            |      mode = dynamic
            |      dynamic {
-           |        base-maker-fee = ${0.002.TN}
-           |        base-taker-fee = ${0.004.TN}
+           |        base-maker-fee = ${0.002.waves}
+           |        base-taker-fee = ${0.004.waves}
            |      }
            |    }
            |  }
@@ -165,8 +165,8 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
 
     withClue("maker - DynamicSettings(0.003.waves, 0.003.waves), taker - DynamicSettings(0.001.waves, 0.005.waves), fee in Waves") {
 
-      val makerOrder = mkOrderDP(maker, wavesUsdPair, SELL, 10.TN, 3.00, 0.003.TN)
-      val takerOrder = mkOrderDP(taker, wavesUsdPair, BUY, 10.TN, 3.00, 0.005.TN)
+      val makerOrder = mkOrderDP(maker, wavesUsdPair, SELL, 10.waves, 3.00, 0.003.waves)
+      val takerOrder = mkOrderDP(taker, wavesUsdPair, BUY, 10.waves, 3.00, 0.005.waves)
 
       dex1.api.currentOffset shouldBe offsetInitial
 
@@ -176,8 +176,8 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
       val tx = placeAndAwaitAtNode(takerOrder).head
       dex1.api.currentOffset shouldBe offset1
 
-      tx.getSellMatcherFee shouldBe 0.0006.TN
-      tx.getBuyMatcherFee shouldBe 0.005.TN
+      tx.getSellMatcherFee shouldBe 0.0006.waves
+      tx.getBuyMatcherFee shouldBe 0.005.waves
 
       dex1.api.cancelAll(maker)
       dex1.api.cancelAll(taker)
@@ -187,8 +187,8 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
 
       dex1.api.currentOffset shouldBe offset1
 
-      val makerOrder = mkOrderDP(maker, wavesUsdPair, SELL, 10.TN, 3.00, 0.00002838.eth, eth) // 0.005.TN = 0.00002838.eth
-      val takerOrder = mkOrderDP(taker, wavesUsdPair, BUY, 40.TN, 3.00, 0.00002271.eth, eth)  // 0.004.TN = 0.00002271.eth
+      val makerOrder = mkOrderDP(maker, wavesUsdPair, SELL, 10.waves, 3.00, 0.00002838.eth, eth) // 0.005.waves = 0.00002838.eth
+      val takerOrder = mkOrderDP(taker, wavesUsdPair, BUY, 40.waves, 3.00, 0.00002271.eth, eth)  // 0.004.waves = 0.00002271.eth
 
       placeAndAwaitAtDex(makerOrder)
       dex1.api.currentOffset shouldBe offset2

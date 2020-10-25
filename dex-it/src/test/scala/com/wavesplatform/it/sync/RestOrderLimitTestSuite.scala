@@ -55,23 +55,23 @@ class RestOrderLimitTestSuite extends MatcherSuiteBase {
 
     info("'fullOrderHistory' and 'ordersByAddress' (activeOnly=false) must return no more 'rest-order-limit' orders")
 
-    val active0    = mkOrder(alice, alicePair, SELL, 1, 15.TN, ts = now)
-    val active1    = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 1)
-    val partial1   = mkOrder(alice, alicePair, SELL, 2, 9.TN, ts = now + 2)
-    val filled1    = mkOrder(alice, alicePair, SELL, 1, 8.TN, ts = now + 3)
-    val cancelled1 = mkOrder(alice, alicePair, SELL, 1, 11.TN, ts = now + 4)
-    val active2    = mkOrder(alice, bobPair, BUY, 1, 2.TN, ts = now + 5)
-    val filled2    = mkOrder(alice, bobPair, BUY, 1, 4.TN, ts = now + 6)
-    val partial2   = mkOrder(alice, bobPair, BUY, 2, 3.TN, ts = now + 7)
-    val cancelled2 = mkOrder(alice, bobPair, BUY, 1, 2.TN, ts = now + 8)
+    val active0    = mkOrder(alice, alicePair, SELL, 1, 15.waves, ts = now)
+    val active1    = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 1)
+    val partial1   = mkOrder(alice, alicePair, SELL, 2, 9.waves, ts = now + 2)
+    val filled1    = mkOrder(alice, alicePair, SELL, 1, 8.waves, ts = now + 3)
+    val cancelled1 = mkOrder(alice, alicePair, SELL, 1, 11.waves, ts = now + 4)
+    val active2    = mkOrder(alice, bobPair, BUY, 1, 2.waves, ts = now + 5)
+    val filled2    = mkOrder(alice, bobPair, BUY, 1, 4.waves, ts = now + 6)
+    val partial2   = mkOrder(alice, bobPair, BUY, 2, 3.waves, ts = now + 7)
+    val cancelled2 = mkOrder(alice, bobPair, BUY, 1, 2.waves, ts = now + 8)
     List(active0, active1, partial1, filled1, cancelled1, active2, filled2, partial2, cancelled2).foreach(dex1.api.place)
 
     // orders for matching Alice's orders
     List(
-      mkOrder(bob, alicePair, BUY, 1, 8.TN, ts = now + 9), // fill filled1
-      mkOrder(bob, alicePair, BUY, 1, 9.TN, ts = now + 10), // part fill partial1
-      mkOrder(bob, bobPair, SELL, 1, 4.TN, ts = now + 11), // fill filled2
-      mkOrder(bob, bobPair, SELL, 1, 3.TN, ts = now + 12) // part fill partial2
+      mkOrder(bob, alicePair, BUY, 1, 8.waves, ts = now + 9), // fill filled1
+      mkOrder(bob, alicePair, BUY, 1, 9.waves, ts = now + 10), // part fill partial1
+      mkOrder(bob, bobPair, SELL, 1, 4.waves, ts = now + 11), // fill filled2
+      mkOrder(bob, bobPair, SELL, 1, 3.waves, ts = now + 12) // part fill partial2
     ).foreach(dex1.api.place)
 
     dex1.api.cancel(alice, cancelled1)
@@ -90,10 +90,10 @@ class RestOrderLimitTestSuite extends MatcherSuiteBase {
 
     info("'fullOrderHistory' and 'ordersByAddress' must return all active orders, even if they are more than the limit")
 
-    val active3 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 13)
-    val active4 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 14)
-    val active5 = mkOrder(alice, bobPair, BUY, 1, 2.TN, ts = now + 15)
-    val active6 = mkOrder(alice, bobPair, BUY, 1, 2.TN, ts = now + 16)
+    val active3 = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 13)
+    val active4 = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 14)
+    val active5 = mkOrder(alice, bobPair, BUY, 1, 2.waves, ts = now + 15)
+    val active6 = mkOrder(alice, bobPair, BUY, 1, 2.waves, ts = now + 16)
     List(active3, active4, active5, active6).foreach(dex1.api.place)
 
     dex1.api.waitForOrderStatus(active6, Status.Accepted)
@@ -113,10 +113,10 @@ class RestOrderLimitTestSuite extends MatcherSuiteBase {
 
     info("'orderHistoryByPair' must return no more 'rest-order-limit' orders")
 
-    val active7  = mkOrder(alice, alicePair, SELL, 1, 9.TN, ts = now + 17)
-    val active8  = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 18)
-    val active9  = mkOrder(alice, bobPair, BUY, 1, 1.TN, ts = now + 19)
-    val active10 = mkOrder(alice, bobPair, BUY, 1, 1.TN, ts = now + 20)
+    val active7  = mkOrder(alice, alicePair, SELL, 1, 9.waves, ts = now + 17)
+    val active8  = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 18)
+    val active9  = mkOrder(alice, bobPair, BUY, 1, 1.waves, ts = now + 19)
+    val active10 = mkOrder(alice, bobPair, BUY, 1, 1.waves, ts = now + 20)
     List(active7, active8, active9, active10).foreach(dex1.api.place)
 
     dex1.api.waitForOrderStatus(active10, Status.Accepted)
@@ -137,10 +137,10 @@ class RestOrderLimitTestSuite extends MatcherSuiteBase {
     info("all the methods move active orders that were filled")
 
     List(
-      mkOrder(bob, bobPair, SELL, 1, 3.TN, ts = now + 21), // fill partial2
-      mkOrder(bob, bobPair, SELL, 2, 2.TN, ts = now + 22), // fill active2, active5
-      mkOrder(bob, alicePair, BUY, 2, 9.TN, ts = now + 23), // fill partial1, active7
-      mkOrder(bob, alicePair, BUY, 1, 10.TN, ts = now + 24) // fill active1
+      mkOrder(bob, bobPair, SELL, 1, 3.waves, ts = now + 21), // fill partial2
+      mkOrder(bob, bobPair, SELL, 2, 2.waves, ts = now + 22), // fill active2, active5
+      mkOrder(bob, alicePair, BUY, 2, 9.waves, ts = now + 23), // fill partial1, active7
+      mkOrder(bob, alicePair, BUY, 1, 10.waves, ts = now + 24) // fill active1
     ).foreach(placeAndAwaitAtDex(_, Status.Filled))
 
     val activeOrdersAllSeven = List(active10, active9, active8, active6, active4, active3, active0).map(_.id())
@@ -157,11 +157,11 @@ class RestOrderLimitTestSuite extends MatcherSuiteBase {
 
     info("'orderHistoryByPair' must return all active orders, even if they are more than the limit")
 
-    val active11 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 25)
-    val active12 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 26)
-    val active13 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 27)
-    val active14 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 28)
-    val active15 = mkOrder(alice, alicePair, SELL, 1, 10.TN, ts = now + 29)
+    val active11 = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 25)
+    val active12 = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 26)
+    val active13 = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 27)
+    val active14 = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 28)
+    val active15 = mkOrder(alice, alicePair, SELL, 1, 10.waves, ts = now + 29)
     List(active11, active12, active13, active14, active15).foreach(dex1.api.place)
 
     dex1.api.waitForOrderStatus(active15, Status.Accepted)

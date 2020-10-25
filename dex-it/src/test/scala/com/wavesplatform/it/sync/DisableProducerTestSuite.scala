@@ -28,8 +28,8 @@ class DisableProducerTestSuite extends MatcherSuiteBase {
       def test(order: Order): Unit = dex1.api.tryPlace(order) should failWith(528) // FeatureDisabled
 
       List(
-        mkOrder(alice, ethWavesPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant),
-        mkOrder(alice, ethWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant)
+        mkOrder(alice, ethWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant),
+        mkOrder(alice, ethWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant)
       ).foreach(test)
 
       Thread.sleep(5000)

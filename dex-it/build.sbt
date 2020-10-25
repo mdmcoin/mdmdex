@@ -27,12 +27,12 @@ itArtifactDescriptions := {
 docker := docker.dependsOn(downloadItArtifacts, LocalProject("waves-integration-it") / docker, LocalProject("dex") / docker).value
 inTask(docker)(
   Seq(
-    nameOfImage := "wavesplatform/dex-it",
+    nameOfImage := "turtlenetwork/dex-it",
     dockerfile := new Dockerfile {
-      val appPath      = "/usr/share/waves-dex"
+      val appPath      = "/usr/share/tn-dex"
       val entryPointSh = s"$appPath/bin/start-matcher-server-it.sh"
 
-      from("wavesplatform/matcher-server:latest")
+      from("turtlenetwork/matcher-server:latest")
       user("root:root")
 
       List(
@@ -41,7 +41,7 @@ inTask(docker)(
         itArtifactsCacheDir.value / "aspectjweaver.jar"                             -> s"$appPath/lib", // profiler, see https://www.yourkit.com/docs/java/help/docker.jsp
         itArtifactsCacheDir.value / "yourKit"                                       -> "/usr/local" // profiler archive
       ).foreach {
-        case (src, dest) => add(src, dest, chown = "waves-dex:waves-dex")
+        case (src, dest) => add(src, dest, chown = "tn-dex:tn-dex")
       }
 
       runShell("chmod", "+x", entryPointSh)

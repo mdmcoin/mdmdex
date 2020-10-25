@@ -132,7 +132,7 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
           minimalFeeWaves,
           version = version
         )
-      ) should failWithBalanceNotEnough(required = Map(Waves -> 3.75.TN, usd -> 18.usd), available = Map(Waves -> 0.TN, usd -> 18.usd))
+      ) should failWithBalanceNotEnough(required = Map(Waves -> 3.75.waves, usd -> 18.usd), available = Map(Waves -> 0.waves, usd -> 18.usd))
     }
 
     s"buy order should be rejected if fee less then minimum possible fee when fee asset-type = $assetType" in {

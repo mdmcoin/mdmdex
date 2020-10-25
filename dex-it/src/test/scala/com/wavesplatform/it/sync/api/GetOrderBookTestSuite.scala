@@ -6,7 +6,6 @@ import com.wavesplatform.dex.api.http.entities.HttpV0OrderBook
 import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
-import com.wavesplatform.dex.it.api.responses.dex.OrderBookResponse
 import com.wavesplatform.it.MatcherSuiteBase
 
 class GetOrderBookTestSuite extends MatcherSuiteBase {
@@ -47,8 +46,8 @@ class GetOrderBookTestSuite extends MatcherSuiteBase {
   "response order book should contain right count of bids and asks" in {
 
     for (i <- 1 to ordersCount) {
-      dex1.api.place(mkOrder(alice, wavesUsdPair, BUY, 1.TN, i))
-      dex1.api.place(mkOrder(alice, wavesUsdPair, SELL, 1.TN, i + ordersCount + 1))
+      dex1.api.place(mkOrder(alice, wavesUsdPair, BUY, 1.waves, i))
+      dex1.api.place(mkOrder(alice, wavesUsdPair, SELL, 1.waves, i + ordersCount + 1))
     }
 
     checkDepth(forTheseDepths = Array(0, 1, 8, 9), thisDepthWillBePicked = 10)
@@ -70,8 +69,8 @@ class GetOrderBookTestSuite extends MatcherSuiteBase {
     val ethWavesOrdersCount = 20
 
     (1 to ethWavesOrdersCount) foreach { i =>
-      dex1.api.place(mkOrder(alice, ethWavesPair, BUY, 1.TN, i * 100))
-      dex1.api.place(mkOrder(alice, ethWavesPair, SELL, 1.TN, (i + ethWavesOrdersCount + 1) * 100))
+      dex1.api.place(mkOrder(alice, ethWavesPair, BUY, 1.waves, i * 100))
+      dex1.api.place(mkOrder(alice, ethWavesPair, SELL, 1.waves, (i + ethWavesOrdersCount + 1) * 100))
     }
 
     val orderBook = dex1.api.orderBook(AssetPair(Waves, eth), depth)

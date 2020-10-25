@@ -44,10 +44,10 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
 
     broadcastAndAwait(asset0Tx, asset1Tx, asset2Tx, assetWith2DecTx, feeAssetTx, falseFeeAssetTx, IssueBtcTx)
     broadcastAndAwait(
-      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset0, 0.005.TN),
-      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset1, 0.009.TN),
-      mkTransfer(bob, alice, defaultAssetQuantity / 2, asset2, 0.005.TN),
-      mkTransfer(bob, alice, 5, assetWith2Dec, 0.005.TN)
+      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset0, 0.005.waves),
+      mkTransfer(alice, bob, defaultAssetQuantity / 2, asset1, 0.009.waves),
+      mkTransfer(bob, alice, defaultAssetQuantity / 2, asset2, 0.005.waves),
+      mkTransfer(bob, alice, 5, assetWith2Dec, 0.005.waves)
     )
     broadcastAndAwait(mkSetAccountScript(alice, trueScript))
 
@@ -170,7 +170,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         val aliceWavesBalance = wavesNode1.api.balance(alice, Waves)
         val aliceAssetBalance = wavesNode1.api.balance(alice, assetWith2Dec)
 
-        dex1.api.tryPlace(mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.TN * 1000000L, 4, feeAsset = assetWith2Dec)) should failWith(
+        dex1.api.tryPlace(mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 4, feeAsset = assetWith2Dec)) should failWith(
           9441542, // FeeNotEnough
           s"Required 0.05 $assetWith2DecId as fee for this order, but given 0.04 $assetWith2DecId"
         )
@@ -180,31 +180,31 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         wavesNode1.api.balance(alice, Waves) shouldBe aliceWavesBalance
         wavesNode1.api.balance(alice, assetWith2Dec) shouldBe aliceAssetBalance
 
-        val bobOrder = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.TN * 1000000L, 5, feeAsset = assetWith2Dec)
+        val bobOrder = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 5, feeAsset = assetWith2Dec)
         dex1.api.place(bobOrder)
         dex1.api.reservedBalance(bob)(assetWith2Dec) shouldBe 10005L
 
         //
-        val aliceOrder = mkOrder(alice, asset2WithDecWavesPair, BUY, 20000L, 300.TN * 1000000L, 5, feeAsset = assetWith2Dec)
+        val aliceOrder = mkOrder(alice, asset2WithDecWavesPair, BUY, 20000L, 300.waves * 1000000L, 5, feeAsset = assetWith2Dec)
         dex1.api.place(aliceOrder)
         waitForOrderAtNode(bobOrder)
 
-        dex1.api.reservedBalance(alice)(Waves) shouldBe (300.TN * 100L)
+        dex1.api.reservedBalance(alice)(Waves) shouldBe (300.waves * 100L)
         dex1.api.reservedBalance(bob) shouldBe Map()
 
-        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 300.TN * 100L)
+        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 300.waves * 100L)
         wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 10005L)
-        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 300.TN * 100L)
+        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 300.waves * 100L)
         wavesNode1.api.balance(alice, assetWith2Dec) shouldBe (aliceAssetBalance + 9998L)
 
-        val anotherBobOrderId = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.TN * 1000000L, 5, assetWith2Dec)
+        val anotherBobOrderId = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 5, assetWith2Dec)
         dex1.api.place(anotherBobOrderId)
         waitForOrderAtNode(anotherBobOrderId)
 
         dex1.api.reservedBalance(alice) shouldBe Map()
-        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 2 * 300.TN * 100L)
+        wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 2 * 300.waves * 100L)
         wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 2 * 10005L)
-        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 2 * 300.TN * 100L)
+        wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 2 * 300.waves * 100L)
         wavesNode1.api.balance(alice, assetWith2Dec) shouldBe (aliceAssetBalance + 2 * 9998L)
       }
     }

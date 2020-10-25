@@ -51,7 +51,7 @@ class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka 
   }
 
   "Matcher should able to restore the work after kafka issues solved" in {
-    placeAndAwaitAtDex(mkOrderDP(alice, wavesUsdPair, SELL, 1.TN, 3.0))
+    placeAndAwaitAtDex(mkOrderDP(alice, wavesUsdPair, SELL, 1.waves, 3.0))
 
     disconnectKafkaFromNetwork()
     Thread.sleep(waitAfterNetworkChanges.toMillis)
@@ -59,7 +59,7 @@ class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka 
     val offsetBefore = dex1.api.currentOffset
 
     (1 to maxFailures).foreach { i =>
-      dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, i.TN, 3.0)) shouldBe Symbol("left")
+      dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, i.waves, 3.0)) shouldBe Symbol("left")
     }
 
     Thread.sleep(requestTimeout.toMillis)
@@ -70,7 +70,7 @@ class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka 
       dex1.api.currentOffset shouldBe offsetBefore
     }
 
-    dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, 1.TN, 3.0)) shouldBe Symbol("right")
+    dex1.api.tryPlace(mkOrderDP(alice, wavesUsdPair, SELL, 1.waves, 3.0)) shouldBe Symbol("right")
 
     dex1.api.cancelAll(alice)
   }
@@ -84,10 +84,10 @@ class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka 
 
     assertChanges(wsac, squash = false) { Map(Waves -> WsBalances(initialWavesBalance, 0), usd -> WsBalances(initialUsdBalance, 0)) }()
 
-    val sellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 10.TN, 3.0)
+    val sellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 10.waves, 3.0)
     placeAndAwaitAtDex(sellOrder)
 
-    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.TN))
+    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.waves))
 
     assertChanges(wsac) { Map(Waves -> WsBalances(initialWavesBalance - 10.003, 10.003)) } {
       WsOrder.fromDomain(LimitOrder(sellOrder))
@@ -98,10 +98,10 @@ class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka 
 
     dex1.api.tryCancel(alice, sellOrder) shouldBe Symbol("left")
 
-    val bigSellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 30.TN, 3.0)
+    val bigSellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 30.waves, 3.0)
     dex1.api.tryPlace(bigSellOrder) shouldBe Symbol("left")
 
-    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.TN))
+    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.waves))
 
     assertChanges(wsac, squash = false)(
       Map(Waves -> WsBalances(initialWavesBalance - 40.006, 40.006)),
@@ -129,7 +129,7 @@ class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka 
     dex1.api.waitForOrderStatus(bigSellOrder, Status.Accepted)
 
     dex1.api.orderHistory(alice, Some(true)) should have size 1
-    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 30.003.TN))
+    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 30.003.waves))
 
     assertChanges(wsac, squash = false) { Map(Waves -> WsBalances(initialWavesBalance - 30.003, 30.003)) } {
       WsOrder.fromDomain(LimitOrder(bigSellOrder))

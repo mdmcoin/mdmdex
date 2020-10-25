@@ -193,9 +193,9 @@ Run: `sudo dpkg -i deb-artifact.deb`
 
 The Matcher server will be installed. Note, the service will not start. You should update the configuration (see below) and then start the service:
 * If you are using `system.d` (used on Ubuntu since 15.04): `sudo systemctl start waves-dex`
-* If you are using `init.d`: `sudo /etc/init.d/waves-dex`
+* If you are using `init.d`: `sudo /etc/init.d/tn-dex`
 
-If it is a fresh install, configurations were copied to `/etc/waves-dex`.
+If it is a fresh install, configurations were copied to `/etc/tn-dex`.
 
 #### b. 🗜 Installation through ZIP
 
@@ -214,13 +214,13 @@ To run:
 *Debian/Ubuntu/macOS*:
 
 ```
-/path/to/matcher/directory/bin/waves-dex -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
+/path/to/matcher/directory/bin/tn-dex -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
 ```
 
 *Windows*:
 
 ```
-/path/to/matcher/directory/bin/waves-dex.bat -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
+/path/to/matcher/directory/bin/tn-dex.bat -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
 ```
 
 #### 📃 Configuration of Matcher server
@@ -284,7 +284,7 @@ dex/runMain com.wavesplatform.dex.cli.WavesDexCli here-your-arguments
 Example:
 
 ```bash
-./bin/waves-dex-cli create-account-storage --address-scheme W --seed-format base64 --account-nonce 3 --output-directory /var/lib/waves-dex
+./bin/tn-dex-cli create-account-storage --address-scheme W --seed-format base64 --account-nonce 3 --output-directory /var/lib/tn-dex
 ```
 
 here:
@@ -294,7 +294,7 @@ here:
   If you will provide an account seed, don't specify this option;
 * `--output-directory` - where the `account.dat` file will be stored.
 
-After running this command you will see where your `account.dat` was saved and which settings do you have to add to the Matcher server configuration (`/usr/share/waves-dex/conf/main.conf`).
+After running this command you will see where your `account.dat` was saved and which settings do you have to add to the Matcher server configuration (`/usr/share/tn-dex/conf/main.conf`).
 Note, the shown settings contain a placeholder for your raw password, insert a real password to your configuration! 
 
 ### 8.2. Generating API key
@@ -302,7 +302,7 @@ Note, the shown settings contain a placeholder for your raw password, insert a r
 Example:
 
 ```bash
-./bin/waves-dex-cli com.wavesplatform.dex.cli.WavesDexCli create-api-key --api-key "integration-test-rest-api"
+./bin/tn-dex-cli com.wavesplatform.dex.cli.WavesDexCli create-api-key --api-key "integration-test-rest-api"
 ```
 
 An output:

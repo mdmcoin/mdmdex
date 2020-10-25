@@ -261,8 +261,8 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
   "Postgres order history should save all orders and events" in {
     (1 to maxOrders)
       .foreach { i =>
-        dex1.api.place(mkOrderDP(alice, wctUsdPair, BUY, 1.wct, 0.35, 0.04.TN, ttl = 1.day + i.seconds))
-        dex1.api.place(mkOrderDP(bob, wctUsdPair, SELL, 1.wct, 0.35, 0.04.TN, ttl = 1.day + i.seconds))
+        dex1.api.place(mkOrderDP(alice, wctUsdPair, BUY, 1.wct, 0.35, 0.04.waves, ttl = 1.day + i.seconds))
+        dex1.api.place(mkOrderDP(bob, wctUsdPair, SELL, 1.wct, 0.35, 0.04.waves, ttl = 1.day + i.seconds))
       }
 
     eventually {
@@ -348,8 +348,8 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
   }
 
   "Postgres order history should correctly save events with Waves as amount and fee" in {
-    val buyOrder  = mkOrderDP(alice, wavesUsdPair, BUY, 300.TN, 0.35, matcherFee = 0.00370300.TN, feeAsset = Waves)
-    val sellOrder = mkOrderDP(bob, wavesUsdPair, SELL, 300.TN, 0.35, matcherFee = 0.30.usd, feeAsset = usd)
+    val buyOrder  = mkOrderDP(alice, wavesUsdPair, BUY, 300.waves, 0.35, matcherFee = 0.00370300.waves, feeAsset = Waves)
+    val sellOrder = mkOrderDP(bob, wavesUsdPair, SELL, 300.waves, 0.35, matcherFee = 0.30.usd, feeAsset = usd)
 
     dex1.api.place(buyOrder)
     dex1.api.place(sellOrder)
@@ -502,9 +502,9 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
       val ts = System.currentTimeMillis()
 
       val orders = Seq(
-        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.33, 0.003.TN, ts = ts),
-        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.34, 0.003.TN, ts = ts + 100),
-        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.34, 0.003.TN, ts = ts + 200)
+        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.33, 0.003.waves, ts = ts),
+        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.34, 0.003.waves, ts = ts + 100),
+        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.34, 0.003.waves, ts = ts + 200)
       )
 
       orders.foreach { order =>
@@ -546,9 +546,9 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
   "Postgres order history should save orders that are filled with rounding issues" in {
     Seq(limitOrderType, marketOrderType).foreach { orderType =>
-      val buyOrder = mkOrderDP(alice, wavesUsdPair, BUY, 1.23456789.TN, 1.03)
+      val buyOrder = mkOrderDP(alice, wavesUsdPair, BUY, 1.23456789.waves, 1.03)
 
-      dex1.api.place(mkOrderDP(bob, wavesUsdPair, SELL, 2.TN, 1.03))
+      dex1.api.place(mkOrderDP(bob, wavesUsdPair, SELL, 2.waves, 1.03))
       if (orderType == limitOrderType) dex1.api.place(buyOrder) else dex1.api.placeMarket(buyOrder)
       dex1.api.waitForOrderStatus(buyOrder, Status.Filled)
 

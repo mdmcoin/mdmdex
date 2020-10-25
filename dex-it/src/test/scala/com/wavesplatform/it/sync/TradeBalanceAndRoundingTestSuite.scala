@@ -119,8 +119,8 @@ class TradeBalanceAndRoundingTestSuite extends MatcherSuiteBase {
 
   "Alice and Bob trade TN-USD check CELLING" - {
     val price2           = 289
-    val buyOrderAmount2  = 0.07.TN
-    val sellOrderAmount2 = 3.TN
+    val buyOrderAmount2  = 0.07.waves
+    val sellOrderAmount2 = 3.waves
 
     val correctedSellAmount2 = correctAmount(sellOrderAmount2, price2)
 

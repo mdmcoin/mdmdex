@@ -1,11 +1,11 @@
 #!/bin/bash
 
-mkdir -p /var/lib/waves-dex/log # link to /var/log/waves-dex/ was created in dockerfile
+mkdir -p /var/lib/tn-dex/log # link to /var/log/tn-dex/ was created in dockerfile
 
-USER_PATH="/var/lib/waves-dex"
+USER_PATH="/var/lib/tn-dex"
 CONFIG_PATH="${USER_PATH}/config"
-SOURCES_PATH="/usr/share/waves-dex"
-LOG_PATH="/var/log/waves-dex"
+SOURCES_PATH="/usr/share/tn-dex"
+LOG_PATH="/var/log/tn-dex"
 
 BASE_CONFIG="${SOURCES_PATH}/conf/dex.conf"
 CUSTOM_CONFIG="${CONFIG_PATH}/local.conf"
@@ -31,7 +31,7 @@ echo "Matcher is starting..." |  tee -a ${LOG_FILE}
 echo "MATCHER_HEAP_SIZE='${MATCHER_HEAP_SIZE}'" |  tee -a ${LOG_FILE}
 printf "JAVA_OPTS='${JAVA_OPTS}'\n\n" |  tee -a ${LOG_FILE}
 
-${SOURCES_PATH}/bin/waves-dex \
+${SOURCES_PATH}/bin/tn-dex \
   -J-Xmx${MATCHER_HEAP_SIZE} \
   -Dlogback.configurationFile=${CUSTOM_LOG_CONFIG} \
   -Dconfig.override_with_env_vars=true \

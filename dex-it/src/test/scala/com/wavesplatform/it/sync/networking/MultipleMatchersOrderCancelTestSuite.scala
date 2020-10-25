@@ -32,13 +32,13 @@ class MultipleMatchersOrderCancelTestSuite extends MatcherSuiteBase {
     */
   "Tricky case when DEX-1 is slower than DEX-2 and it leads to order cancelling on DEX-1" in {
 
-    val acc1 = mkAccountWithBalance(15.015.TN -> Waves)
-    val acc2 = mkAccountWithBalance(0.015.TN  -> Waves, 15.usd -> usd)
-    val acc3 = mkAccountWithBalance(1.TN      -> Waves, 10.eth -> eth) // Account for fake orders
+    val acc1 = mkAccountWithBalance(15.015.waves -> Waves)
+    val acc2 = mkAccountWithBalance(0.015.waves  -> Waves, 15.usd -> usd)
+    val acc3 = mkAccountWithBalance(1.waves      -> Waves, 10.eth -> eth) // Account for fake orders
 
     val ts = System.currentTimeMillis()
     val sellOrders = (1 to 5).map { amt =>
-      mkOrderDP(acc1, wavesUsdPair, OrderType.SELL, amt.TN, amt, ts = ts + amt) // To cancel latest first
+      mkOrderDP(acc1, wavesUsdPair, OrderType.SELL, amt.waves, amt, ts = ts + amt) // To cancel latest first
     }
 
     sellOrders.foreach { placeAndAwaitAtDex(_) }
@@ -56,7 +56,7 @@ class MultipleMatchersOrderCancelTestSuite extends MatcherSuiteBase {
     }
 
     val submittedOrders = (1 to 3).map { amt =>
-      mkOrderDP(acc2, wavesUsdPair, OrderType.BUY, amt.TN, amt)
+      mkOrderDP(acc2, wavesUsdPair, OrderType.BUY, amt.waves, amt)
     }
     submittedOrders.foreach(placeAndAwaitAtDex(_, Status.Filled, dex2))
     submittedOrders.foreach(waitForOrderAtNode(_, dex2.api))

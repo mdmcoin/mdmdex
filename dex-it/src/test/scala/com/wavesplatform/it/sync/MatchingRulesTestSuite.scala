@@ -273,7 +273,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
   }
 
   "Matching orders with different decimals" in {
-    Seq((wctUsdPair, amount, price), (wctWavesPair, amount, price * 1000000L), (wavesUsdPair, 1.TN, 100L), (wavesBtcPair, amount, price))
+    Seq((wctUsdPair, amount, price), (wctWavesPair, amount, price * 1000000L), (wavesUsdPair, 1.waves, 100L), (wavesBtcPair, amount, price))
       .foreach {
         case (pair: AssetPair, amount: Long, price: Long) =>
           withClue(pair) {

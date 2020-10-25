@@ -63,11 +63,11 @@ inConfig(Compile)(
 // Docker
 inTask(docker)(
   Seq(
-    nameOfImage := "wavesplatform/matcher-server",
+    nameOfImage := "turtlenetwork/matcher-server",
     dockerfile := new Dockerfile {
 
-      val (user, userId)   = ("waves-dex", "113")
-      val (group, groupId) = ("waves-dex", "116")
+      val (user, userId)   = ("tn-dex", "113")
+      val (group, groupId) = ("tn-dex", "116")
 
       val runtimePath = s"/var/lib/$user"
       val appPath     = s"/usr/share/$user"
@@ -81,7 +81,7 @@ inTask(docker)(
                 |useradd -d $runtimePath -g $groupId -u $userId -s /bin/bash -M $user && \\
                 |chown -R $userId:$groupId $runtimePath $appPath && \\
                 |chmod -R 755 $runtimePath $appPath && \\
-                |ln -fs $runtimePath/log var/log/waves-dex""".stripMargin)
+                |ln -fs $runtimePath/log var/log/tn-dex""".stripMargin)
 
       Seq(
         (Universal / stage).value                                                   -> s"$appPath/", // sources

@@ -14,7 +14,7 @@ import org.apache.kafka.clients.admin.{AdminClient, NewTopic}
 import scala.jdk.CollectionConverters._
 
 trait HasDex { self: BaseContainersKit =>
-  protected val defaultDexImage = "wavesplatform/dex-it:latest"
+  protected val defaultDexImage = "turtlenetwork/dex-it:latest"
   private val dexImage          = Option(System.getenv("DEX_IMAGE")).getOrElse(defaultDexImage)
 
   protected implicit def toDexExplicitGetOps[F[_]: CanExtract: Functor](self: DexApi[F]): DexApiOps.ExplicitGetDexApiOps[F] = {

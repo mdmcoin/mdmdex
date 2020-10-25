@@ -64,7 +64,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
       mkMassTransfer(
         bob,
         Waves,
-        traders.map(x => new Transfer(x.toAddress, 100.TN)).to(List)
+        traders.map(x => new Transfer(x.toAddress, 100.waves)).to(List)
       )
 
     wavesNode1.start()

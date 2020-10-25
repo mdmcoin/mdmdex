@@ -151,10 +151,10 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
 
     dex1.restartWithNewSuiteConfig(conf)
 
-    val account = mkAccountWithBalance(5.004.TN -> Waves)
+    val account = mkAccountWithBalance(5.004.waves -> Waves)
 
     markup("Place order")
-    val order = mkOrder(account, wavesUsdPair, SELL, 5.TN, 5.usd)
+    val order = mkOrder(account, wavesUsdPair, SELL, 5.waves, 5.usd)
     placeAndAwaitAtDex(order)
 
     markup("Up node 2")
@@ -169,13 +169,13 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
 
     Thread.sleep(25000) // waiting for dex's grpc connection to node-2
 
-    broadcastAndAwait(wavesNode2.api, mkTransfer(account, bob, amount = 4.TN, asset = Waves))
+    broadcastAndAwait(wavesNode2.api, mkTransfer(account, bob, amount = 4.waves, asset = Waves))
 
     markup("Now DEX receives balances stream from the node 2 and cancels order")
     dex1.api.waitForOrderStatus(order, Status.Cancelled)
 
     markup("Place order")
-    placeAndAwaitAtDex(mkOrder(account, wavesUsdPair, SELL, 1.TN, 5.usd))
+    placeAndAwaitAtDex(mkOrder(account, wavesUsdPair, SELL, 1.waves, 5.usd))
   }
 
   private def clearOrderBook(): Unit = {
@@ -185,8 +185,8 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
 
   private def makeAndMatchOrders(): Unit = {
     for (i <- 1 to 5) {
-      val o1 = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.TN, i * 300)
-      val o2 = mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.TN, i * 300)
+      val o1 = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, i * 300)
+      val o2 = mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, i * 300)
       dex1.api.place(o1)
       dex1.api.place(o2)
     }

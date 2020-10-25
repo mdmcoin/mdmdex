@@ -66,7 +66,7 @@ class OrderPercentFeeReceivingTestSuite extends OrderFeeBaseTestSuite {
       wavesNode1.api.balance(accountSeller, Waves) shouldBe 0L
       wavesNode1.api.balance(accountSeller, usd) shouldBe partiallyAmountUsd
 
-      dex1.api.reservedBalance(accountBuyer).getOrElse(Waves, 0L) shouldBe 1.5.TN // 3.75 - 9 / 15 * 3.75
+      dex1.api.reservedBalance(accountBuyer).getOrElse(Waves, 0L) shouldBe 1.5.waves // 3.75 - 9 / 15 * 3.75
       dex1.api.reservedBalance(accountBuyer).getOrElse(usd, 0L) shouldBe fullyAmountUsd - partiallyAmountUsd
       dex1.api.reservedBalance(accountSeller).getOrElse(Waves, 0L) shouldBe 0L
       dex1.api.reservedBalance(accountSeller).getOrElse(usd, 0L) shouldBe 0L

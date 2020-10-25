@@ -42,14 +42,14 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
   "issue asset and run test" - {
     "trading is deprecated" in {
 
-      dex1.api.tryPlace(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 1)) should failWith(
+      dex1.api.tryPlace(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 1)) should failWith(
         2097923, // AccountFeatureUnsupported
         "An account's feature isn't yet supported"
       )
     }
 
     "can't place an OrderV2 before the activation" in {
-      dex1.api.tryPlace(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 2)) should failWith(
+      dex1.api.tryPlace(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 2)) should failWith(
         2099459, // OrderVersionUnsupported
         "The order of version 2 isn't yet supported"
       )
@@ -62,7 +62,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
       // true && (height > 0)
       updateBobScript("AgMGCQAAZgAAAAIFAAAABmhlaWdodAAAAAAAAAAAAAeEODpj")
       Thread.sleep(3000) // TODO Sometimes fail without this awaiting, probably issue in the cache
-      dex1.api.tryPlace(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 2)) should failWith(
+      dex1.api.tryPlace(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 2)) should failWith(
         3147520, // AccountScriptReturnedError
         "An access to the blockchain.height is denied on DEX"
       )
@@ -72,7 +72,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
       // let x = 3; x == 3
       updateBobScript("AgQAAAABeAAAAAAAAAAAAwkAAAAAAAACBQAAAAF4AAAAAAAAAAADT0BZng==")
       dex1.api
-        .place(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 2))
+        .place(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 2))
         .status shouldBe "OrderAccepted"
     }
 
@@ -87,7 +87,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
        */
       updateBobScript("AAIDAAAAAAAAAAQIARIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAQAAAAhXcml0ZVNldAAAAAEFAAAAA25pbAAAAABTiKBL")
 
-      val bobOrder = mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 2)
+      val bobOrder = mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 2)
       dex1.api.place(bobOrder).status shouldBe "OrderAccepted"
     }
 
@@ -111,12 +111,12 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
 
       "accept correct order" in {
         dex1.api
-          .place(mkOrder(bob, aliceWavesPair, OrderType.BUY, 2000, 2.TN * Order.PriceConstant, smartTradeFee, version = 2))
+          .place(mkOrder(bob, aliceWavesPair, OrderType.BUY, 2000, 2.waves * Order.PriceConstant, smartTradeFee, version = 2))
           .status shouldBe "OrderAccepted"
       }
 
       "reject incorrect order" in {
-        dex1.api.tryPlace(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.TN * Order.PriceConstant, smartTradeFee, version = 2)) should failWith(
+        dex1.api.tryPlace(mkOrder(bob, aliceWavesPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartTradeFee, version = 2)) should failWith(
           3147522 // AccountScriptDeniedOrder
         )
       }
@@ -124,7 +124,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
 
     "can trade from non-scripted account" in {
       // Alice places sell order
-      val aliceOrder = mkOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.TN * Order.PriceConstant, version = 1)
+      val aliceOrder = mkOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, version = 1)
       dex1.api.place(aliceOrder).status shouldBe "OrderAccepted"
 
       // Alice checks that the order in order book

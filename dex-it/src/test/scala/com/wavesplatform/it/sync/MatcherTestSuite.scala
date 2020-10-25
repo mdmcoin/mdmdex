@@ -35,16 +35,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
   private val IssueResults(issueBob2Asset2Tx, _, bobAsset2) = mkIssueExtended(bob, "Bob-2-X", someAssetAmount, 0)
   private val bob2WavesPair                                 = AssetPair(bobAsset2, Waves)
 
-  private val order1 = mkOrder(alice, aliceWavesPair, SELL, aliceSellAmount, 2000.TN, ttl = 10.minutes) // TTL?
-
-  private val maxOrders = 99
-
-  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""TN.dex {
-       |  price-assets = [ "$UsdId", "TN" ]
-       |  order-db.max-orders = $maxOrders
-       |}""".stripMargin
-  )
+  private val order1 = mkOrder(alice, aliceWavesPair, SELL, aliceSellAmount, 2000.waves, ttl = 10.minutes) // TTL?
 
   private val maxOrders = 99
 
@@ -84,7 +75,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         // Alice check that order is correct
         val orders = dex1.api.orderBook(aliceWavesPair)
         orders.asks.head.amount shouldBe aliceSellAmount
-        orders.asks.head.price shouldBe 2000.TN
+        orders.asks.head.price shouldBe 2000.waves
       }
 
       "orderType should be limit for a limit order" in {
@@ -130,7 +121,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         val aliceBalance   = wavesNode1.api.balance(alice, Waves)
 
         // Bob places a buy order
-        val order2 = mkOrder(bob, aliceWavesPair, BUY, 200, 2.TN * Order.PriceConstant)
+        val order2 = mkOrder(bob, aliceWavesPair, BUY, 200, 2.waves * Order.PriceConstant)
         dex1.api.place(order2).status shouldBe "OrderAccepted"
 
         dex1.api.waitForOrderStatus(order1, Status.PartiallyFilled)
@@ -148,7 +139,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         // Alice checks that part of her order still in the order book
         val orders = dex1.api.orderBook(aliceWavesPair)
         orders.asks.head.amount shouldBe 300
-        orders.asks.head.price shouldBe 2000.TN
+        orders.asks.head.price shouldBe 2000.waves
 
         // Alice checks that she sold some assets
         wavesNode1.api.balance(alice, aliceAsset) shouldBe 800
@@ -175,16 +166,16 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
 
       "submitting sell orders should check availability of asset" in {
         // Bob trying to place order on more assets than he has - order rejected
-        val badOrder = mkOrder(bob, aliceWavesPair, SELL, 300, 1900.TN)
+        val badOrder = mkOrder(bob, aliceWavesPair, SELL, 300, 1900.waves)
         dex1.api.tryPlace(badOrder) should failWith(3147270) // BalanceNotEnough
 
         // Bob places order on available amount of assets - order accepted
-        val order3 = mkOrder(bob, aliceWavesPair, SELL, 150, 1900.TN)
+        val order3 = mkOrder(bob, aliceWavesPair, SELL, 150, 1900.waves)
         placeAndAwaitAtDex(order3)
 
         // Bob checks that the order in the order book
         val orders = dex1.api.orderBook(aliceWavesPair)
-        orders.asks should contain(HttpV0LevelAgg(150, 1900.TN))
+        orders.asks should contain(HttpV0LevelAgg(150, 1900.waves))
       }
 
       "buy order should match on few price levels" in {
@@ -193,7 +184,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         val bobBalance     = wavesNode1.api.balance(bob, Waves)
 
         // Alice places a buy order
-        val order4 = mkOrder(alice, aliceWavesPair, BUY, 350, (21.TN / 10.0 * Order.PriceConstant).toLong)
+        val order4 = mkOrder(alice, aliceWavesPair, BUY, 350, (21.waves / 10.0 * Order.PriceConstant).toLong)
         dex1.api.place(order4).status shouldBe "OrderAccepted"
 
         // Where were 2 sells that should fulfill placed order
@@ -228,11 +219,11 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         orders1.bids.size should be(0)
 
         // Alice places a new sell order on 100
-        dex1.api.place(mkOrder(alice, aliceWavesPair, SELL, 100, 2000.TN)).status shouldBe "OrderAccepted"
+        dex1.api.place(mkOrder(alice, aliceWavesPair, SELL, 100, 2000.waves)).status shouldBe "OrderAccepted"
 
         // Alice checks that the order is in the order book
         val orders2 = dex1.api.orderBook(aliceWavesPair)
-        orders2.asks should contain(HttpV0LevelAgg(100, 2000.TN))
+        orders2.asks should contain(HttpV0LevelAgg(100, 2000.waves))
       }
 
       "buy order should execute all open orders and put remaining in order book" in {
@@ -241,12 +232,12 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         val bobBalance     = wavesNode1.api.balance(bob, Waves)
 
         // Bob places buy order on amount bigger then left in sell orders
-        val order5 = mkOrder(bob, aliceWavesPair, BUY, 130, 2000.TN)
+        val order5 = mkOrder(bob, aliceWavesPair, BUY, 130, 2000.waves)
         placeAndAwaitAtDex(order5, Status.PartiallyFilled)
 
         // Check that remaining part of the order is in the order book
         val orders = dex1.api.orderBook(aliceWavesPair)
-        orders.bids should contain(HttpV0LevelAgg(30, 2000.TN))
+        orders.bids should contain(HttpV0LevelAgg(30, 2000.waves))
 
         // Check balances
         waitForOrderAtNode(order5)
@@ -276,13 +267,13 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         wavesNode1.api.balance(matcher, bobAsset1) shouldBe 0
         wavesNode1.api.balance(bob, bobAsset1) shouldBe someAssetAmount
 
-        def mkBobOrder = mkOrder(bob, bob1WavesPair, SELL, someAssetAmount, 0.005.TN)
+        def mkBobOrder = mkOrder(bob, bob1WavesPair, SELL, someAssetAmount, 0.005.waves)
 
         val order6 = mkBobOrder
         placeAndAwaitAtDex(order6)
 
         // Alice wants to buy all Bob's assets for 1 Wave
-        val order7 = mkOrder(alice, bob1WavesPair, BUY, someAssetAmount, 0.005.TN)
+        val order7 = mkOrder(alice, bob1WavesPair, BUY, someAssetAmount, 0.005.waves)
         placeAndAwaitAtDex(order7, Status.Filled)
 
         waitForOrderAtNode(order7)
@@ -291,10 +282,10 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       }
 
       "market status" in {
-        val ask       = 5.TN
+        val ask       = 5.waves
         val askAmount = 5000000
 
-        val bid       = 10.TN
+        val bid       = 10.waves
         val bidAmount = 10000000
 
         dex1.api.place(mkOrder(bob, bob2WavesPair, SELL, askAmount, ask))
@@ -401,8 +392,8 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
 
         val now = System.currentTimeMillis
 
-        val o1 = mkOrderDP(bob, wavesUsdPair, SELL, 1.TN, 3000.0, ts = now)
-        val o2 = mkOrderDP(bob, wavesUsdPair, SELL, 1.TN, 3000.0, ts = now + 100)
+        val o1 = mkOrderDP(bob, wavesUsdPair, SELL, 1.waves, 3000.0, ts = now)
+        val o2 = mkOrderDP(bob, wavesUsdPair, SELL, 1.waves, 3000.0, ts = now + 100)
 
         val orderIds = Set(o1.id(), o2.id())
 
@@ -428,8 +419,8 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
 
         val ts = System.currentTimeMillis()
 
-        val order          = mkOrderDP(bob, wavesUsdPair, SELL, 1.TN, 4000.0, ts = ts)
-        val notPlacedOrder = mkOrderDP(bob, wavesUsdPair, BUY, 2.TN, 0.004)
+        val order          = mkOrderDP(bob, wavesUsdPair, SELL, 1.waves, 4000.0, ts = ts)
+        val notPlacedOrder = mkOrderDP(bob, wavesUsdPair, BUY, 2.waves, 0.004)
         val notFoundError  = OrderNotFound(notPlacedOrder.id())
 
         placeAndAwaitAtDex(order)
@@ -455,10 +446,10 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
             id = order.id(),
             `type` = SELL,
             orderType = AcceptedOrderType.Limit,
-            amount = 1.TN,
+            amount = 1.waves,
             filled = 0,
             price = 4000.usd,
-            fee = 0.04.TN,
+            fee = 0.04.waves,
             filledFee = 0,
             feeAsset = Waves,
             timestamp = ts,
@@ -476,9 +467,9 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
     "correctly handle order status info requests (by signature)" in {
 
       val ts    = System.currentTimeMillis
-      val order = mkOrderDP(alice, wavesBtcPair, SELL, 1.TN, 500, ts = ts)
+      val order = mkOrderDP(alice, wavesBtcPair, SELL, 1.waves, 500, ts = ts)
 
-      val notPlacedOrder = mkOrderDP(alice, wavesBtcPair, BUY, 1.TN, 500)
+      val notPlacedOrder = mkOrderDP(alice, wavesBtcPair, BUY, 1.waves, 500)
       val notFoundError  = OrderNotFound(notPlacedOrder.id())
 
       placeAndAwaitAtDex(order)
@@ -488,10 +479,10 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
           id = order.id(),
           `type` = SELL,
           orderType = AcceptedOrderType.Limit,
-          amount = 1.TN,
+          amount = 1.waves,
           filled = 0,
           price = 500.btc,
-          fee = 0.04.TN,
+          fee = 0.04.waves,
           filledFee = 0,
           feeAsset = Waves,
           timestamp = ts,
@@ -525,7 +516,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
     "not create OrderExecuted event with executed amount = 0 and the last trade should not have amount = 0" in {
 
       val btcUsdnPairLastTrade = dex1.api.orderBookStatus(btcUsdnPair).lastTrade
-      val carol                = mkAccountWithBalance(26L -> usdn, 1.TN -> Waves)
+      val carol                = mkAccountWithBalance(26L -> usdn, 1.waves -> Waves)
 
       val sellOrder = mkOrder(bob, btcUsdnPair, SELL, 345506L, 9337000000L)  // 1594779890545
       val buyOrder  = mkOrder(carol, btcUsdnPair, BUY, 80902L, 10270700000L) // 1594780069600
