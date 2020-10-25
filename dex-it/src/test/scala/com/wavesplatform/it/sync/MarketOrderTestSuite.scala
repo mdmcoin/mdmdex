@@ -439,16 +439,4 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
     wavesNode1.api.balance(carol, usd) shouldBe 0
   }
 
-  "Market order should be executed even if sender balance isn't enough to cover order value" in {
-
-    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"TN.dex.order-fee.-1.mode = $DYNAMIC") withFallback dexInitialSuiteConfig)
-
-    val carol = createAccountWithBalance(300.usd -> usd, 5.waves -> Waves)
-
-    placeAndAwaitAtDex(mkOrderDP(alice, wavesUsdPair, SELL, 1000.waves, 0.5))
-    placeAndAwaitAtNode(mkOrderDP(carol, wavesUsdPair, BUY, 1000L.waves, 0.6), isMarketOrder = true)
-
-    wavesNode1.api.balance(carol, Waves) shouldBe 604.9982.waves
-    wavesNode1.api.balance(carol, usd) shouldBe 0
-  }
 }
