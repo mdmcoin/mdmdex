@@ -24,7 +24,7 @@ import scala.concurrent.{Await, Future}
 class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChecks {
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
-    .parseString(s"""tn.dex {
+    .parseString(s"""TN.dex {
          |  price-assets = [ "$UsdId", "$BtcId", "TN ]
          |  web-sockets.external-client-handler.subscriptions.max-address-number = 3
          |}""".stripMargin)

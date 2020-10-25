@@ -14,7 +14,7 @@ class WsPingPongExternalTestSuite extends WsPingPongBaseSuite {
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
     .parseString(
-      s"""tn.dex.web-sockets.external-client-handler {
+      s"""TN.dex.web-sockets.external-client-handler {
         |    max-connection-lifetime = $maxConnectionLifetime
         |    health-check = {
         |      ping-interval = $pingInterval

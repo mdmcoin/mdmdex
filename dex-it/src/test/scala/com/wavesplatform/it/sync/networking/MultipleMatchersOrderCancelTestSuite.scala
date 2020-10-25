@@ -48,7 +48,7 @@ class MultipleMatchersOrderCancelTestSuite extends MatcherSuiteBase {
     // (which were caused by exchange transactions from DEX-2)
 
     dex1.api.saveSnapshots
-    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"tn.dex.events-queue.type = local").withFallback(dexInitialSuiteConfig))
+    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"TN.dex.events-queue.type = local").withFallback(dexInitialSuiteConfig))
     // HACK: Because we switched the queue, we need to place 5 orders to move offset of queue.
     // If we don't do this, internal cancels will be ignored by order books.
     (1 to 5).foreach { _ =>

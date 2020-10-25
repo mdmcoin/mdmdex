@@ -428,7 +428,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
 
   "Market order should be executed even if sender balance isn't enough to cover order value" in {
 
-    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"tn.dex.order-fee.-1.mode = $DYNAMIC") withFallback dexInitialSuiteConfig)
+    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"TN.dex.order-fee.-1.mode = $DYNAMIC") withFallback dexInitialSuiteConfig)
 
     val carol = mkAccountWithBalance(300.usd -> usd, 5.waves -> Waves)
 
@@ -441,7 +441,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
 
   "Market order should be executed even if sender balance isn't enough to cover order value" in {
 
-    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"tn.dex.order-fee.-1.mode = $DYNAMIC") withFallback dexInitialSuiteConfig)
+    dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(s"TN.dex.order-fee.-1.mode = $DYNAMIC") withFallback dexInitialSuiteConfig)
 
     val carol = createAccountWithBalance(300.usd -> usd, 5.waves -> Waves)
 

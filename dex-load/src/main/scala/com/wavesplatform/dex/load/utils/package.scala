@@ -25,7 +25,7 @@ package object utils {
   @nowarn
   val settings: Settings =
     ConfigSource
-      .fromConfig(ConfigFactory.parseResources(scala.util.Properties.envOrElse("CONF", "devnet.conf")).getConfig("tn.dex.load"))
+      .fromConfig(ConfigFactory.parseResources(scala.util.Properties.envOrElse("CONF", "devnet.conf")).getConfig("TN.dex.load"))
       .load[Settings]
       .explicitGet()
 

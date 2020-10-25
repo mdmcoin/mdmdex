@@ -8,7 +8,7 @@ class WsPingPongInternalTestSuite extends WsPingPongBaseSuite {
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
     .parseString(
-      s"""tn.dex.web-sockets.internal-client-handler.health-check = {
+      s"""TN.dex.web-sockets.internal-client-handler.health-check = {
         |  ping-interval = $pingInterval
         |  pong-timeout = $pongTimeout
         |}""".stripMargin
