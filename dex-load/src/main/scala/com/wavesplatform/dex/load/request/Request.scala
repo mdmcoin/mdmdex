@@ -29,7 +29,7 @@ case class Request(httpType: RequestType,
   }
 
   def mkPost(obj: ApiJson, path: String, tag: RequestTag, stringBody: String = ""): String = {
-    val body = if (stringBody.isEmpty) mkJson(obj).replace("\"matcherFeeAssetId\":\"WAVES\",", "") else stringBody
+    val body = if (stringBody.isEmpty) mkJson(obj).replace("\"matcherFeeAssetId\":\"TN\",", "") else stringBody
 
     val headers = defaultHeaders ++ Map(
       HttpHeaders.CONTENT_LENGTH -> body.length.toString,

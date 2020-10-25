@@ -117,7 +117,7 @@ class MatcherApiRouteV1Spec extends RouteSpec("/api/v1") with MatcherSpecBase wi
   routePath("/orderbook/{amountAsset}/{priceAsset}") - {
     "returns an order book" in test(
       { route =>
-        Get(routePath(s"/orderbook/WAVES/${usd.id}")) ~> route ~> check {
+        Get(routePath(s"/orderbook/TN/${usd.id}")) ~> route ~> check {
           status shouldEqual StatusCodes.OK
           responseAs[HttpV1OrderBook] should matchTo(
             entities.HttpV1OrderBook(

@@ -63,7 +63,7 @@ trait ExchangeTransaction extends ByteAndJsonSerializable with Proven {
   val typeId: Byte = ExchangeTransaction.typeId
 
   @ApiModelProperty(
-    value = "Fee Asset ID, null means WAVES",
+    value = "Fee Asset ID, null means TN",
     dataType = "string",
     example = "null"
   )

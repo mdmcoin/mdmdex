@@ -544,7 +544,7 @@ class ReservedBalanceSpecification extends AnyPropSpecLike with MatcherSpecLike 
         * BUY, availableForSpending < required by spendable asset
         * Note:
         *  - (BUY, 0.1.waves, 3.usd, usd,   amtMap(500.waves, 0.9.usd, 50.eth))  - required 1.usd (marketOrderVolume = 0, only fee required),   balance = 0.9.usd,   received amount = 0.0.usd,   BalanceNotEnough by USD
-        *  - (BUY, 0.1.waves, 3.usd, Waves, amtMap(0.8.waves, 500.usd, 50.eth))  - required 1.waves (marketOrderVolume = 0, only fee required), balance = 0.8.waves, received amount = 0.1.waves, BalanceNotEnough by WAVES
+        *  - (BUY, 0.1.waves, 3.usd, Waves, amtMap(0.8.waves, 500.usd, 50.eth))  - required 1.waves (marketOrderVolume = 0, only fee required), balance = 0.8.waves, received amount = 0.1.waves, BalanceNotEnough by TN
         *  - (BUY, 123.waves, 3.usd, eth,   amtMap(500.waves, 500.usd, 0.9.eth)) - required 1.eth,                                              balance = 0.9.eth,   received amount = 0.0.eth,   BalanceNotEnough by ETH
         */
       (BUY, 123.waves, 3.usd, usd,   amtMap(500.waves, 300.usd,  50.eth), amtMap(usdAmt = 300.usd)),  // fee in spent asset
@@ -553,7 +553,7 @@ class ReservedBalanceSpecification extends AnyPropSpecLike with MatcherSpecLike 
       /**
         * SELL, availableForSpending < required by spendable asset
         * Note:
-        *  - (SELL, 0.1.waves, 3.usd, Waves, amtMap(0.9.waves, 500.usd, 50.eth))  - required 1.waves (marketOrderVolume = 0, only fee required), balance = 0.9.waves, received amount = 0.0.waves, BalanceNotEnough by WAVES
+        *  - (SELL, 0.1.waves, 3.usd, Waves, amtMap(0.9.waves, 500.usd, 50.eth))  - required 1.waves (marketOrderVolume = 0, only fee required), balance = 0.9.waves, received amount = 0.0.waves, BalanceNotEnough by TN
         *  - (SELL, 0.1.waves, 3.usd, usd,   amtMap(500.waves, 0.6.usd, 50.eth))  - required 1.usd (marketOrderVolume = 0, only fee required),   balance = 0.6.usd,   received amount = 0.3.usd,   BalanceNotEnough by USD
         *  - (SELL, 123.waves, 3.usd, eth,   amtMap(500.waves, 500.usd, 0.9.eth)) - required 1.eth,                                              balance = 0.9.eth,   received amount = 0.0.eth,   BalanceNotEnough by ETH
         */

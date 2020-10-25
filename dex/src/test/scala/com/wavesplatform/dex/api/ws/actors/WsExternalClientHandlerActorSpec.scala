@@ -64,7 +64,7 @@ class WsExternalClientHandlerActorSpec extends AnyFreeSpecLike with Matchers wit
           WsError(
             timestamp = 0L, // ignored
             code = 9440771, // OrderAssetPairReversed
-            message = "The WAVES-T9euE6z4DWHFWxT asset pair should be reversed"
+            message = "The TN-T9euE6z4DWHFWxT asset pair should be reversed"
           )
         )
       }

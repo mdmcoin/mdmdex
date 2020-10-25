@@ -105,7 +105,7 @@ class OrderPercentFeeReceivingTestSuite extends OrderFeeBaseTestSuite {
             version = version
           )
         ) should failWith(9441542, // FeeNotEnough
-                          "Required 2.1 TN as fee for this order, but given 2.09 WAVES")
+                          "Required 2.1 TN as fee for this order, but given 2.09 TN")
     }
 
     s"sell order should be rejected if fee less then minimum possible fee when fee asset-type = $assetType" in {

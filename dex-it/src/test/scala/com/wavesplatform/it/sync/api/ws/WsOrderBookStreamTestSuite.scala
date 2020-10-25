@@ -41,7 +41,7 @@ class WsOrderBookStreamTestSuite extends WsSuiteBase {
     s"""TN.dex {
        |  price-assets = [ "$UsdId", "$BtcId", "TN, "$EthId" ]
        |  order-restrictions = {
-       |    "WAVES-$BtcId": {
+       |    "TN-$BtcId": {
        |      step-amount = 0.00000001
        |      min-amount  = 0.0000001
        |      max-amount  = 200000000
@@ -51,7 +51,7 @@ class WsOrderBookStreamTestSuite extends WsSuiteBase {
        |    }
        |  }
        |  matching-rules = {
-       |    "$EthId-WAVES": [
+       |    "$EthId-TN": [
        |      {
        |        start-offset = 0
        |        tick-size    = 0.0002

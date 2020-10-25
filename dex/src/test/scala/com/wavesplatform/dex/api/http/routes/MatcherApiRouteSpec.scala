@@ -156,7 +156,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
   // orderBookInfo
   routePath("/orderbook/{amountAsset}/{priceAsset}/info") - {
     "returns an order book information" in test { route =>
-      Get(routePath(s"/orderbook/$smartAssetId/WAVES/info")) ~> route ~> check {
+      Get(routePath(s"/orderbook/$smartAssetId/TN/info")) ~> route ~> check {
         status shouldEqual StatusCodes.OK
         responseAs[HttpOrderBookInfo] should matchTo(
           HttpOrderBookInfo(
@@ -273,7 +273,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
   routePath("/orderbook/{amountAsset}/{priceAsset}") - {
     "returns an order book" in test(
       { route =>
-        Get(routePath(s"/orderbook/$smartAssetId/WAVES")) ~> route ~> check {
+        Get(routePath(s"/orderbook/$smartAssetId/TN")) ~> route ~> check {
           status shouldEqual StatusCodes.OK
           responseAs[HttpV0OrderBook] should matchTo(
             HttpV0OrderBook(
@@ -292,7 +292,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
   routePath("/orderbook/[amountAsset]/[priceAsset]/status") - {
     "returns an order book status" in test(
       { route =>
-        Get(routePath(s"/orderbook/$smartAssetId/WAVES/status")) ~> route ~> check {
+        Get(routePath(s"/orderbook/$smartAssetId/TN/status")) ~> route ~> check {
           status shouldEqual StatusCodes.OK
           responseAs[HttpMarketStatus] should matchTo(HttpMarketStatus fromMarketStatus smartWavesMarketStatus)
         }
@@ -366,7 +366,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
       { route =>
         val now       = System.currentTimeMillis()
         val signature = crypto.sign(okOrderSenderPrivateKey, okOrder.senderPublicKey ++ Longs.toByteArray(now))
-        Get(routePath(s"/orderbook/$smartAssetId/WAVES/publicKey/${okOrder.senderPublicKey}"))
+        Get(routePath(s"/orderbook/$smartAssetId/TN/publicKey/${okOrder.senderPublicKey}"))
           .withHeaders(
             RawHeader("Timestamp", s"$now"),
             RawHeader("Signature", s"$signature")
@@ -414,7 +414,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
 
     "returns a tradable balance" in test(
       { route =>
-        Get(routePath(s"/orderbook/$smartAssetId/WAVES/tradableBalance/${okOrder.senderPublicKey.toAddress}")) ~> route ~> check {
+        Get(routePath(s"/orderbook/$smartAssetId/TN/tradableBalance/${okOrder.senderPublicKey.toAddress}")) ~> route ~> check {
           status shouldEqual StatusCodes.OK
           responseAs[HttpBalance] should matchTo(
             Map(
@@ -434,7 +434,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
         val currentNetwork = s"${AddressScheme.current.chainId}(${AddressScheme.current.chainId.toChar})"
         val otherNetwork   = s"$otherNetworkChainId(${otherNetworkChainId.toChar})"
 
-        Get(routePath(s"/orderbook/$smartAssetId/WAVES/tradableBalance/$addressFromOtherNetwork")) ~> route ~> check {
+        Get(routePath(s"/orderbook/$smartAssetId/TN/tradableBalance/$addressFromOtherNetwork")) ~> route ~> check {
           status shouldEqual StatusCodes.BadRequest
           responseAs[HttpError] should matchTo(
             HttpError(
@@ -507,7 +507,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
   routePath("/orderbook/{amountAsset}/{priceAsset}/{orderId}") - {
     "returns an order status" in test(
       { route =>
-        Get(routePath(s"/orderbook/$smartAssetId/WAVES/${okOrder.id()}")) ~> route ~> check {
+        Get(routePath(s"/orderbook/$smartAssetId/TN/${okOrder.id()}")) ~> route ~> check {
           status shouldEqual StatusCodes.OK
           responseAs[HttpOrderStatus] should matchTo(entities.HttpOrderStatus(HttpOrderStatus.Status.Accepted))
         }
@@ -974,9 +974,9 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
 
     "changing waves rate" in test(
       { route =>
-        Put(routePath("/settings/rates/WAVES"), rate).withHeaders(apiKeyHeader) ~> route ~> check {
+        Put(routePath("/settings/rates/TN"), rate).withHeaders(apiKeyHeader) ~> route ~> check {
           status shouldBe StatusCodes.BadRequest
-          responseAs[HttpMessage] should matchTo(HttpMessage("The rate for WAVES cannot be changed"))
+          responseAs[HttpMessage] should matchTo(HttpMessage("The rate for TN cannot be changed"))
         }
       },
       apiKey
@@ -984,7 +984,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
 
     "change rates without api key" in test(
       { route =>
-        Put(routePath("/settings/rates/WAVES"), rate) ~> route ~> check {
+        Put(routePath("/settings/rates/TN"), rate) ~> route ~> check {
           status shouldBe StatusCodes.Forbidden
           responseAs[HttpMessage] should matchTo(HttpMessage("Provided API key is not correct"))
         }
@@ -994,7 +994,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
 
     "change rates with wrong api key" in test(
       { route =>
-        Put(routePath("/settings/rates/WAVES"), rate).withHeaders(RawHeader("X-API-KEY", "wrongApiKey")) ~> route ~> check {
+        Put(routePath("/settings/rates/TN"), rate).withHeaders(RawHeader("X-API-KEY", "wrongApiKey")) ~> route ~> check {
           status shouldBe StatusCodes.Forbidden
           responseAs[HttpMessage] should matchTo(HttpMessage("Provided API key is not correct"))
         }
@@ -1004,9 +1004,9 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
 
     "deleting waves rate" in test(
       { route =>
-        Delete(routePath("/settings/rates/WAVES")).withHeaders(apiKeyHeader) ~> route ~> check {
+        Delete(routePath("/settings/rates/TN")).withHeaders(apiKeyHeader) ~> route ~> check {
           status shouldBe StatusCodes.BadRequest
-          responseAs[HttpMessage] should matchTo(HttpMessage("The rate for WAVES cannot be changed"))
+          responseAs[HttpMessage] should matchTo(HttpMessage("The rate for TN cannot be changed"))
         }
       },
       apiKey
@@ -1014,7 +1014,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
 
     "delete rates without api key" in test(
       { route =>
-        Delete(routePath("/settings/rates/WAVES")) ~> route ~> check {
+        Delete(routePath("/settings/rates/TN")) ~> route ~> check {
           status shouldBe StatusCodes.Forbidden
           responseAs[HttpMessage] should matchTo(HttpMessage("Provided API key is not correct"))
         }
@@ -1024,7 +1024,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
 
     "delete rates with wrong api key" in test(
       { route =>
-        Delete(routePath("/settings/rates/WAVES")).withHeaders(RawHeader("X-API-KEY", "wrongApiKey")) ~> route ~> check {
+        Delete(routePath("/settings/rates/TN")).withHeaders(RawHeader("X-API-KEY", "wrongApiKey")) ~> route ~> check {
           status shouldBe StatusCodes.Forbidden
           responseAs[HttpMessage] should matchTo(HttpMessage("Provided API key is not correct"))
         }

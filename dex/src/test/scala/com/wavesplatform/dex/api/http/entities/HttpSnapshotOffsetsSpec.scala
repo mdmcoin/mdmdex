@@ -12,7 +12,7 @@ class HttpSnapshotOffsetsSpec extends AnyFreeSpec with Matchers with DiffMatcher
 
   private val json =
     """{
-      |  "2gCPcEnoZa9LtZzZPFK9fJf7aWzvdBJUABayd1Zj5qFh-WAVES" : 1
+      |  "2gCPcEnoZa9LtZzZPFK9fJf7aWzvdBJUABayd1Zj5qFh-TN" : 1
       |}""".stripMargin
 
   private val issuedAsset = IssuedAsset(Base58.decode("2gCPcEnoZa9LtZzZPFK9fJf7aWzvdBJUABayd1Zj5qFh"))

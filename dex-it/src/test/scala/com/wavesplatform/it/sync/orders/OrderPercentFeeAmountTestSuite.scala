@@ -23,7 +23,7 @@ class V3OrderPercentFeeAmountTestSuite extends OrderPercentFeeAmountTestSuite(3.
     ) should failWith(9441540) // UnexpectedFeeAsset
   }
 
-  s"sell order should be rejected is fee Asset not equal WAVES when fee asset-type = $assetType" in {
+  s"sell order should be rejected is fee Asset not equal TN when fee asset-type = $assetType" in {
     dex1.api.tryPlace(
       mkOrder(
         mkAccountWithBalance(minimalFeeWaves -> usd, fullyAmountWaves -> Waves),

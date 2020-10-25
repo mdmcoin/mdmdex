@@ -241,7 +241,7 @@ class ActorsWebSocketInteractionsSpecification
           withClue("Sender's order was partly filled by SELL 5 Waves. Balance changes are not atomic\n") {
             // first we send decreased balances
             expectWsBalancesAndOrders(
-              // The tradable balance will be changed to 270 USD and 99.997 WAVES when the exchange transaction comes to UTX
+              // The tradable balance will be changed to 270 USD and 99.997 TN when the exchange transaction comes to UTX
               // The half of order is still available
               Map(
                 usd   -> WsBalances(285, 15),

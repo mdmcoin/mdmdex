@@ -149,7 +149,7 @@ class OrderHistoryBalanceSpecification
     openVolume(ord.senderPublicKey, pair.priceAsset) shouldBe 1000L
   }
 
-  property("Should reserve fee, even if buyer receives more WAVES than total fee in buy order") {
+  property("Should reserve fee, even if buyer receives more TN than total fee in buy order") {
     val ord = buy(WavesBtc, 100000, 0.0007, matcherFee = Some(1000L))
 
     oh.process(OrderAdded(LimitOrder(ord), OrderAddedReason.RequestExecuted, time.getTimestamp()))
