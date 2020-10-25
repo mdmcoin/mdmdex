@@ -256,7 +256,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
       withClue("run script") {
         val pair       = AssetPair.createAssetPair(toVanilla(issueTx.getId).toString, "TN").get
-        val exchangeTx = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcherFee = 1.TN, matcher = matcher)
+        val exchangeTx = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcherFee = 1.waves, matcher = matcher)
 
         wait(client.runScript(IssuedAsset(issueTx.getId), exchangeTx)) shouldBe RunScriptResult.Allowed
       }
@@ -272,7 +272,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       val receiver = KeyPair("receiver".getBytes(StandardCharsets.UTF_8))
 
       withClue("transfer") {
-        broadcastAndAwait(mkTransfer(alice, receiver, 5.TN, Waves))
+        broadcastAndAwait(mkTransfer(alice, receiver, 5.waves, Waves))
       }
 
       withClue("set script") {
