@@ -9,7 +9,7 @@ import com.wavesplatform.dex.it.fp.CanExtract
 import mouse.any._
 
 trait HasWavesNode { self: BaseContainersKit =>
-  protected val defaultNodeImage = "wavesplatform/waves-integration-it:latest"
+  protected val defaultNodeImage = "turtlenetwork/tn-integration-it:latest"
   private val nodeImage          = Option(System.getenv("NODE_IMAGE")).getOrElse(defaultNodeImage)
 
   protected implicit def toNodeExplicitGetOps[F[_]: Functor: CanExtract](self: NodeApi[F]): NodeApiOps.ExplicitGetNodeApiOps[F] = {

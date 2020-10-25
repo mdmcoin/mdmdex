@@ -9,7 +9,6 @@ import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
 import com.wavesplatform.it.MatcherSuiteBase
 
 class GetOrderBookTestSuite extends MatcherSuiteBase {
-
   private val ordersCount = 150
 
   override protected val dexInitialSuiteConfig: Config =
