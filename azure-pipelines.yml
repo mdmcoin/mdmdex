@@ -21,7 +21,14 @@ jobs:
   - task: Docker@2
     inputs:
       containerRegistry: 'turtlenetwork docker'
-      repository: 'turtlenetwork/tn-dex'
+      repository: 'turtlenetwork/matcher-node'
+      command: 'push'
+      tags: 'latest'
+
+  - task: Docker@2
+    inputs:
+      containerRegistry: 'turtlenetwork docker'
+      repository: 'turtlenetwork/matcher-server'
       command: 'push'
       tags: 'latest'
 
