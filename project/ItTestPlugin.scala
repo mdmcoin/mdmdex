@@ -50,7 +50,7 @@ object ItTestPlugin extends AutoPlugin {
           List(
             s"-Djava.util.logging.config.file=${resourceDirectoryValue / "jul.properties"}",
             s"-Dlogback.configurationFile=${resourceDirectoryValue / "logback-test.xml"}",
-            "-Dwaves.it.logging.appender=FILE"
+            "-DTN.it.logging.appender=FILE"
           ) ++ (Test / javaOptions).value
         },
         testGrouping := {
