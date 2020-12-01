@@ -24,6 +24,7 @@ jobs:
       repository: 'turtlenetwork/matcher-node'
       command: 'push'
       tags: 'latest'
+    displayName: 'Run push matcher-node '  
 
   - task: Docker@2
     inputs:
@@ -31,6 +32,7 @@ jobs:
       repository: 'turtlenetwork/matcher-server'
       command: 'push'
       tags: 'latest'
+    displayName: 'Run push matcher-server '
 
   - script: 'sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  dex-it/test'
     displayName: 'Run docker tests '
