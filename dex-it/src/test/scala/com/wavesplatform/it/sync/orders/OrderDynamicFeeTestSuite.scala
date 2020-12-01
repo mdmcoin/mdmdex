@@ -804,7 +804,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
       dex1.restartWithNewSuiteConfig(
         ConfigFactory
-          .parseString(s"TN.dex.order-fee.-1.fixed.asset = $BtcId\ntn.dex.order-fee.-1.mode = fixed")
+          .parseString(s"TN.dex.order-fee.-1.fixed.asset = $BtcId\nTN.dex.order-fee.-1.mode = fixed")
           .withFallback(dexInitialSuiteConfig)
       )
 
