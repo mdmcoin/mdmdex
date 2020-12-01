@@ -115,7 +115,7 @@ object WavesNodeContainer extends ScorexLogging {
       s"-Djava.util.logging.config.file=$baseContainerPath/jul.properties",
       s"-Dlogback.configurationFile=$baseContainerPath/logback-container.xml",
       s"-Dlogback.brief.fullPath=$containerLogsPath/container-$containerName.log",
-      s"-TN.network.declared-address=$ip:6883"
+      s"-DTN.network.declared-address=$ip:6883"
     ).mkString(" ", " ", " ")
   )
 }

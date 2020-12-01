@@ -10,7 +10,7 @@ echo "Options: ${WAVES_DEX_OPTS}" >> ${DETAILED_LOG_PATH}
 # See https://bugs.openjdk.java.net/browse/JDK-8175192
 # Also see nice table about &>> https://askubuntu.com/a/731237
 /usr/share/tn-dex/bin/tn-dex \
-  -Dsun.zip.disableMemoryMapping=true \
+  -Dsun.zip.disableMemoryMapping=true -DTN.wallet.password=blablabla  \
   ${WAVES_DEX_OPTS} \
   -main com.wavesplatform.dex.Application -- ${WAVES_DEX_CONFIGPATH} &>> ${DETAILED_LOG_PATH} &
 
