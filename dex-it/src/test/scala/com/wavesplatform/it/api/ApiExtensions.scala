@@ -106,7 +106,7 @@ trait ApiExtensions extends NodeApiExtensions {
           case Waves           => alice
           case ia: IssuedAsset => if (wavesNode1.api.assetBalance(alice, ia).balance >= balance) alice else bob
         }
-        mkTransfer(sender, account, balance, asset, 0.003.waves)
+        mkTransfer(sender, account, balance, asset, 0.02.waves)
     }
     transfers.par.foreach { broadcastAndAwait(_) }
     eventually {
