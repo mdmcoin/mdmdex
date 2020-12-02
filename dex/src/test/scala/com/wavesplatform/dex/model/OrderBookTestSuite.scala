@@ -279,10 +279,10 @@ class OrderBookTestSuite
 
   "execute orders at different price levels" in {
 
-    val ord1 = sell(pair, 10 * Order.PriceConstant, 100, matcherFee = Some(300000))
-    val ord2 = sell(pair, 5 * Order.PriceConstant, 110, matcherFee = Some(300000))
-    val ord3 = sell(pair, 10 * Order.PriceConstant, 110, matcherFee = Some(300000))
-    val ord4 = buy(pair, 22 * Order.PriceConstant, 115, matcherFee = Some(300000))
+    val ord1 = sell(pair, 10 * Order.PriceConstant, 100, matcherFee = Some(4000000))
+    val ord2 = sell(pair, 5 * Order.PriceConstant, 110, matcherFee = Some(4000000))
+    val ord3 = sell(pair, 10 * Order.PriceConstant, 110, matcherFee = Some(4000000))
+    val ord4 = buy(pair, 22 * Order.PriceConstant, 115, matcherFee = Some(4000000))
 
     val OrderBookUpdates(ob, _, _, _) = OrderBook.empty.appendAllAccepted(List(ord1, ord2, ord3, ord4).map(LimitOrder.apply), now)
     val restAmount                    = ord1.amount + ord2.amount + ord3.amount - ord4.amount

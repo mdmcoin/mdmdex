@@ -418,9 +418,9 @@ class OrderHistoryBalanceSpecification
 
   property("Sell ETH twice (filled, partial), buy TN order - filled") {
     val pair      = AssetPair(mkAssetId("ETH"), Waves)
-    val counter1  = LimitOrder(sell(pair, 2864310, 0.003, matcherFee = Some(300000L)))
-    val counter2  = LimitOrder(sell(pair, 7237977, 0.003, matcherFee = Some(300000L)))
-    val submitted = LimitOrder(buy(pair, 4373667, 0.003, matcherFee = Some(300000L)))
+    val counter1  = LimitOrder(sell(pair, 2864310, 0.003, matcherFee = Some(4000000L)))
+    val counter2  = LimitOrder(sell(pair, 7237977, 0.003, matcherFee = Some(4000000L)))
+    val submitted = LimitOrder(buy(pair, 4373667, 0.003, matcherFee = Some(4000000L)))
 
     oh.processAll(
       OrderAdded(counter1, OrderAddedReason.RequestExecuted, time.getTimestamp()),

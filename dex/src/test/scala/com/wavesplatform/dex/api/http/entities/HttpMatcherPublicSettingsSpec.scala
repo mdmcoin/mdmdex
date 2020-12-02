@@ -19,7 +19,7 @@ class HttpMatcherPublicSettingsSpec extends AnyFreeSpec with Matchers with DiffM
       |  "orderFee" : {
       |    "fixed" : {
       |      "assetId" : "4LHHvYGNKJUg5hj65aGD5vgScvCBmLpdRFtjokvCjSL8",
-      |      "minFee" : 300000
+      |      "minFee" : 4000000
       |    }
       |  },
       |  "orderVersions" : [ 1, 2, 3 ],
@@ -35,7 +35,7 @@ class HttpMatcherPublicSettingsSpec extends AnyFreeSpec with Matchers with DiffM
       priceAssets = Seq(Waves, issuedAsset),
       orderFee = HttpOrderFeeMode.FeeModeFixed(
         assetId = issuedAsset,
-        minFee = 300000
+        minFee = 4000000
       ),
       orderVersions = Seq(1, 2, 3),
       networkByte = 83

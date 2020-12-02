@@ -237,7 +237,7 @@ baz"""
          |    }
          |    fixed {
          |      asset = ;;;;
-         |      min-fee = -300000
+         |      min-fee = -4000000
          |    }
          |    percent {
          |      asset-type = test

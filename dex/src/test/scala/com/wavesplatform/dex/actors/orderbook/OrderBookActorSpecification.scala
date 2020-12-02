@@ -658,7 +658,7 @@ class OrderBookActorSpecification
         pair = wctWavesPair,
         amount = 20000L,
         price = 90000L,
-        matcherFee = Some(300000L),
+        matcherFee = Some(4000000L),
         version = 1.toByte
       )
 
@@ -666,7 +666,7 @@ class OrderBookActorSpecification
         pair = wctWavesPair,
         amount = 1000L,
         price = 100000L,
-        matcherFee = Some(300000L),
+        matcherFee = Some(4000000L),
         version = 3.toByte
       )
 
@@ -684,7 +684,7 @@ class OrderBookActorSpecification
         pair = wctWavesPair,
         amount = 20000L,
         price = 90000L,
-        matcherFee = Some(300000L),
+        matcherFee = Some(4000000L),
         version = 1.toByte
       )
 

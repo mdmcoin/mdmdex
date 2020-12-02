@@ -95,7 +95,7 @@ trait OrderBookGen {
         val maxValue = BigInt(Long.MaxValue / 20) * Order.PriceConstant / price
         Gen.chooseNum(minAmount(price), maxValue.min(Long.MaxValue / 20).toLong)
       }
-      matcherFee <- Gen.choose(0, 300000)
+      matcherFee <- Gen.choose(0, 4000000)
       version    <- if (feeAsset == Waves) Gen.choose[Byte](1, 3) else Gen.const(3: Byte)
     } yield
       Order(

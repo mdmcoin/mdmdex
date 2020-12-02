@@ -22,7 +22,7 @@ object HttpOrderFeeMode {
   @ApiModel(description = "Basic mode, fee = base fee * asset rate")
   case class FeeModeDynamic(@ApiModelProperty(
                               value = "Base fee in Wavelets",
-                              example = "300000"
+                              example = "4000000"
                             ) baseFee: Long,
                             @ApiModelProperty(
                               value = "Asset Rates as Map[Base58 encoded Asset ID, Long]",
