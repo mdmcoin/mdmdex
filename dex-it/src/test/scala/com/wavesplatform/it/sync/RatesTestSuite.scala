@@ -112,7 +112,7 @@ class RatesTestSuite extends MatcherSuiteBase {
     // order with low fee should be rejected
     dex1.api.tryPlace(newOrder) should failWith(
       9441542, // FeeNotEnough
-      s"Required 0.0033 $btcStr as fee for this order, but given 0.003 $btcStr"
+      s"Required 0.044 $btcStr as fee for this order, but given 0.04 $btcStr"
     )
 
     // restart matcher
@@ -121,7 +121,7 @@ class RatesTestSuite extends MatcherSuiteBase {
     // order with low fee should be rejected again
     dex1.api.tryPlace(newOrder) should failWith(
       9441542, // FeeNotEnough
-      s"Required 0.0033 $btcStr as fee for this order, but given 0.003 $btcStr"
+      s"Required 0.044 $btcStr as fee for this order, but given 0.04 $btcStr"
     )
   }
 }
