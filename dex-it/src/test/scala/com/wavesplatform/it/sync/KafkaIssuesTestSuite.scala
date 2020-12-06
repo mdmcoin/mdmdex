@@ -87,9 +87,9 @@ class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka 
     val sellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 10.waves, 3.0)
     placeAndAwaitAtDex(sellOrder)
 
-    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.waves))
+    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.04.waves))
 
-    assertChanges(wsac) { Map(Waves -> WsBalances(initialWavesBalance - 10.003, 10.003)) } {
+    assertChanges(wsac) { Map(Waves -> WsBalances(initialWavesBalance - 10.04, 10.04)) } {
       WsOrder.fromDomain(LimitOrder(sellOrder))
     }
 
@@ -101,11 +101,11 @@ class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka 
     val bigSellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 30.waves, 3.0)
     dex1.api.tryPlace(bigSellOrder) shouldBe Symbol("left")
 
-    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.003.waves))
+    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.04.waves))
 
     assertChanges(wsac, squash = false)(
-      Map(Waves -> WsBalances(initialWavesBalance - 40.006, 40.006)),
-      Map(Waves -> WsBalances(initialWavesBalance - 10.003, 10.003)),
+      Map(Waves -> WsBalances(initialWavesBalance - 40.08, 40.08)),
+      Map(Waves -> WsBalances(initialWavesBalance - 10.04, 10.04)),
     )()
 
     val oh = dex1.api.orderHistory(alice, Some(true))
@@ -129,9 +129,9 @@ class KafkaIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka 
     dex1.api.waitForOrderStatus(bigSellOrder, Status.Accepted)
 
     dex1.api.orderHistory(alice, Some(true)) should have size 1
-    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 30.003.waves))
+    dex1.api.reservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 30.04.waves))
 
-    assertChanges(wsac, squash = false) { Map(Waves -> WsBalances(initialWavesBalance - 30.003, 30.003)) } {
+    assertChanges(wsac, squash = false) { Map(Waves -> WsBalances(initialWavesBalance - 30.04, 30.04)) } {
       WsOrder.fromDomain(LimitOrder(bigSellOrder))
     }
 
