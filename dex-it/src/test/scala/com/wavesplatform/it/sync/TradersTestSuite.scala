@@ -252,10 +252,10 @@ class TradersTestSuite extends MatcherSuiteBase {
           broadcastAndAwait(newFeeAssetTx)
           dex1.api.upsertRate(newFeeAsset, 2)
 
-          val bobOrder = mkOrder(bob, wctUsdPair, SELL, 400L, 2 * 100000000L, matcherFee = 1, feeAsset = newFeeAsset)
+          val bobOrder = mkOrder(bob, wctUsdPair, SELL, 400L, 2 * 100000000L, matcherFee = 8, feeAsset = newFeeAsset)
 
           dex1.api.place(bobOrder)
-          dex1.api.reservedBalance(bob) shouldBe Map(wct -> 400, newFeeAsset -> 1)
+          dex1.api.reservedBalance(bob) shouldBe Map(wct -> 400, newFeeAsset -> 8)
 
           broadcastAndAwait(mkTransfer(bob, alice, bobAssetQuantity, newFeeAsset, matcherFee))
           val currHeight = wavesNode1.api.currentHeight
