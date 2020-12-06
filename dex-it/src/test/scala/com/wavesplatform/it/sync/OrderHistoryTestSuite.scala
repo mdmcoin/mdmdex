@@ -213,12 +213,12 @@ class OrderHistoryTestSuite extends MatcherSuiteBase with TableDrivenPropertyChe
       dex1.api.place(mkOrder(bob, wctUsdPair, SELL, 1.wct, 1.price, matcherFee = matcherFee))
 
       waitForOrderAtNode(order)
-      dex1.api.orderStatus(order).filledFee shouldBe Some(33333)
+      dex1.api.orderStatus(order).filledFee shouldBe Some(444444)
 
       orderHistory(alice, wctUsdPair, activeOnly = Some(false)).foreach { orderBookHistory =>
         val item = orderBookHistory.find(_.id == orderId).get
         item.fee shouldBe matcherFee
-        item.filledFee shouldBe 33333
+        item.filledFee shouldBe 444444
         item.feeAsset shouldBe feeAsset
       }
 
