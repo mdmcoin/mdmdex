@@ -1237,7 +1237,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
             okOrder.price,
             okOrder.matcherFee,
             okOrder.matcherFee,
-            0.003.waves,
+            0.04.waves,
             System.currentTimeMillis
           )
           .explicitGet()

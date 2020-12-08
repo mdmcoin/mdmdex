@@ -311,15 +311,15 @@ class OrderValidatorSpecification
       "it's version doesn't meet matcher's requirements" in {
 
         def orderOfVersion(version: Byte): Order = {
-          createOrder(wavesUsdPair, OrderType.BUY, 100.waves, price = 3, matcherFee = 0.003.waves, version = version, feeAsset = Waves)
+          createOrder(wavesUsdPair, OrderType.BUY, 100.waves, price = 3, matcherFee = 0.04.waves, version = version, feeAsset = Waves)
         }
 
         Seq[Byte](1, 2, 3) foreach { version =>
           validateByMatcherSettings { FixedSettings(usd, 0.01.usd) } { orderOfVersion(version) } should produce("UnexpectedFeeAsset")
-          validateByMatcherSettings { FixedSettings(Waves, 0.003.waves) } { orderOfVersion(version) } shouldBe Symbol("right")
+          validateByMatcherSettings { FixedSettings(Waves, 0.04.waves) } { orderOfVersion(version) } shouldBe Symbol("right")
 
-          validateByMatcherSettings { PercentSettings(AssetType.PRICE, 0.003) } { orderOfVersion(version) } should produce("UnexpectedFeeAsset")
-          validateByMatcherSettings { PercentSettings(AssetType.AMOUNT, 0.003) } { orderOfVersion(version) } shouldBe Symbol("right")
+          validateByMatcherSettings { PercentSettings(AssetType.PRICE, 0.04) } { orderOfVersion(version) } should produce("UnexpectedFeeAsset")
+          validateByMatcherSettings { PercentSettings(AssetType.AMOUNT, 0.04) } { orderOfVersion(version) } shouldBe Symbol("right")
         }
       }
 
@@ -351,7 +351,7 @@ class OrderValidatorSpecification
 
       "order's price is out of deviation bounds (market aware)" in {
         val deviationSettings = DeviationsSettings(enabled = true, maxPriceProfit = 50, maxPriceLoss = 70, maxFeeDeviation = 50)
-        val orderFeeSettings  = DynamicSettings.symmetric(0.003.waves)
+        val orderFeeSettings  = DynamicSettings.symmetric(0.04.waves)
 
         val buyOrder  = createOrder(wavesBtcPair, OrderType.BUY, amount = 250.waves, price = 0.00011081)
         val sellOrder = createOrder(wavesBtcPair, OrderType.SELL, amount = 250.waves, price = 0.00011081)
@@ -532,11 +532,11 @@ class OrderValidatorSpecification
       "it's version is not allowed by matcher" in {
 
         def orderOfVersion(version: Byte): Order = {
-          createOrder(wavesUsdPair, OrderType.BUY, 100.waves, price = 3, matcherFee = 0.003.waves, version = version, feeAsset = Waves)
+          createOrder(wavesUsdPair, OrderType.BUY, 100.waves, price = 3, matcherFee = 0.04.waves, version = version, feeAsset = Waves)
         }
 
         def validate(allowedOrderVersions: Set[Byte]): Order => Result[Order] = {
-          validateByMatcherSettings(DynamicSettings.symmetric(0.003.waves), allowedOrderVersions = allowedOrderVersions)
+          validateByMatcherSettings(DynamicSettings.symmetric(0.04.waves), allowedOrderVersions = allowedOrderVersions)
         }
 
         validate { Set(1) } { orderOfVersion(2) } should produce("OrderVersionDenied")
@@ -574,7 +574,7 @@ class OrderValidatorSpecification
         def orderWith(amount: Long, price: Double): Order = createOrder(wavesUsdPair, OrderType.BUY, amount, price)
 
         def validateByAmountAndPrice(orderRestrictions: Map[AssetPair, OrderRestrictionsSettings] = orderRestrictions): Order => Result[Order] =
-          order => awaitResult { validateByBlockchain(DynamicSettings.symmetric(0.003.waves), orderRestrictions)()(order) }
+          order => awaitResult { validateByBlockchain(DynamicSettings.symmetric(0.04.waves), orderRestrictions)()(order) }
 
         validateByAmountAndPrice() { orderWith(amount = 50.waves, price = 3) } shouldBe Symbol("right")
 
@@ -604,7 +604,7 @@ class OrderValidatorSpecification
       "matcherFee is too small according to rate of fee asset" in {
 
         val rateCache: RateCache                   = RateCache.inMem
-        val validateByRate: Order => Result[Order] = validateByMatcherSettings(DynamicSettings.symmetric(0.003.waves), rateCache = rateCache)
+        val validateByRate: Order => Result[Order] = validateByMatcherSettings(DynamicSettings.symmetric(0.04.waves), rateCache = rateCache)
         val order: Order                           = createOrder(wavesUsdPair, BUY, 1.waves, 3.00, 0.01.usd, feeAsset = usd)
 
         withClue("USD rate = 3.33, fee should be >= 0.01 usd\n") {

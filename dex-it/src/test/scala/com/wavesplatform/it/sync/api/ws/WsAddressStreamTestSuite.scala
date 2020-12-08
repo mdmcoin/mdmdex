@@ -130,7 +130,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
         Seq(bo1, bo2).foreach { placeAndAwaitAtDex(_) }
 
         assertChanges(wsc)(
-          Map(usd -> WsBalances(50, 100), Waves -> WsBalances(9.997, 0.003)),
+          Map(usd -> WsBalances(50, 100), Waves -> WsBalances(9.997, 0.04)),
           Map(usd -> WsBalances(39.70, 110.30))
         )(
           WsOrder.fromDomain(LimitOrder(bo1)),
@@ -179,7 +179,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
           WsOrder.fromDomain(mo),
           WsOrder(mo.id, status = OrderStatus.PartiallyFilled.name, filledAmount = 15.0, filledFee = 0.0009, avgWeighedPrice = 1.2),
           WsOrder(mo.id, status = OrderStatus.PartiallyFilled.name, filledAmount = 40.0, filledFee = 0.0024, avgWeighedPrice = 1.1375),
-          WsOrder(mo.id, status = OrderStatus.Filled.name, filledAmount = 50.0, filledFee = 0.003, avgWeighedPrice = 1.11)
+          WsOrder(mo.id, status = OrderStatus.Filled.name, filledAmount = 50.0, filledFee = 0.04, avgWeighedPrice = 1.11)
         )
 
         wsc.close()
@@ -199,13 +199,13 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
         placeAndAwaitAtNode(mkOrderDP(alice, wavesUsdPair, SELL, 10.waves, 1.0))
 
         assertChanges(wsc)(
-          Map(usd   -> WsBalances(0, 10), Waves -> WsBalances(9.997, 0.003)),
+          Map(usd   -> WsBalances(0, 10), Waves -> WsBalances(9.997, 0.04)),
           Map(Waves -> WsBalances(9.997, 0)),
           Map(usd   -> WsBalances(0, 0)),
           Map(Waves -> WsBalances(19.997, 0)) // since balance increasing comes after transaction mining, + 10 - 0.003, Waves balance on Node = 19.997
         )(
           WsOrder.fromDomain(LimitOrder(bo)),
-          WsOrder(bo.id(), status = OrderStatus.Filled.name, filledAmount = 10.0, filledFee = 0.003, avgWeighedPrice = 1.0)
+          WsOrder(bo.id(), status = OrderStatus.Filled.name, filledAmount = 10.0, filledFee = 0.04, avgWeighedPrice = 1.0)
         )
 
         wsc.close()
@@ -357,7 +357,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
     }
 
     assertChanges(wsc1)(
-      Map(usd -> WsBalances(400, 100), Waves -> WsBalances(9.997, 0.003)),
+      Map(usd -> WsBalances(400, 100), Waves -> WsBalances(9.997, 0.04)),
       Map(usd -> WsBalances(300, 200), Waves -> WsBalances(9.994, 0.006))
     )(
       WsOrder.fromDomain(LimitOrder(bo1)),
@@ -531,9 +531,9 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
       val wsc        = mkWsAddressConnection(carol)
 
       val now    = System.currentTimeMillis()
-      val order1 = mkOrderDP(carol, wavesBtcPair, BUY, 4.7.waves, 6, matcherFee = 0.003.waves, ts = now + 1)
-      val order2 = mkOrderDP(carol, wavesBtcPair, BUY, 4.7.waves, 6, matcherFee = 0.003.waves, ts = now + 2)
-      val order3 = mkOrderDP(carol, wavesBtcPair, SELL, 10.waves, 6, matcherFee = 0.003.waves)
+      val order1 = mkOrderDP(carol, wavesBtcPair, BUY, 4.7.waves, 6, matcherFee = 0.04.waves, ts = now + 1)
+      val order2 = mkOrderDP(carol, wavesBtcPair, BUY, 4.7.waves, 6, matcherFee = 0.04.waves, ts = now + 2)
+      val order3 = mkOrderDP(carol, wavesBtcPair, SELL, 10.waves, 6, matcherFee = 0.04.waves)
 
       dex1.api.place(order1)
       dex1.api.place(order2)
@@ -547,7 +547,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
 
       wavesNode1.api.waitForHeightArise()
 
-      val expectedWavesBalance = 25.0 - 0.003 * 2 - 0.003 * 4.7 * 2 / 10
+      val expectedWavesBalance = 25.0 - 0.04 * 2 - 0.04 * 4.7 * 2 / 10
 
       wavesNode1.api.balance(carol, Waves) shouldBe expectedWavesBalance.waves
       wavesNode1.api.balance(carol, btc) shouldBe btcBalance.btc

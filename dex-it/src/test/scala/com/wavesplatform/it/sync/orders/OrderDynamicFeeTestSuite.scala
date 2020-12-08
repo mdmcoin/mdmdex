@@ -597,11 +597,11 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       val aliceWavesBefore = wavesNode1.api.balance(alice.toAddress, Waves)
       val bobWavesBefore   = wavesNode1.api.balance(bob.toAddress, Waves)
 
-      val buyOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1000000000.waves, 100, 0.003.waves, version = 2: Byte)
+      val buyOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1000000000.waves, 100, 0.04.waves, version = 2: Byte)
 
       placeAndAwaitAtDex(buyOrder)
 
-      val sellOrder = mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 100, 0.003.waves, version = 2: Byte)
+      val sellOrder = mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 100, 0.04.waves, version = 2: Byte)
 
       placeAndAwaitAtDex(sellOrder, Status.Filled)
       waitForOrderAtNode(sellOrder)
@@ -609,7 +609,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       dex1.api.waitForOrderStatus(buyOrder, Status.PartiallyFilled).filledAmount shouldBe Some(1.waves)
 
       wavesNode1.api.balance(alice.toAddress, Waves) should be(aliceWavesBefore + 1.waves)
-      wavesNode1.api.balance(bob.toAddress, Waves) should be(bobWavesBefore - 1.waves - 0.003.waves)
+      wavesNode1.api.balance(bob.toAddress, Waves) should be(bobWavesBefore - 1.waves - 0.04.waves)
 
       dex1.api.cancelAll(alice)
     }
@@ -619,7 +619,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       val aliceWavesBefore = wavesNode1.api.balance(alice.toAddress, Waves)
       val bobWavesBefore   = wavesNode1.api.balance(bob.toAddress, Waves)
 
-      val buyOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1000000000.waves, 100, 0.003.waves, version = 3: Byte)
+      val buyOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1000000000.waves, 100, 0.04.waves, version = 3: Byte)
 
       placeAndAwaitAtDex(buyOrder)
 

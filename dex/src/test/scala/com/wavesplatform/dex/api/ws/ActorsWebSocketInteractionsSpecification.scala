@@ -185,7 +185,7 @@ class ActorsWebSocketInteractionsSpecification
 
           placeOrder(lo)
           expectWsBalancesAndOrders(
-            Map(usd -> WsBalances(285, 15), Waves -> WsBalances(99.997, 0.003)),
+            Map(usd -> WsBalances(285, 15), Waves -> WsBalances(99.997, 0.04)),
             Seq(WsOrder.fromDomain(lo)),
             1
           )
@@ -221,7 +221,7 @@ class ActorsWebSocketInteractionsSpecification
           withClue("Sender places order BUY 10 Waves\n") {
             placeOrder(buyOrder)
             expectWsBalancesAndOrders(
-              Map(usd -> WsBalances(270, 30), Waves -> WsBalances(99.997, 0.003)),
+              Map(usd -> WsBalances(270, 30), Waves -> WsBalances(99.997, 0.04)),
               Seq(WsOrder.fromDomain(buyOrder)),
               1
             )
@@ -421,11 +421,11 @@ class ActorsWebSocketInteractionsSpecification
         val order = LimitOrder(createOrder(wavesUsdPair, BUY, 1.waves, 3.0, sender = address))
 
         placeOrder(order)
-        expectWsBalance(webSubscription, Map(usd    -> WsBalances(297, 3), Waves -> WsBalances(99.997, 0.003)), 2)
-        expectWsBalance(mobileSubscription, Map(usd -> WsBalances(297, 3), Waves -> WsBalances(99.997, 0.003)), 1)
+        expectWsBalance(webSubscription, Map(usd    -> WsBalances(297, 3), Waves -> WsBalances(99.997, 0.04)), 2)
+        expectWsBalance(mobileSubscription, Map(usd -> WsBalances(297, 3), Waves -> WsBalances(99.997, 0.04)), 1)
 
         subscribe(desktopSubscription)
-        expectWsBalance(desktopSubscription, Map(Waves -> WsBalances(99.997, 0.003), usd -> WsBalances(297, 3), eth -> WsBalances(5, 0)), 0)
+        expectWsBalance(desktopSubscription, Map(Waves -> WsBalances(99.997, 0.04), usd -> WsBalances(297, 3), eth -> WsBalances(5, 0)), 0)
 
         cancel(order, true)
 
@@ -446,7 +446,7 @@ class ActorsWebSocketInteractionsSpecification
 
           subscribeAddress()
           expectWsBalancesAndOrders(
-            Map(Waves -> WsBalances(114.997, 0.003), usd -> WsBalances(297, 3), eth -> WsBalances(5, 0)),
+            Map(Waves -> WsBalances(114.997, 0.04), usd -> WsBalances(297, 3), eth -> WsBalances(5, 0)),
             Seq(WsOrder.fromDomain(lo)),
             0
           )
@@ -460,7 +460,7 @@ class ActorsWebSocketInteractionsSpecification
 
           subscribeAddress()
           expectWsBalancesAndOrders(
-            Map(Waves -> WsBalances(99.997, 0.003), btc -> WsBalances(0, 1)),
+            Map(Waves -> WsBalances(99.997, 0.04), btc -> WsBalances(0, 1)),
             Seq(WsOrder.fromDomain(lo)),
             0
           )
@@ -550,7 +550,7 @@ class ActorsWebSocketInteractionsSpecification
           )
 
           placeOrder(counter1)
-          expectWsBalancesAndOrders(Map(usd -> WsBalances(55, 15), Waves -> WsBalances(99.997, 0.003)), Seq(WsOrder.fromDomain(counter1)), 1)
+          expectWsBalancesAndOrders(Map(usd -> WsBalances(55, 15), Waves -> WsBalances(99.997, 0.04)), Seq(WsOrder.fromDomain(counter1)), 1)
 
           placeOrder(counter2)
           expectWsBalancesAndOrders(Map(usd -> WsBalances(39.5, 30.5), Waves -> WsBalances(99.994, 0.006)), Seq(WsOrder.fromDomain(counter2)), 2)
@@ -569,7 +569,7 @@ class ActorsWebSocketInteractionsSpecification
               WsOrder(id = counter1.id,
                       status = OrderStatus.Filled.name.some,
                       filledAmount = 5.0.some,
-                      filledFee = 0.003.some,
+                      filledFee = 0.04.some,
                       avgWeighedPrice = 3.0.some)
             ),
             4
@@ -580,13 +580,13 @@ class ActorsWebSocketInteractionsSpecification
             Map(
               // executed = 5, reserved_diff = -15.5 = -5 * 3.1, reserved = 16.5 = 31.5 - 15.5, tradable = 54 = 70 - 16
               usd   -> WsBalances(54, 16),
-              Waves -> WsBalances(99.997, 0.003)
+              Waves -> WsBalances(99.997, 0.04)
             ),
             Seq(
               WsOrder(id = counter2.id,
                       status = OrderStatus.Filled.name.some,
                       filledAmount = 5.0.some,
-                      filledFee = 0.003.some,
+                      filledFee = 0.04.some,
                       avgWeighedPrice = 3.1.some)
             ),
             5
@@ -597,7 +597,7 @@ class ActorsWebSocketInteractionsSpecification
             Map(
               // executed = 2 = 12 - 5 - 5, reserved_diff = -6.4 = -2 * 3.2, reserved = 9.6 = 16 - 6.4, tradable = 60.4 = 70 - 9.6
               usd   -> WsBalances(60.4, 9.6),
-              Waves -> WsBalances(99.9982, 0.0018) // executed_fee = 0.0012 = 0.003 * 2 / 5
+              Waves -> WsBalances(99.9982, 0.0018) // executed_fee = 0.0012 = 0.04 * 2 / 5
             ),
             Seq(
               WsOrder(id = counter3.id,
@@ -656,7 +656,7 @@ class ActorsWebSocketInteractionsSpecification
 
           mo = matchOrders(mo, counter1)
           expectWsBalancesAndOrders(
-            // executed = 5, executed_fee = 0.003 * 5 / 12 = 0.00125, reserved = 7.00175 = 12.003 - 5 - 0.00125, tradable = 92.99825 = 100 - 7.00175
+            // executed = 5, executed_fee = 0.04 * 5 / 12 = 0.00125, reserved = 7.00175 = 12.003 - 5 - 0.00125, tradable = 92.99825 = 100 - 7.00175
             Map(Waves -> WsBalances(92.99825, 7.00175)),
             Seq(
               WsOrder(
@@ -672,7 +672,7 @@ class ActorsWebSocketInteractionsSpecification
 
           mo = matchOrders(mo, counter2)
           expectWsBalancesAndOrders(
-            // executed = 5, executed_fee = 0.003 * 5 / 12 = 0.00125, reserved = 2.0005 = 7.00175 - 5 - 0.00125, tradable = 97.9995 = 100 - 2.0005
+            // executed = 5, executed_fee = 0.04 * 5 / 12 = 0.00125, reserved = 2.0005 = 7.00175 - 5 - 0.00125, tradable = 97.9995 = 100 - 2.0005
             Map(Waves -> WsBalances(97.9995, 2.0005)),
             Seq(
               WsOrder(id = mo.id,
@@ -686,14 +686,14 @@ class ActorsWebSocketInteractionsSpecification
 
           matchOrders(mo, counter3)
           expectWsBalancesAndOrders(
-            // executed = 2, executed_fee = 0.003 * 2 / 12 = 0.0005, reserved = 0 = 2.0005 - 2 - 0.0005, tradable = 100
+            // executed = 2, executed_fee = 0.04 * 2 / 12 = 0.0005, reserved = 0 = 2.0005 - 2 - 0.0005, tradable = 100
             Map(Waves -> WsBalances(100, 0)),
             Seq(
               WsOrder(
                 id = mo.id,
                 status = OrderStatus.Filled.name.some,
                 filledAmount = 12.0.some,
-                filledFee = 0.003.some,
+                filledFee = 0.04.some,
                 avgWeighedPrice = 3.07.some
               )
             ),
@@ -723,7 +723,7 @@ class ActorsWebSocketInteractionsSpecification
 
         placeOrder(bo)
         expectWsBalancesAndOrders(
-          Map(usd -> WsBalances(0, 10), Waves -> WsBalances(9.997, 0.003)),
+          Map(usd -> WsBalances(0, 10), Waves -> WsBalances(9.997, 0.04)),
           Seq(WsOrder.fromDomain(bo)),
           1
         )

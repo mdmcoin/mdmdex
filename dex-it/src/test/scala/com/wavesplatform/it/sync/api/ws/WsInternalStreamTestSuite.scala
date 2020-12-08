@@ -78,10 +78,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
           List(
             mkExecutedFullOrder(
               order2,
-              OrderStatus.Filled(1.waves, 0.003.waves),
+              OrderStatus.Filled(1.waves, 0.04.waves),
               avgWeighedPrice = 3,
               executedAmount = 1,
-              executedFee = 0.003,
+              executedFee = 0.04,
               executedPrice = 3,
               isMarket = false
             ))
@@ -123,10 +123,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
           List(
             mkExecutedFullOrder(
               order2,
-              OrderStatus.Filled(2.waves, 0.003.waves),
+              OrderStatus.Filled(2.waves, 0.04.waves),
               avgWeighedPrice = 3,
               executedAmount = 2,
-              executedFee = 0.003,
+              executedFee = 0.04,
               executedPrice = 3,
               isMarket = false
             ))
@@ -136,7 +136,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
           List(
             mkExecutedFullOrder(
               order3,
-              OrderStatus.Filled(3.waves, 0.003.waves),
+              OrderStatus.Filled(3.waves, 0.04.waves),
               avgWeighedPrice = 3,
               executedAmount = 2,
               executedFee = 0.002,
@@ -186,8 +186,8 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
 
       "multiple matches" in {
         val order1 = mkOrderDP(bob, wavesUsdPair, OrderType.SELL, 2.waves, 3, matcherFee = 0.004.btc, feeAsset = btc)
-        val order2 = mkOrderDP(bob, wavesUsdPair, OrderType.SELL, 2.waves, 2, matcherFee = 0.003.waves, feeAsset = Waves)
-        val order3 = mkOrderDP(alice, wavesUsdPair, OrderType.BUY, 4.waves, 4, matcherFee = 0.003.waves, feeAsset = Waves)
+        val order2 = mkOrderDP(bob, wavesUsdPair, OrderType.SELL, 2.waves, 2, matcherFee = 0.04.waves, feeAsset = Waves)
+        val order3 = mkOrderDP(alice, wavesUsdPair, OrderType.BUY, 4.waves, 4, matcherFee = 0.04.waves, feeAsset = Waves)
         val orders = List(order1, order2, order3)
 
         val wsc = mkWsInternalConnection()
@@ -216,10 +216,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
           List(
             mkExecutedFullOrder(
               order2,
-              OrderStatus.Filled(2.waves, 0.003.waves),
+              OrderStatus.Filled(2.waves, 0.04.waves),
               avgWeighedPrice = 2,
               executedAmount = 2,
-              executedFee = 0.003,
+              executedFee = 0.04,
               executedPrice = 2,
               isMarket = false
             ))
@@ -229,7 +229,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
           List(
             mkExecutedFullOrder(
               order3,
-              OrderStatus.Filled(4.waves, 0.003.waves),
+              OrderStatus.Filled(4.waves, 0.04.waves),
               avgWeighedPrice = 2.5,
               executedAmount = 2,
               executedFee = 0.0015,
@@ -253,8 +253,8 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
       }
 
       "multiple matches and cancel on two asset pairs" in {
-        val order1 = mkOrderDP(bob, wavesUsdPair, OrderType.SELL, 2.waves, 3, matcherFee = 0.003.waves, feeAsset = Waves)
-        val order2 = mkOrderDP(alice, wavesBtcPair, OrderType.SELL, 1.waves, 0.005, matcherFee = 0.003.waves, feeAsset = Waves)
+        val order1 = mkOrderDP(bob, wavesUsdPair, OrderType.SELL, 2.waves, 3, matcherFee = 0.04.waves, feeAsset = Waves)
+        val order2 = mkOrderDP(alice, wavesBtcPair, OrderType.SELL, 1.waves, 0.005, matcherFee = 0.04.waves, feeAsset = Waves)
         val order3 = mkOrderDP(alice, wavesUsdPair, OrderType.BUY, 3.waves, 4, matcherFee = 6.usd, feeAsset = usd)
         val order4 = mkOrderDP(bob, wavesBtcPair, OrderType.BUY, 4.waves, 0.005, matcherFee = 0.004.btc, feeAsset = btc)
         val orders = List(order1, order2, order3, order4)
@@ -275,10 +275,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
           List(
             mkExecutedFullOrder(
               order1,
-              OrderStatus.Filled(2.waves, 0.003.waves),
+              OrderStatus.Filled(2.waves, 0.04.waves),
               avgWeighedPrice = 3,
               executedAmount = 2,
-              executedFee = 0.003,
+              executedFee = 0.04,
               executedPrice = 3,
               isMarket = false
             )
@@ -289,10 +289,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
           List(
             mkExecutedFullOrder(
               order2,
-              OrderStatus.Filled(1.waves, 0.003.waves),
+              OrderStatus.Filled(1.waves, 0.04.waves),
               avgWeighedPrice = 0.005,
               executedAmount = 1,
-              executedFee = 0.003,
+              executedFee = 0.04,
               executedPrice = 0.005,
               isMarket = false
             ))

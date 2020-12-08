@@ -132,15 +132,15 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
            |    -1: {
            |      mode = dynamic
            |      dynamic {
-           |        base-maker-fee = ${0.003.waves}
-           |        base-taker-fee = ${0.003.waves}
+           |        base-maker-fee = ${0.04.waves}
+           |        base-taker-fee = ${0.04.waves}
            |      }
            |    }
            |    $offset0: {
            |      mode = dynamic
            |      dynamic {
-           |        base-maker-fee = ${0.003.waves}
-           |        base-taker-fee = ${0.003.waves}
+           |        base-maker-fee = ${0.04.waves}
+           |        base-taker-fee = ${0.04.waves}
            |      }
            |    }
            |    $offset1: {
@@ -163,9 +163,9 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
       )
     )
 
-    withClue("maker - DynamicSettings(0.003.waves, 0.003.waves), taker - DynamicSettings(0.001.waves, 0.005.waves), fee in Waves") {
+    withClue("maker - DynamicSettings(0.04.waves, 0.04.waves), taker - DynamicSettings(0.001.waves, 0.005.waves), fee in Waves") {
 
-      val makerOrder = mkOrderDP(maker, wavesUsdPair, SELL, 10.waves, 3.00, 0.003.waves)
+      val makerOrder = mkOrderDP(maker, wavesUsdPair, SELL, 10.waves, 3.00, 0.04.waves)
       val takerOrder = mkOrderDP(taker, wavesUsdPair, BUY, 10.waves, 3.00, 0.005.waves)
 
       dex1.api.currentOffset shouldBe offsetInitial
