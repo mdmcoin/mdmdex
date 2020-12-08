@@ -112,6 +112,7 @@ sbt packageAll
 ### Testnet
 
 ```
+set ThisBuild/network:=Testnet
 sbt -Dnetwork=testnet packageAll
 ```
 
