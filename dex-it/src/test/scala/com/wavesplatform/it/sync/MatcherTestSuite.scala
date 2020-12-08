@@ -41,7 +41,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
     s"""TN.dex {
-       |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", "TN ]
+       |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", "TN" ]
        |  order-db.max-orders = $maxOrders
        |}""".stripMargin
   )

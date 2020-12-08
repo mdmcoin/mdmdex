@@ -11,7 +11,7 @@ import scala.concurrent.{Await, Future}
 class WsConnectionTestSuite extends WsSuiteBase {
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
-    .parseString(s"""TN.dex.price-assets = [ "$BtcId", "TN ]""")
+    .parseString(s"""TN.dex.price-assets = [ "$BtcId", "TN"]""")
     .withFallback(jwtPublicKeyConfig)
 
   override protected def beforeAll(): Unit = {

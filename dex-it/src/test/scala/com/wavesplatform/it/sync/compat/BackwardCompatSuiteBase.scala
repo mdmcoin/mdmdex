@@ -15,7 +15,7 @@ import com.wavesplatform.it.api.MatcherState
   */
 trait BackwardCompatSuiteBase extends MatcherSuiteBase with MultipleVersions {
 
-  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "TN ]""".stripMargin)
+  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "TN"]""".stripMargin)
 
   protected val carol    = mkKeyPair("carol")
   protected val accounts = List(alice, bob)

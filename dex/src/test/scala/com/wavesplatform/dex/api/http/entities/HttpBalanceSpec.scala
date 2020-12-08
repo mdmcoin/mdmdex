@@ -11,7 +11,7 @@ class HttpBalanceSpec extends AnyFreeSpec with Matchers with DiffMatcherWithImpl
 
   private val json =
     """{
-      |  "TN : 100,
+      |  "TN" : 100,
       |  "2gCPcEnoZa9LtZzZPFK9fJf7aWzvdBJUABayd1Zj5qFh" : 300
       |}""".stripMargin
 
