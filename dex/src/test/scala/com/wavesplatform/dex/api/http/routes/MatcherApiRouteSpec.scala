@@ -1300,7 +1300,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
         orderDb = odb,
         currentOffset = () => 0L,
         lastOffset = () => Future.successful(0L),
-        matcherAccountFee = 300000L,
+        matcherAccountFee = 4000000L,
         apiKeyHash = Some(crypto secureHash apiKey),
         rateCache = rateCache,
         validatedAllowedOrderVersions = () => Future.successful { Set(1, 2, 3) },
