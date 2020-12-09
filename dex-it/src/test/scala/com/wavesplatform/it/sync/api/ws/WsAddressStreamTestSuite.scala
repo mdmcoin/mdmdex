@@ -130,7 +130,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
         Seq(bo1, bo2).foreach { placeAndAwaitAtDex(_) }
 
         assertChanges(wsc)(
-          Map(usd -> WsBalances(50, 100), Waves -> WsBalances(9.997, 0.04)),
+          Map(usd -> WsBalances(50, 100), Waves -> WsBalances(9.96, 0.04)),
           Map(usd -> WsBalances(39.70, 110.30))
         )(
           WsOrder.fromDomain(LimitOrder(bo1)),
@@ -152,7 +152,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
 
       "when user places market order and it is filled" in {
 
-        val tradableBalance: Map[Asset, Long] = Map(Waves -> 51.003.waves)
+        val tradableBalance: Map[Asset, Long] = Map(Waves -> 51.04.waves)
         val acc                               = mkAccountWithBalance(tradableBalance(Waves) -> Waves)
         val wsc                               = mkWsAddressConnection(acc)
         val smo                               = mkOrderDP(acc, wavesUsdPair, SELL, 50.waves, 1.0)
