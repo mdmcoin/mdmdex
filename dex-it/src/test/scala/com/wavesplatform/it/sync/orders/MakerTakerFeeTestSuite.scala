@@ -21,8 +21,8 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
        |  order-fee.-1 {
        |    mode = dynamic
        |    dynamic {
-       |      base-maker-fee = ${0.001.waves}
-       |      base-taker-fee = ${0.005.waves}
+       |      base-maker-fee = ${0.03.waves}
+       |      base-taker-fee = ${0.05.waves}
        |    }
        |  }
        |}
@@ -44,12 +44,12 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
     "should reject orders with insufficient fee" in {
       dex1.api.tryPlace(mkOrderDP(maker, wavesUsdPair, SELL, 1.waves, 3.00, 0.00499999.waves)) should failWith(
         9441542, // FeeNotEnough
-        s"Required 0.005 TN as fee for this order, but given 0.00499999 TN"
+        s"Required 0.05 TN as fee for this order, but given 0.00499999 TN"
       )
 
       dex1.api.tryPlace(mkOrderDP(maker, wavesUsdPair, SELL, 1.waves, 3.00, 0.00002837.eth, eth)) should failWith(
         9441542, // FeeNotEnough
-        s"Required 0.00002838 $EthId as fee for this order, but given 0.00002837 $EthId"
+        s"Required 0.0002838 $EthId as fee for this order, but given 0.00002837 $EthId"
       )
     }
 
@@ -58,19 +58,19 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
       forAll(
         Table(
           ("M amt", "M fee", "M fee asset", "T amt", "T fee", "T fee asset", "M expected balance change", "T expected balance change", "is T market"),
-          (1.waves,  0.005, Waves, 1.waves,  0.005, Waves, -1.001.waves,  0.995.waves, false), // symmetric
-          (2.waves,  0.005, Waves, 10.waves, 0.005, Waves, -2.001.waves,  1.999.waves, false), // little maker - big taker
-          (10.waves, 0.005, Waves, 2.waves,  0.005, Waves, -2.0002.waves, 1.995.waves, false), //    big maker - little taker
-          (1.waves,  0.005, Waves, 1.waves,  0.005, Waves, -1.001.waves,  0.995.waves, true),  // symmetric, MARKET taker
-          (2.waves,  0.005, Waves, 10.waves, 0.005, Waves, -2.001.waves,  1.999.waves, true),  // little maker - big MARKET taker
-          (10.waves, 0.005, Waves, 2.waves,  0.005, Waves, -2.0002.waves, 1.995.waves, true),  //    big maker - little MARKET taker
+          (1.waves,  0.05, Waves, 1.waves,  0.05, Waves, -1.01.waves,  0.95.waves, false), // symmetric
+          (2.waves,  0.05, Waves, 10.waves, 0.05, Waves, -2.01.waves,  1.99.waves, false), // little maker - big taker
+          (10.waves, 0.05, Waves, 2.waves,  0.05, Waves, -2.002.waves, 1.95.waves, false), //    big maker - little taker
+          (1.waves,  0.05, Waves, 1.waves,  0.05, Waves, -1.01.waves,  0.95.waves, true),  // symmetric, MARKET taker
+          (2.waves,  0.05, Waves, 10.waves, 0.05, Waves, -2.01.waves,  1.99.waves, true),  // little maker - big MARKET taker
+          (10.waves, 0.05, Waves, 2.waves,  0.05, Waves, -2.002.waves, 1.95.waves, true),  //    big maker - little MARKET taker
           /** fee in ETH, 0.001.waves = 0.00000568.eth, 0.005.waves = 0.00002838.eth */
-          (1.waves,  0.00002838, eth, 1.waves,  0.00002838, eth, -0.00000568.eth, -0.00002838.eth, false), // symmetric
-          (2.waves,  0.00002838, eth, 10.waves, 0.00002838, eth, -0.00000568.eth, -0.00000567.eth, false), // little maker - big taker
-          (10.waves, 0.00002838, eth, 2.waves,  0.00002838, eth, -0.00000113.eth, -0.00002838.eth, false), //    big maker - little taker
-          (1.waves,  0.00002838, eth, 1.waves,  0.00002838, eth, -0.00000568.eth, -0.00002838.eth, true),  // symmetric, MARKET taker
-          (2.waves,  0.00002838, eth, 10.waves, 0.00002838, eth, -0.00000568.eth, -0.00000567.eth, true),  // little maker - big MARKET taker
-          (10.waves, 0.00002838, eth, 2.waves,  0.00002838, eth, -0.00000113.eth, -0.00002838.eth, true)   //    big maker - little MARKET taker
+          (1.waves,  0.0002838, eth, 1.waves,  0.00002838, eth, -0.00000568.eth, -0.00002838.eth, false), // symmetric
+          (2.waves,  0.0002838, eth, 10.waves, 0.00002838, eth, -0.00000568.eth, -0.00000567.eth, false), // little maker - big taker
+          (10.waves, 0.0002838, eth, 2.waves,  0.00002838, eth, -0.00000113.eth, -0.00002838.eth, false), //    big maker - little taker
+          (1.waves,  0.0002838, eth, 1.waves,  0.00002838, eth, -0.00000568.eth, -0.00002838.eth, true),  // symmetric, MARKET taker
+          (2.waves,  0.0002838, eth, 10.waves, 0.00002838, eth, -0.00000568.eth, -0.00000567.eth, true),  // little maker - big MARKET taker
+          (10.waves, 0.0002838, eth, 2.waves,  0.00002838, eth, -0.00000113.eth, -0.00002838.eth, true)   //    big maker - little MARKET taker
         )
       ) { (mAmt: Long, mFee: Double, mFeeAsset: Asset, tAmt: Long, tFee: Double, tFeeAsset: Asset, mExpectedBalanceChange: Long, tExpectedBalanceChange: Long, isTMarket: Boolean) =>
         // format: on
