@@ -78,7 +78,7 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
       dex1.disconnectFromNetwork()
 
       broadcastAndAwait(mkTransfer(acc, alice.toAddress, 99.waves, Waves))
-      wavesNode1.api.balance(acc.toAddress, Waves) should be(0.999.waves)
+      wavesNode1.api.balance(acc.toAddress, Waves) should be(0.98.waves)
 
       dex1.connectToNetwork()
 
@@ -91,7 +91,7 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
       dex1.disconnectFromNetwork()
 
       broadcastAndAwait(mkTransfer(acc, alice.toAddress, 99.waves, Waves))
-      wavesNode1.api.balance(acc.toAddress, Waves) should be(0.999.waves)
+      wavesNode1.api.balance(acc.toAddress, Waves) should be(0.98.waves)
 
       dex1.connectToNetwork()
 
@@ -151,7 +151,7 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
 
     dex1.restartWithNewSuiteConfig(conf)
 
-    val account = mkAccountWithBalance(5.004.waves -> Waves)
+    val account = mkAccountWithBalance(5.06.waves -> Waves)
 
     markup("Place order")
     val order = mkOrder(account, wavesUsdPair, SELL, 5.waves, 5.usd)
