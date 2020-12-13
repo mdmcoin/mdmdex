@@ -161,11 +161,11 @@ object TankGenerator {
             val id = (o \ "id").as[String]
             val aa = ((o \ "assetPair").as[JsValue] \ "amountAsset").validate[String] match {
               case JsSuccess(name, _) => name
-              case _: JsError         => "TN
+              case _: JsError         => "TN"
             }
             val pa = ((o \ "assetPair").as[JsValue] \ "priceAsset").validate[String] match {
               case JsSuccess(name, _) => name
-              case _: JsError         => "TN
+              case _: JsError         => "TN"
             }
             Request(RequestType.POST,
                     s"/matcher/orderbook/$aa/$pa/cancel",
@@ -233,11 +233,11 @@ object TankGenerator {
             val id = (o \ "id").as[String]
             val aa = ((o \ "assetPair").as[JsValue] \ "amountAsset").validate[String] match {
               case JsSuccess(name, _) => name
-              case _: JsError         => "TN
+              case _: JsError         => "TN"
             }
             val pa = ((o \ "assetPair").as[JsValue] \ "priceAsset").validate[String] match {
               case JsSuccess(name, _) => name
-              case _: JsError         => "TN
+              case _: JsError         => "TN"
             }
             Request(
               RequestType.GET,
