@@ -82,7 +82,7 @@ object TankGenerator {
       .map(account => new Transfer(account.getAddress, settings.defaults.wavesPerAccount))
       .grouped(100)
       .foreach(group => {
-        try services.node.send(Transactions.makeMassTransferTx(issuer, "TN, group.asJava, massTransferFee(group), null))
+        try services.node.send(Transactions.makeMassTransferTx(issuer, "TN", group.asJava, massTransferFee(group), null))
         catch {
           case e: Exception => println(e)
         }
