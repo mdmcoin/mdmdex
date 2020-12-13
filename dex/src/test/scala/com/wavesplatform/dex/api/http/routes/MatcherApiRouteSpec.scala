@@ -179,7 +179,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
             matcherVersion = Version.VersionString,
             priceAssets = List(badOrder.assetPair.priceAsset, okOrder.assetPair.priceAsset, priceAsset, Waves),
             orderFee = HttpOrderFeeMode.FeeModeDynamic(
-              baseFee = 600000,
+              baseFee = 8000000,
               rates = Map(Waves -> 1.0)
             ),
             orderVersions = List[Byte](1, 2, 3),
