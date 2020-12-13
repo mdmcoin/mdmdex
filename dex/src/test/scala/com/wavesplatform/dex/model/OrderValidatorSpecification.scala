@@ -251,13 +251,13 @@ class OrderValidatorSpecification
           * fee should be >= base fee * 10 pow (fee asset decimals - 8) * rate, ceiling round mode
           */
         withClue("Fee in USD (2 decimals) should be >= 0.02.usd\n") {
-          val order = createOrder(wavesUsdPair, OrderType.BUY, 100.waves, price = 3, matcherFee = 0.02.usd, feeAsset = usd)
+          val order = createOrder(wavesUsdPair, OrderType.BUY, 100.waves, price = 3, matcherFee = 1.5.usd, feeAsset = usd)
           validateByDynamicSettings { order } shouldBe Symbol("right")
           validateByDynamicSettings { order.updateFee(0.01.usd) } should produce("FeeNotEnough")
         }
 
         withClue("Fee in BTC (8 decimals) should be >= 0.00000034.btc\n") {
-          val order = createOrder(wavesBtcPair, OrderType.BUY, 100.waves, price = 0.00011162, matcherFee = 0.00000034.btc, feeAsset = btc)
+          val order = createOrder(wavesBtcPair, OrderType.BUY, 100.waves, price = 0.00011162, matcherFee = 0.00000447.btc, feeAsset = btc)
           validateByDynamicSettings { order } shouldBe Symbol("right")
           validateByDynamicSettings { order.updateFee(0.00000033.btc) } should produce("FeeNotEnough")
         }
@@ -279,7 +279,7 @@ class OrderValidatorSpecification
 
         withClue(s"Fee in USD (2 decimals, rate = 3.7) ") {
 
-          val order  = createOrder(wavesUsdPair, OrderType.BUY, 1.waves, price = 3.7, matcherFee = 0.02.usd, feeAsset = usd)
+          val order  = createOrder(wavesUsdPair, OrderType.BUY, 1.waves, price = 3.7, matcherFee = 0.15.usd, feeAsset = usd)
           val script = Some { RunScriptResult.Allowed }
 
           withClue(s"without any scripts should be >= 0.02.usd\n") {
@@ -298,12 +298,12 @@ class OrderValidatorSpecification
             */
           withClue(s"with price asset script should be >= 2.59 rounding mode ceiling = 0.03.usd\n") {
             validateFeeByBlockchain(script) { order } should produce("FeeNotEnough")
-            validateFeeByBlockchain(script) { updateOrder(order, _.updateFee(0.03.usd)) } shouldBe Symbol("right")
+            validateFeeByBlockchain(script) { updateOrder(order, _.updateFee(0.3.usd)) } shouldBe Symbol("right")
           }
 
           withClue(s"with price asset and matcher account script should be >= 4.07 round mode ceiling = 0.05.usd\n") {
             validateFeeByBlockchain(script, script) { updateOrder(order, _.updateFee(0.04.usd)) } should produce("FeeNotEnough")
-            validateFeeByBlockchain(script, script) { updateOrder(order, _.updateFee(0.05.usd)) } shouldBe Symbol("right")
+            validateFeeByBlockchain(script, script) { updateOrder(order, _.updateFee(0.45.usd)) } shouldBe Symbol("right")
           }
         }
       }
@@ -605,15 +605,15 @@ class OrderValidatorSpecification
 
         val rateCache: RateCache                   = RateCache.inMem
         val validateByRate: Order => Result[Order] = validateByMatcherSettings(DynamicSettings.symmetric(0.04.waves), rateCache = rateCache)
-        val order: Order                           = createOrder(wavesUsdPair, BUY, 1.waves, 3.00, 0.01.usd, feeAsset = usd)
+        val order: Order                           = createOrder(wavesUsdPair, BUY, 1.waves, 3.00, 0.14.usd, feeAsset = usd)
 
         withClue("USD rate = 3.33, fee should be >= 0.01 usd\n") {
           rateCache.upsertRate(usd, 3.33)
           validateByRate(order) shouldBe Symbol("right")
         }
 
-        withClue("USD rate = 3.34, fee should be >= 0.02 usd\n") {
-          rateCache.upsertRate(usd, 3.34)
+        withClue("USD rate = 4, fee should be >= 0.02 usd\n") {
+          rateCache.upsertRate(usd, 4)
           validateByRate(order) should produce("FeeNotEnough")
         }
       }
@@ -720,19 +720,19 @@ class OrderValidatorSpecification
         validateByFee(0.01.waves, 0.05.waves) { orderWithFee(0.0499999.waves) } should produce("FeeNotEnough")
 
         withClue("BTC rate = 0.00011167; 0.04.waves = 0.00000034.btc, 0.05.waves = 0.0000056.btc\n") {
-          validateByFee(0.04.waves, 0.04.waves) { orderWithFee(0.00000034.btc, btc) } shouldBe Symbol("right")
+          validateByFee(0.04.waves, 0.04.waves) { orderWithFee(0.00000447.btc, btc) } shouldBe Symbol("right")
           validateByFee(0.01.waves, 0.05.waves) { orderWithFee(0.0000056.btc, btc) } shouldBe Symbol("right")
           validateByFee(0.01.waves, 0.05.waves) { orderWithFee(0.0000055.btc, btc) } should produce("FeeNotEnough")
         }
 
-        validateByFeeWithScript(0.04.waves, 0.04.waves) { orderWithFee(0.03.waves + smartFee) } shouldBe Symbol("right")
+        validateByFeeWithScript(0.04.waves, 0.04.waves) { orderWithFee(0.04.waves + smartFee) } shouldBe Symbol("right")
         validateByFeeWithScript(0.01.waves, 0.05.waves) { orderWithFee(0.05.waves + smartFee) } shouldBe Symbol("right")
         validateByFeeWithScript(0.01.waves, 0.05.waves) { orderWithFee(0.0499999.waves + smartFee) } should produce("FeeNotEnough")
 
         withClue("BTC rate = 0.00011167; 0.07.waves = 0.0000079.btc, 0.09.waves = 0.0000101.btc\n") {
-          validateByFeeWithScript(0.04.waves, 0.04.waves) { orderWithFee(0.0000079.btc, btc) } shouldBe Symbol("right")
+          validateByFeeWithScript(0.04.waves, 0.04.waves) { orderWithFee(0.00000894.btc, btc) } shouldBe Symbol("right")
           validateByFeeWithScript(0.01.waves, 0.005.waves) { orderWithFee(0.0000101.btc, btc) } shouldBe Symbol("right")
-          validateByFeeWithScript(0.01.waves, 0.005.waves) { orderWithFee(0.0000100.btc, btc) } should produce("FeeNotEnough")
+          validateByFeeWithScript(0.01.waves, 0.04.waves) { orderWithFee(0.00000100.btc, btc) } should produce("FeeNotEnough")
         }
       }
     }
