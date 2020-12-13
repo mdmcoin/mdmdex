@@ -68,7 +68,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
 
         dex1.api.tryPlace(mkOrder(alice, oneSmartPair, SELL, amount, price, invalidFee, version = 2)) should failWith(
           9441542, // FeeNotEnough
-          "Required 0.007 TN as fee for this order, but given 0.00699999 TN")
+          "Required 0.08 TN as fee for this order, but given 0.07999999 TN")
 
         placeAndAwaitAtDex(mkOrder(alice, oneSmartPair, SELL, amount, price, expectedFee, version = 2))
 

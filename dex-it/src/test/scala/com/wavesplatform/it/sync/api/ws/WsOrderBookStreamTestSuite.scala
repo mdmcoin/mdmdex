@@ -390,7 +390,7 @@ class WsOrderBookStreamTestSuite extends WsSuiteBase {
     }
 
     "close connections when order book is deleted" in {
-      val seller                          = mkAccountWithBalance(100.waves -> Waves)
+      val seller                          = mkAccountWithBalance(2000.waves -> Waves)
       val IssueResults(issueTx, _, asset) = mkIssueExtended(seller, "cJIoHoxpeH", 1000.asset8)
       val assetPair                       = AssetPair(asset, Waves)
 
