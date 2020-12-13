@@ -443,7 +443,7 @@ class OrderHistoryBalanceSpecification
   property("Sell EUR - partial, buy EUR order - filled") {
     val pair      = AssetPair(mkAssetId("EUR"), mkAssetId("USD"))
     val counter   = sell(pair, 57918, 0.001356, matcherFee = Some(4000000L))
-    val submitted = buy(pair, 46978, 0.003333, matcherFee = Some(4000000L))
+    val submitted = buy(pair, 46978, 0.04333, matcherFee = Some(4000000L))
 
     oh.process(OrderAdded(LimitOrder(counter), OrderAddedReason.RequestExecuted, time.getTimestamp()))
 

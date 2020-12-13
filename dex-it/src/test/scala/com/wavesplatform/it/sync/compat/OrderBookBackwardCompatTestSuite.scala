@@ -67,7 +67,7 @@ class OrderBookBackwardCompatTestSuite extends BackwardCompatSuiteBase with HasK
 
               "market" in test {
                 val order1 = mkOrder(alice, BUY, 2.waves, 10.usd)
-                val order2 = mkOrder(carol, SELL, 2.waves, 10.usd) // The balance of carol is 1.003 waves. This is to simulate afs = 0
+                val order2 = mkOrder(carol, SELL, 2.waves, 10.usd) // The balance of carol is 1.04 waves. This is to simulate afs = 0
 
                 dex2.api.place(order1)
                 dex2.api.placeMarket(order2)

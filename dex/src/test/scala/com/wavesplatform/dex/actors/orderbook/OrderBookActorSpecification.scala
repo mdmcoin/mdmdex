@@ -413,7 +413,7 @@ class OrderBookActorSpecification
       val makerTakerFeeAtOffset = Fee.getMakerTakerFeeByOffset(
         new OrderFeeSettingsCache(
           Map(
-            0L -> DynamicSettings(0.001.waves, 0.003.waves),
+            0L -> DynamicSettings(0.001.waves, 0.04.waves),
             1L -> DynamicSettings(0.001.waves, 0.005.waves)
           )
         )
@@ -423,8 +423,8 @@ class OrderBookActorSpecification
         tp.expectMsg(OrderBookRecovered(pair, None))
         val now = System.currentTimeMillis()
 
-        // place when order fee settings is DynamicSettings(0.001.waves, 0.003.waves)
-        val maker1 = sell(wavesUsdPair, 10.waves, 3.00, matcherFee = 0.003.waves.some, ts = now.some)
+        // place when order fee settings is DynamicSettings(0.001.waves, 0.04.waves)
+        val maker1 = sell(wavesUsdPair, 10.waves, 3.00, matcherFee = 0.04.waves.some, ts = now.some)
         orderBook ! wrapLimitOrder(0, maker1)
         tp.expectMsgType[OrderAdded]
 

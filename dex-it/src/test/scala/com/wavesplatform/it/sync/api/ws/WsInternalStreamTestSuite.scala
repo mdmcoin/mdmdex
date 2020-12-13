@@ -232,16 +232,16 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               OrderStatus.Filled(4.waves, 0.04.waves),
               avgWeighedPrice = 2.5,
               executedAmount = 2,
-              executedFee = 0.0015,
+              executedFee = 0.02,
               executedPrice = 3,
               isMarket = false
             ),
             mkExecutedFullOrder(
               order3,
-              OrderStatus.PartiallyFilled(2.waves, 0.0015.waves),
+              OrderStatus.PartiallyFilled(2.waves, 0.02.waves),
               avgWeighedPrice = 2,
               executedAmount = 2,
-              executedFee = 0.0015,
+              executedFee = 0.02,
               executedPrice = 2,
               isMarket = false
             )

@@ -416,8 +416,8 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
 
     broadcastAndAwait(mkTransfer(alice, carol, 10.waves, Waves))
 
-    val order1 = mkOrderDP(carol, wavesUsdPair, SELL, 9.997.waves, 3.0, ttl = 1.day)
-    val order2 = mkOrderDP(carol, wavesUsdPair, SELL, 9.997.waves, 3.0, ttl = 2.days)
+    val order1 = mkOrderDP(carol, wavesUsdPair, SELL, 9.96.waves, 3.0, ttl = 1.day)
+    val order2 = mkOrderDP(carol, wavesUsdPair, SELL, 9.96.waves, 3.0, ttl = 2.days)
 
     dex1.api.place(order1)
     dex1.api.reservedBalance(carol) should matchTo(Map[Asset, Long](Waves -> 10.waves))
@@ -435,7 +435,7 @@ class MarketOrderTestSuite extends MatcherSuiteBase {
     placeAndAwaitAtDex(mkOrderDP(alice, wavesUsdPair, SELL, 1000.waves, 0.5))
     placeAndAwaitAtNode(mkOrderDP(carol, wavesUsdPair, BUY, 1000L.waves, 0.6), isMarketOrder = true)
 
-    wavesNode1.api.balance(carol, Waves) shouldBe 604.9982.waves
+    wavesNode1.api.balance(carol, Waves) shouldBe 604.976.waves
     wavesNode1.api.balance(carol, usd) shouldBe 0
   }
 

@@ -28,7 +28,7 @@ trait BackwardCompatSuiteBase extends MatcherSuiteBase with MultipleVersions {
     broadcastAndAwait(
       IssueUsdTx,
       IssueEthTx,
-      mkTransfer(alice, carol, 1.003.waves, Waves)
+      mkTransfer(alice, carol, 1.04.waves, Waves)
     )
     wavesNode1.api.waitForHeightArise()
     wavesNode2.api.waitForHeight(wavesNode1.api.currentHeight)

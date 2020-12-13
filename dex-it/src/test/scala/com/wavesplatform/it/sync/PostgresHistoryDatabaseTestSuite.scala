@@ -502,9 +502,9 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
       val ts = System.currentTimeMillis()
 
       val orders = Seq(
-        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.33, 0.003.waves, ts = ts),
-        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.34, 0.003.waves, ts = ts + 100),
-        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.34, 0.003.waves, ts = ts + 200)
+        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.33, 0.04.waves, ts = ts),
+        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.34, 0.04.waves, ts = ts + 100),
+        mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.34, 0.04.waves, ts = ts + 200)
       )
 
       orders.foreach { order =>
@@ -565,7 +565,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
                            Waves.toString,
                            1.23456789,
                            1.03,
-                           0.003,
+                           0.04,
                            finalizeTimestamp)
           )
         }

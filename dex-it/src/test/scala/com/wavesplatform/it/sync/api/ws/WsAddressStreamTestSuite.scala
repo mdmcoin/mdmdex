@@ -168,7 +168,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
         waitForOrderAtNode(smo)
 
         assertChanges(wsc)(
-          Map(Waves -> WsBalances(1, 50.003)),
+          Map(Waves -> WsBalances(1, 50.04)),
           Map(Waves -> WsBalances(1, 35.0021)),
           Map(Waves -> WsBalances(1, 10.0006)),
           Map(Waves -> WsBalances(1, 0)),
@@ -199,10 +199,10 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
         placeAndAwaitAtNode(mkOrderDP(alice, wavesUsdPair, SELL, 10.waves, 1.0))
 
         assertChanges(wsc)(
-          Map(usd   -> WsBalances(0, 10), Waves -> WsBalances(9.997, 0.04)),
-          Map(Waves -> WsBalances(9.997, 0)),
+          Map(usd   -> WsBalances(0, 10), Waves -> WsBalances(9.96, 0.04)),
+          Map(Waves -> WsBalances(9.96, 0)),
           Map(usd   -> WsBalances(0, 0)),
-          Map(Waves -> WsBalances(19.997, 0)) // since balance increasing comes after transaction mining, + 10 - 0.003, Waves balance on Node = 19.997
+          Map(Waves -> WsBalances(19.96, 0)) // since balance increasing comes after transaction mining, + 10 - 0.04, Waves balance on Node = 19.96
         )(
           WsOrder.fromDomain(LimitOrder(bo)),
           WsOrder(bo.id(), status = OrderStatus.Filled.name, filledAmount = 10.0, filledFee = 0.04, avgWeighedPrice = 1.0)
@@ -229,7 +229,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
           wsc.balanceChanges.squashed should matchTo(
             Map(
               usd   -> WsBalances(0, 5),
-              Waves -> WsBalances(14.997, 0.0015) // since balance increasing comes after transaction mining, + 5 - 0.0015, Waves balance on Node = 14.9985
+              Waves -> WsBalances(14.96, 0.02) // since balance increasing comes after transaction mining, + 5 - 0.02, Waves balance on Node = 14.9985
             )
           )
 
@@ -241,7 +241,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
                   id = limitOrder.id,
                   status = OrderStatus.PartiallyFilled.name.some,
                   filledAmount = 5.0.some,
-                  filledFee = 0.0015.some,
+                  filledFee = 0.02.some,
                   avgWeighedPrice = 1.0.some
                 )
             ))
@@ -251,7 +251,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
         dex1.api.cancelAll(acc)
 
         eventually {
-          wsc.balanceChanges.squashed should matchTo(Map(usd -> WsBalances(5, 0), Waves -> WsBalances(14.9985, 0)))
+          wsc.balanceChanges.squashed should matchTo(Map(usd -> WsBalances(5, 0), Waves -> WsBalances(14.98, 0)))
           wsc.orderChanges.squashed should matchTo(
             Map(limitOrder.id -> WsOrder(bo.id(), status = OrderStatus.Cancelled.name))
           )
@@ -357,8 +357,8 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
     }
 
     assertChanges(wsc1)(
-      Map(usd -> WsBalances(400, 100), Waves -> WsBalances(9.997, 0.04)),
-      Map(usd -> WsBalances(300, 200), Waves -> WsBalances(9.994, 0.006))
+      Map(usd -> WsBalances(400, 100), Waves -> WsBalances(9.96, 0.04)),
+      Map(usd -> WsBalances(300, 200), Waves -> WsBalances(9.92, 0.08))
     )(
       WsOrder.fromDomain(LimitOrder(bo1)),
       WsOrder.fromDomain(LimitOrder(bo2))
@@ -366,7 +366,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
 
     val wsc2 = mkWsAddressConnection(acc, dex1)
 
-    assertChanges(wsc2) { Map(Waves -> WsBalances(9.994, 0.006), usd -> WsBalances(300, 200)) }(
+    assertChanges(wsc2) { Map(Waves -> WsBalances(9.92, 0.08), usd -> WsBalances(300, 200)) }(
       WsOrder.fromDomain(LimitOrder(bo1)),
       WsOrder.fromDomain(LimitOrder(bo2))
     )

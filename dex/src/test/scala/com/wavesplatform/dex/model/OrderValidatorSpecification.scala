@@ -210,7 +210,7 @@ class OrderValidatorSpecification
         val order = Json.fromJson[Order](json).get
         order.feeAsset shouldBe Waves
 
-        validateByMatcherSettings { DynamicSettings.symmetric(0.003.waves) }(order) shouldBe Symbol("right")
+        validateByMatcherSettings { DynamicSettings.symmetric(0.04.waves) }(order) shouldBe Symbol("right")
       }
 
       "matcherFee is not enough (percent mode)" in {
@@ -293,7 +293,7 @@ class OrderValidatorSpecification
             *            extra fee for matcher account script) * rate * 10 pow (fee asset decimals - 8) rounding mode ceiling
             *
             * where
-            *   base fee                  = 0.003.waves = 300000,
+            *   base fee                  = 0.04.waves = 300000,
             *   extra fee for any scripts = 0.004.waves = 400000
             */
           withClue(s"with price asset script should be >= 2.59 rounding mode ceiling = 0.03.usd\n") {
@@ -628,7 +628,7 @@ class OrderValidatorSpecification
               LevelAgg(amount = 32.waves, price = 0.00011842.btc), // buy part of level, value = 11 * 0.00011842 = 0.00130262.btc, remain to execute =  11 - 11 =  0
               LevelAgg(amount = 23.waves, price = 0.00011825.btc), // buy whole level,   value = 23 * 0.00011825 = 0.00271975.btc, remain to execute =  34 - 23 = 11
               LevelAgg(amount = 36.waves, price = 0.00011824.btc), // buy whole level,   value = 36 * 0.00011824 = 0.00425664.btc, remain to execute =  70 - 36 = 34
-              LevelAgg(amount = 30.waves, price = 0.00011810.btc) //  buy whole level,   value = 30 * 0.00011810 = 0.00354300.btc, remain to execute = 100 - 30 = 70
+              LevelAgg(amount = 30.waves, price = 0.00011810.btc) //  buy whole level,   value = 30 * 0.00011810 = 0.0454300.btc, remain to execute = 100 - 30 = 70
             ).reverse,
             bids = Seq(
               LevelAgg(amount = 85.waves, price = 0.00011808.btc), // close whole level,   value = 85.waves, remain to execute = 100 - 85 = 15
@@ -656,10 +656,10 @@ class OrderValidatorSpecification
           validateByPrice { createOrder(wavesBtcPair, SELL, amount = 100.waves, price = 0.00011788) } should produce("InvalidMarketOrderPrice") // too high price (can only sell 85 + 12 = 97.waves)
         }
 
-        withClue("BUY: fee in received asset, required balance: Waves = 0.003, BTC > 0\n") {
+        withClue("BUY: fee in received asset, required balance: Waves = 0.04, BTC > 0\n") {
           val marketOrder = createOrder(wavesBtcPair, BUY, buyAmount, buyPrice, feeAsset = Waves, matcherFee = 0.003.waves)
-          validateByTradableBalance { Map(Waves -> 0.00300000.waves, btc -> 0.00000001.btc) }(marketOrder) shouldBe Symbol("right")
-          validateByTradableBalance { Map(Waves -> 0.00300000.waves, btc -> 0.00000000.btc) }(marketOrder) should produce("BalanceNotEnough")
+          validateByTradableBalance { Map(Waves -> 0.0400000.waves, btc -> 0.00000001.btc) }(marketOrder) shouldBe Symbol("right")
+          validateByTradableBalance { Map(Waves -> 0.0400000.waves, btc -> 0.00000000.btc) }(marketOrder) should produce("BalanceNotEnough")
           validateByTradableBalance { Map(Waves -> 0.00299999.waves, btc -> 0.00000001.btc) }(marketOrder) should produce("BalanceNotEnough")
         }
 
@@ -730,7 +730,7 @@ class OrderValidatorSpecification
         validateByFeeWithScript(0.01.waves, 0.05.waves) { orderWithFee(0.0499999.waves + smartFee) } should produce("FeeNotEnough")
 
         withClue("BTC rate = 0.00011167; 0.07.waves = 0.0000079.btc, 0.09.waves = 0.0000101.btc\n") {
-          validateByFeeWithScript(0.04.waves, 0.003.waves) { orderWithFee(0.0000079.btc, btc) } shouldBe Symbol("right")
+          validateByFeeWithScript(0.04.waves, 0.04.waves) { orderWithFee(0.0000079.btc, btc) } shouldBe Symbol("right")
           validateByFeeWithScript(0.01.waves, 0.005.waves) { orderWithFee(0.0000101.btc, btc) } shouldBe Symbol("right")
           validateByFeeWithScript(0.01.waves, 0.005.waves) { orderWithFee(0.0000100.btc, btc) } should produce("FeeNotEnough")
         }
@@ -820,7 +820,7 @@ class OrderValidatorSpecification
 //            amount = 100.waves,
 //            price = 0.0022,
 //            sender = Some(pk),
-//            matcherFee = Some(0.003.waves),
+//            matcherFee = Some(0.04.waves),
 //            ts = Some(System.currentTimeMillis()),
 //            version = version.toByte
 //          )
