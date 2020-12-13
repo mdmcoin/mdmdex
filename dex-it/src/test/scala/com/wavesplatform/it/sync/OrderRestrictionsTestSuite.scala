@@ -92,7 +92,7 @@ class OrderRestrictionsTestSuite extends MatcherSuiteBase {
   "wrong step price" in {
     dex1.api.tryPlace(mkOrder(alice, wctUsdPair, BUY, 100000000, 150000, matcherFee)) should failWith(
       9441282, // OrderInvalidPrice
-      "The order's price 0.02 does not meet matcher's requirements: max price = 1000, min price = 0.0001, step price = 0.001"
+      "The order's price 0.0015 does not meet matcher's requirements: max price = 1000, min price = 0.0001, step price = 0.001"
     )
   }
 
