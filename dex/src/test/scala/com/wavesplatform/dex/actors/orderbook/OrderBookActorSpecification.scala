@@ -413,8 +413,8 @@ class OrderBookActorSpecification
       val makerTakerFeeAtOffset = Fee.getMakerTakerFeeByOffset(
         new OrderFeeSettingsCache(
           Map(
-            0L -> DynamicSettings(0.001.waves, 0.04.waves),
-            1L -> DynamicSettings(0.001.waves, 0.005.waves)
+            0L -> DynamicSettings(0.02.waves, 0.04.waves),
+            1L -> DynamicSettings(0.03.waves, 0.05.waves)
           )
         )
       ) _
@@ -434,7 +434,7 @@ class OrderBookActorSpecification
         tp.expectMsgType[OrderAdded]
 
         val oe = tp.expectMsgType[OrderExecuted]
-        oe.counterExecutedFee shouldBe 0.0006.waves
+        oe.counterExecutedFee shouldBe 0.024.waves
         oe.submittedExecutedFee shouldBe 0.005.waves
       }
     }

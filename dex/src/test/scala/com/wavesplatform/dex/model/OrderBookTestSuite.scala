@@ -443,7 +443,7 @@ class OrderBookTestSuite
         (2.waves, 10.waves, true, DynamicSettings(0.04.waves, 0.04.waves), 0.04.waves, 0.00001703, eth, 0.04.waves, 0.00000340.eth), // like in old good times
         (2.waves, 10.waves, true, DynamicSettings(0.001.waves, 0.009.waves), 0.009.waves, 0.00005109, eth, 0.001.waves, 0.00001021.eth), // orders have sufficient fee = 0.009.waves = 0.00005109.eth
         /** big maker - small market taker, taker fee in ETH */
-        (10.waves, 2.waves, true, DynamicSettings(0.04.waves, 0.04.waves), 0.04.waves, 0.00001703, eth, 0.0006.waves, 0.00001703.eth), // like in old good times
+        (10.waves, 2.waves, true, DynamicSettings(0.003.waves, 0.003.waves), 0.003.waves, 0.00001703, eth, 0.0006.waves, 0.00001703.eth), // like in old good times
         (10.waves, 2.waves, true, DynamicSettings(0.001.waves, 0.009.waves), 0.009.waves, 0.00005109, eth, 0.0002.waves, 0.00005109.eth) // orders have sufficient fee = 0.009.waves = 0.00005109.eth
       )
       // format: off
@@ -527,7 +527,7 @@ class OrderBookTestSuite
         withClue(s"$orderType submitted remaining:\n") {
 
           val remainingAmount = 30.waves
-          val remainingFee    = 0.00045.waves
+          val remainingFee    = 0.006.waves
           val awpNominator    = BigInteger.valueOf(490.waves.usd)
 
           events(7) shouldBe a[OrderCanceled]
