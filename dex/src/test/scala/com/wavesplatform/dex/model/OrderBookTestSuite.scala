@@ -411,7 +411,7 @@ class OrderBookTestSuite
         ("M amount", "T amount", "is T market", "fee settings", "M order fee", "T order fee", "T fee asset", "M executed fee", "T executed fee"),
         /** symmetric */
         (1.waves, 1.waves, false, DynamicSettings(0.04.waves, 0.04.waves), 0.04.waves, 0.04, Waves, 0.04.waves, 0.04.waves), // like in old good times
-        (1.waves, 1.waves, false, DynamicSettings(0.001.waves, 0.009.waves), 0.009.waves, 0.009, Waves, 0.001.waves, 0.009.waves), // orders have sufficient fee = 0.009.waves
+        (1.waves, 1.waves, false, DynamicSettings(0.01.waves, 0.09.waves), 0.09.waves, 0.09, Waves, 0.01.waves, 0.09.waves), // orders have sufficient fee = 0.009.waves
         /** small maker - big taker */
         (2.waves, 10.waves, false, DynamicSettings(0.04.waves, 0.04.waves), 0.04.waves, 0.04, Waves, 0.04.waves, 0.08.waves), // like in old good times
         (2.waves, 10.waves, false, DynamicSettings(0.001.waves, 0.009.waves), 0.009.waves, 0.009, Waves, 0.001.waves, 0.024.waves), // orders have sufficient fee = 0.009.waves

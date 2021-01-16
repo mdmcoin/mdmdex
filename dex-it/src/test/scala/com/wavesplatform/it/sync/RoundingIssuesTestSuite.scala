@@ -29,8 +29,8 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
     dex1.api.place(submitted)
 
     val filledAmount = 420169L
-    dex1.api.waitForOrder(submitted)(_ == HttpOrderStatus(Status.Filled, Some(filledAmount), Some(296219L)))
-    dex1.api.waitForOrder(counter)(_ == HttpOrderStatus(Status.PartiallyFilled, Some(filledAmount), Some(40L)))
+    dex1.api.waitForOrder(submitted)(_ == HttpOrderStatus(Status.Filled, Some(filledAmount), Some(3949587L)))
+    dex1.api.waitForOrder(counter)(_ == HttpOrderStatus(Status.PartiallyFilled, Some(filledAmount), Some(542L)))
 
     val tx = waitForOrderAtNode(counter)
     dex1.api.cancel(alice, counter)
