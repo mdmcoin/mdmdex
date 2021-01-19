@@ -9,7 +9,7 @@ import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
-import com.wavesplatform.dex.domain.transaction.ExchangeTransactionV2
+import com.wavesplatform.dex.domain.transaction.{ExchangeTransaction, ExchangeTransactionV2}
 import com.wavesplatform.dex.domain.utils.EitherExt2
 import com.wavesplatform.dex.grpc.integration.clients.WavesBlockchainClient.BalanceChanges
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
@@ -28,7 +28,7 @@ import scala.util.Random
 class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
   private val runNow = new ExecutionContext {
-    override def execute(runnable: Runnable): Unit     = runnable.run()
+    override def execute(runnable: Runnable): Unit = runnable.run()
     override def reportFailure(cause: Throwable): Unit = throw cause
   }
 
@@ -39,7 +39,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       .build()
   }
 
-  private implicit val monixScheduler: Scheduler = Scheduler(runNow)
+  implicit private val monixScheduler: Scheduler = Scheduler(runNow)
 
   private lazy val client =
     WavesBlockchainClientBuilder.async(
@@ -61,7 +61,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       ExecutionContext.fromExecutor(grpcExecutor)
     )
 
-  override implicit def patienceConfig: PatienceConfig = super.patienceConfig.copy(
+  implicit override def patienceConfig: PatienceConfig = super.patienceConfig.copy(
     timeout = 1.minute,
     interval = 1.second
   )
@@ -70,11 +70,13 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
   private val eventsObserver: Observer[BalanceChanges] = new Observer[BalanceChanges] {
     override def onError(ex: Throwable): Unit = ()
-    override def onComplete(): Unit           = ()
+    override def onComplete(): Unit = ()
+
     override def onNext(elem: BalanceChanges): Future[Ack] = {
       balanceChanges += elem.address -> (balanceChanges.getOrElse(elem.address, Map.empty) + (elem.asset -> elem.balance))
       Continue
     }
+
   }
 
   private val trueScript = Option(Scripts.alwaysTrue)
@@ -121,7 +123,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
     val aliceInitialBalance = wavesNode1.api.balance(alice, Waves)
 
     val issueAssetTx = mkIssue(alice, "name", someAssetAmount, 2)
-    val issuedAsset  = IssuedAsset(issueAssetTx.getId)
+    val issuedAsset = IssuedAsset(issueAssetTx.id())
 
     balanceChanges = Map.empty[Address, Map[Asset, Long]]
     broadcastAndAwait(issueAssetTx)
@@ -129,7 +131,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
     assertBalanceChanges {
       Map(
         alice.toAddress -> Map(
-          Waves       -> (aliceInitialBalance - issueFee),
+          Waves -> (aliceInitialBalance - issueFee),
           issuedAsset -> someAssetAmount
         )
       )
@@ -141,7 +143,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
     assertBalanceChanges {
       Map(
         alice.toAddress -> Map(
-          Waves       -> (aliceInitialBalance - issueFee - minFee),
+          Waves -> (aliceInitialBalance - issueFee - minFee),
           issuedAsset -> 0L
         ),
         bob.toAddress -> Map(
@@ -164,8 +166,8 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
   "broadcastTx" - {
     "returns true" - {
-      val pair         = AssetPair.createAssetPair(UsdId.toString, "TN").get // TODO
-      def mkExchangeTx = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcher = matcher)
+      val pair: AssetPair = AssetPair.createAssetPair(UsdId.toString, "TN").get // TODO
+      def mkExchangeTx: ExchangeTransaction = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcher = matcher)
 
       "if the transaction passed the validation and was added to the UTX pool" in {
         val exchangeTx = mkExchangeTx
@@ -177,7 +179,7 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       "if the transaction is in the blockchain" in {
         val exchangeTx = mkExchangeTx
 
-        broadcastAndAwait(exchangeTx)
+        broadcastAndAwait(exchangeTx.toWavesJ())
         wait(client.broadcastTx(exchangeTx)) shouldBe true
       }
     }
@@ -186,11 +188,11 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       val now = System.currentTimeMillis()
 
       val executedAmount = 1L
-      val executedPrice  = 2 * Order.PriceConstant
-      val pair           = AssetPair.createAssetPair(UsdId.toString, "TN").get
-      val fakeBob        = KeyPair("fake-bob".getBytes(StandardCharsets.UTF_8))
+      val executedPrice = 2 * Order.PriceConstant
+      val pair = AssetPair.createAssetPair(UsdId.toString, "TN").get
+      val fakeBob = KeyPair("fake-bob".getBytes(StandardCharsets.UTF_8))
 
-      val buy  = mkOrder(alice, pair, OrderType.BUY, executedAmount, executedPrice, matcher = matcher)
+      val buy = mkOrder(alice, pair, OrderType.BUY, executedAmount, executedPrice, matcher = matcher)
       val sell = mkOrder(fakeBob, pair, OrderType.SELL, executedAmount, executedPrice, matcher = matcher)
 
       val exchangeTx =
@@ -231,8 +233,8 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       wait(client.assetDescription(usd)) should matchTo(
         Option(
           BriefAssetDescription(
-            name = IssueUsdTx.getName,
-            decimals = IssueUsdTx.getDecimals,
+            name = IssueUsdTx.name(),
+            decimals = IssueUsdTx.decimals(),
             hasScript = false
           )
         )
@@ -251,14 +253,14 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       withClue("issue scripted asset") {
         broadcastAndAwait(issueTx)
 
-        wait(client.hasScript(IssuedAsset(issueTx.getId))) shouldBe true
+        wait(client.hasScript(IssuedAsset(issueTx.id()))) shouldBe true
       }
 
       withClue("run script") {
-        val pair       = AssetPair.createAssetPair(toVanilla(issueTx.getId).toString, "TN").get
+        val pair = AssetPair.createAssetPair(issueTx.id().toString, "TN").get
         val exchangeTx = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcherFee = 1.waves, matcher = matcher)
 
-        wait(client.runScript(IssuedAsset(issueTx.getId), exchangeTx)) shouldBe RunScriptResult.Allowed
+        wait(client.runScript(IssuedAsset(issueTx.id()), exchangeTx)) shouldBe RunScriptResult.Allowed
       }
     }
   }
@@ -276,16 +278,16 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
       }
 
       withClue("set script") {
-        val setScriptTx = mkSetAccountScript(receiver, trueScript)
+        val setScriptTx = mkSetAccountMayBeScript(receiver, trueScript)
         broadcastAndAwait(setScriptTx)
 
         wait(client.hasScript(receiver)) shouldBe true
       }
 
       withClue("run script") {
-        val now  = System.currentTimeMillis()
+        val now = System.currentTimeMillis()
         val pair = AssetPair.createAssetPair(UsdId.toString, "TN").get
-        val buy  = Order.buy(bob, matcher, pair, 1L, 2 * Order.PriceConstant, now, now + 1.day.toMillis, 0)
+        val buy = Order.buy(bob, matcher, pair, 1L, 2 * Order.PriceConstant, now, now + 1.day.toMillis, 0)
 
         wait(client.runScript(receiver, buy)) shouldBe RunScriptResult.Allowed
       }
@@ -294,7 +296,28 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
 
   "spendableBalances" in {
     val issuedAsset = randomIssuedAsset
-    wait { client.spendableBalances(bob, Set(Waves, issuedAsset)) } should matchTo { Map[Asset, Long](Waves -> 494994798999996L) }
+    wait(client.spendableBalances(bob, Set(Waves, issuedAsset))) should matchTo(Map[Asset, Long](Waves -> 494994798999996L))
+  }
+
+  "allAssetsSpendableBalance" in {
+
+    val carol = mkKeyPair("carol")
+
+    broadcastAndAwait(
+      mkTransfer(bob, carol, 10.waves, Waves),
+      mkTransfer(alice, carol, 1.usd, usd),
+      mkTransfer(bob, carol, 1.btc, btc)
+    )
+
+    wavesNode1.api.broadcast(mkTransfer(carol, bob, 1.waves, Waves))
+
+    wait(client allAssetsSpendableBalance carol) should matchTo(
+      Map[Asset, Long](
+        Waves -> (10.waves - 1.waves - minFee),
+        usd -> 1.usd,
+        btc -> 1.btc
+      )
+    )
   }
 
   "forgedOrder" - {
@@ -303,13 +326,13 @@ class WavesBlockchainAsyncClientTestSuite extends IntegrationSuiteBase {
     }
 
     "the order was in a forged ExchangeTransaction" in {
-      val pair       = AssetPair.createAssetPair(UsdId.toString, "TN").get
+      val pair = AssetPair.createAssetPair(UsdId.toString, "TN").get
       val exchangeTx = mkExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcher = matcher)
 
       broadcastAndAwait(exchangeTx)
 
-      wait(client.forgedOrder(exchangeTx.getOrder1.getId)) shouldBe true
-      wait(client.forgedOrder(exchangeTx.getOrder2.getId)) shouldBe true
+      wait(client.forgedOrder(exchangeTx.buyOrder().id())) shouldBe true
+      wait(client.forgedOrder(exchangeTx.sellOrder().id())) shouldBe true
     }
   }
 

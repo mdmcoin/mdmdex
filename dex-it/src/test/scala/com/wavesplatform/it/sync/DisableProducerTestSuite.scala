@@ -20,12 +20,12 @@ class DisableProducerTestSuite extends MatcherSuiteBase {
 
   "Check no commands are written to queue" - {
     "check assets's balances" in {
-      wavesNode1.api.balance(alice, eth) shouldBe IssueEthTx.getQuantity
+      wavesNode1.api.balance(alice, eth) shouldBe IssueEthTx.quantity()
       wavesNode1.api.balance(matcher, eth) shouldBe 0L
     }
 
     "place an order and wait some time" in {
-      def test(order: Order): Unit = dex1.api.tryPlace(order) should failWith(528) // FeatureDisabled
+      def test(order: Order): Unit = dex1.tryApi.place(order) should failWith(528) // FeatureDisabled
 
       List(
         mkOrder(alice, ethWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant),

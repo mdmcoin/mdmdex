@@ -10,7 +10,7 @@ libraryDependencies ++= Dependencies.Module.dexIt
 itArtifactDescriptions := {
 
   val yourKitArchive = "YourKit-JavaProfiler-2019.8-docker.zip"
-  val cachedDir      = itArtifactsCacheDir.value
+  val cachedDir = itArtifactsCacheDir.value
 
   Seq(
     ArtifactDescription(
@@ -29,7 +29,7 @@ inTask(docker)(
   Seq(
     nameOfImage := "turtlenetwork/dex-it",
     dockerfile := new Dockerfile {
-      val appPath      = "/usr/share/tn-dex"
+      val appPath = "/usr/share/tn-dex"
       val entryPointSh = s"$appPath/bin/start-matcher-server-it.sh"
 
       from("turtlenetwork/matcher-server:latest")
@@ -37,9 +37,9 @@ inTask(docker)(
 
       List(
         (Test / sourceDirectory).value / "container" / "start-matcher-server-it.sh" -> s"$appPath/bin/", // entry point
-        (Test / resourceDirectory).value / "dex-servers" / "logback-container.xml"  -> s"$appPath/doc/", // logs management
-        itArtifactsCacheDir.value / "aspectjweaver.jar"                             -> s"$appPath/lib", // profiler, see https://www.yourkit.com/docs/java/help/docker.jsp
-        itArtifactsCacheDir.value / "yourKit"                                       -> "/usr/local" // profiler archive
+        (Test / resourceDirectory).value / "dex-servers" / "logback-container.xml" -> s"$appPath/doc/", // logs management
+        itArtifactsCacheDir.value / "aspectjweaver.jar" -> s"$appPath/lib", // profiler, see https://www.yourkit.com/docs/java/help/docker.jsp
+        itArtifactsCacheDir.value / "yourKit" -> "/usr/local" // profiler archive
       ).foreach {
         case (src, dest) => add(src, dest, chown = "tn-dex:tn-dex")
       }

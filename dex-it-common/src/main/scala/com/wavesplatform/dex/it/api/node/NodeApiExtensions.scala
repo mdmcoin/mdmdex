@@ -1,7 +1,7 @@
 package com.wavesplatform.dex.it.api.node
 
 import cats.Id
-import com.wavesplatform.wavesj.Transaction
+import im.mak.waves.transactions.Transaction
 
 trait NodeApiExtensions {
 
@@ -13,4 +13,5 @@ trait NodeApiExtensions {
     txs.foreach(wavesNodeApi.broadcast)
     txs.foreach(wavesNodeApi.waitForTransaction)
   }
+
 }

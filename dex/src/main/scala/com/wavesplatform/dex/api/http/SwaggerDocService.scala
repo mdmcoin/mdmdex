@@ -10,9 +10,9 @@ import io.swagger.models.auth.{ApiKeyAuthDefinition, In}
 class SwaggerDocService(val apiClasses: Set[Class[_]], override val host: String) extends SwaggerHttpService {
 
   override val info: Info = Info(
-    description = "The Web Interface to the Turtle Network DEX API",
+    description = "The Web Interface to the Turtle Network Matcher Server API",
     version = Version.VersionString,
-    title = "Turtle Network DEX",
+    title = "Turtle Network Matcher Server",
     license = Some(License("MIT License", "https://github.com/turtlenetwork/dex/blob/master/LICENSE"))
   )
 

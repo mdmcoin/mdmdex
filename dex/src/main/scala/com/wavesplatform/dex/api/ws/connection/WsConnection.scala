@@ -5,9 +5,11 @@ import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
 import akka.Done
 import akka.actor.{ActorRef, ActorSystem, Status}
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage, WebSocketRequest}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.{CompletionStrategy, Materializer, OverflowStrategy}
+import com.wavesplatform.dex.api.ws.connection.WsConnection.WsRawMessage
 import com.wavesplatform.dex.api.ws.protocol.{WsClientMessage, WsMessage, WsPingOrPong, WsServerMessage}
 import com.wavesplatform.dex.domain.utils.{LoggerFacade, ScorexLogging}
 import org.slf4j.LoggerFactory
@@ -18,15 +20,15 @@ import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-class WsConnection(uri: String, keepAlive: Boolean = true)(implicit system: ActorSystem, materializer: Materializer) extends ScorexLogging {
+class WsConnection(uri: Uri, keepAlive: Boolean = true)(implicit system: ActorSystem, materializer: Materializer) extends ScorexLogging {
 
-  private val testId: Int = ThreadLocalRandom.current().nextInt(10000)
+  val testId: Int = ThreadLocalRandom.current().nextInt(10000)
 
   override protected lazy val log: LoggerFacade = LoggerFacade(LoggerFactory.getLogger(s"WsConnection[testId=$testId]"))
 
   log.info(s"""Connecting to Matcher WS API:
-            |         URI = $uri
-            |  Keep alive = $keepAlive""".stripMargin)
+              |         URI = $uri
+              |  Keep alive = $keepAlive""".stripMargin)
 
   import materializer.executionContext
 
@@ -38,7 +40,7 @@ class WsConnection(uri: String, keepAlive: Boolean = true)(implicit system: Acto
   // From test to server
   private val source: Source[TextMessage.Strict, ActorRef] = {
     val completionMatcher: PartialFunction[Any, CompletionStrategy] = { case akka.actor.Status.Success(_) => CompletionStrategy.draining }
-    val failureMatcher: PartialFunction[Any, Throwable]             = { case Status.Failure(cause)        => cause }
+    val failureMatcher: PartialFunction[Any, Throwable] = { case Status.Failure(cause) => cause }
 
     Source
       .actorRef[WsClientMessage](completionMatcher, failureMatcher, 10, OverflowStrategy.fail)
@@ -49,6 +51,7 @@ class WsConnection(uri: String, keepAlive: Boolean = true)(implicit system: Acto
       }
   }
 
+  private val rawMessagesBuffer: ConcurrentLinkedQueue[WsRawMessage] = new ConcurrentLinkedQueue[WsRawMessage]()
   private val messagesBuffer: ConcurrentLinkedQueue[WsServerMessage] = new ConcurrentLinkedQueue[WsServerMessage]()
 
   // From server to test
@@ -58,13 +61,14 @@ class WsConnection(uri: String, keepAlive: Boolean = true)(implicit system: Acto
         strictText <- tm.toStrict(1.second).map(_.getStrictText)
         clientMessage <- {
           log.debug(s"Got $strictText")
-          Try { Json.parse(strictText).as[WsServerMessage] } match {
+          rawMessagesBuffer.add(WsRawMessage(strictText, System.currentTimeMillis()))
+          Try(Json.parse(strictText).as[WsServerMessage]) match {
             case Failure(exception) => Future.failed(exception)
             case Success(x) =>
               messagesBuffer.add(x)
               if (keepAlive) x match {
                 case value: WsPingOrPong => wsHandlerRef ! value
-                case _                   =>
+                case _ =>
               }
               Future.successful(x)
           }
@@ -73,7 +77,7 @@ class WsConnection(uri: String, keepAlive: Boolean = true)(implicit system: Acto
 
     case bm: BinaryMessage =>
       bm.dataStream.runWith(Sink.ignore)
-      Future.failed { new IllegalArgumentException("Binary messages are not supported") }
+      Future.failed(new IllegalArgumentException("Binary messages are not supported"))
   }
 
   private val flow: Flow[Message, TextMessage.Strict, Future[Done]] = Flow.fromSinkAndSourceCoupled(sink, source).watchTermination() {
@@ -87,15 +91,24 @@ class WsConnection(uri: String, keepAlive: Boolean = true)(implicit system: Acto
 
   val (connectionResponse, closed) = Http().singleWebSocketRequest(WebSocketRequest(uri), flow)
 
-  val connectionOpenedTs: Long                   = System.currentTimeMillis
-  val connectionClosedTs: Future[Long]           = closed.map(_ => System.currentTimeMillis)
+  val connectionOpenedTs: Long = System.currentTimeMillis
+  val connectionClosedTs: Future[Long] = closed.map(_ => System.currentTimeMillis)
   val connectionLifetime: Future[FiniteDuration] = connectionClosedTs.map(cc => FiniteDuration(cc - connectionOpenedTs, MILLISECONDS))
 
+  def rawMessages: List[WsRawMessage] = rawMessagesBuffer.iterator().asScala.toList
   def messages: List[WsServerMessage] = messagesBuffer.iterator().asScala.toList
-  def clearMessages(): Unit           = messagesBuffer.clear()
+
+  def clearMessages(): Unit = {
+    rawMessagesBuffer.clear()
+    messagesBuffer.clear()
+  }
 
   def send(message: WsClientMessage): Unit = wsHandlerRef ! TestWsHandlerActor.SendToServer(message)
 
-  def close(): Unit     = if (!isClosed) wsHandlerRef ! TestWsHandlerActor.CloseConnection
+  def close(): Unit = if (!isClosed) wsHandlerRef ! TestWsHandlerActor.CloseConnection
   def isClosed: Boolean = closed.isCompleted
+}
+
+object WsConnection {
+  case class WsRawMessage(body: String, ts: Long)
 }

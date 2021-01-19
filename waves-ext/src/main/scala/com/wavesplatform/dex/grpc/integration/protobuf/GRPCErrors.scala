@@ -6,8 +6,9 @@ import io.grpc.Metadata.AsciiMarshaller
 import io.grpc.{Metadata, Status, StatusException}
 
 object GRPCErrors {
+
   private[this] val IntMarshaller: AsciiMarshaller[Int] = new AsciiMarshaller[Int] {
-    override def toAsciiString(value: Int): String         = value.toString
+    override def toAsciiString(value: Int): String = value.toString
     override def parseAsciiString(serialized: String): Int = serialized.toInt
   }
 
@@ -25,4 +26,5 @@ object GRPCErrors {
     metadata.put(ErrorCodeKey, api.id)
     code.withDescription(api.message).asException(metadata)
   }
+
 }

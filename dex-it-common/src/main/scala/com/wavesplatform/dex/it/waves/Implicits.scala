@@ -1,106 +1,90 @@
 package com.wavesplatform.dex.it.waves
 
-import com.wavesplatform.dex.domain.account.{Address, AddressScheme, KeyPair, PublicKey}
-import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.account.{Address, KeyPair, PublicKey}
+import com.wavesplatform.dex.domain.asset.Asset
 import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
 import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
-import com.wavesplatform.wavesj.matcher.{Order => JOrder, OrderV1 => JOrderV1, OrderV2 => JOrderV2, OrderV3 => JOrderV3}
-import com.wavesplatform.wavesj.transactions.{
-  ExchangeTransaction => JExchangeTransaction,
-  ExchangeTransactionV1 => JExchangeTransactionV1,
-  ExchangeTransactionV2 => JExchangeTransactionV2
-}
-import com.wavesplatform.wavesj.{ByteString, PrivateKeyAccount, PublicKeyAccount, AssetPair => JAssetPair}
-
-import scala.jdk.CollectionConverters._
+import com.wavesplatform.dex.it.config.GenesisConfig
+import im.mak.waves.transactions.account.{Address => JAddress, PrivateKey => JPrivateKey, PublicKey => JPublicKey}
+import im.mak.waves.transactions.common.{Amount, AssetId, Id, Proof => JProof}
+import im.mak.waves.transactions.exchange.{Order => JOrder, OrderType => JOrderType}
+import im.mak.waves.transactions.{ExchangeTransaction => JExchangeTransaction}
 
 trait ToWavesJConversions {
 
-  implicit def toVanilla(x: ByteString): ByteStr = ByteStr(x.getBytes)
+  implicit def wavesJAssetIdToVanillaByteStr(x: AssetId): ByteStr = ByteStr(x.bytes())
+  implicit def wavesJIdToVanillaByteStr(x: Id): ByteStr = ByteStr(x.bytes())
 
-  implicit def toWavesJ(x: KeyPair): PrivateKeyAccount  = PrivateKeyAccount.fromPrivateKey(x.privateKey.base58, AddressScheme.current.chainId)
-  implicit def toWavesJ(x: PublicKey): PublicKeyAccount = new PublicKeyAccount(x.arr, AddressScheme.current.chainId)
-  implicit def toWavesJ(x: Address): String             = x.stringRepr
-  implicit def toWavesJ(x: Asset): String = x match {
-    case Asset.IssuedAsset(id) => id.base58
-    case Asset.Waves           => null
+  implicit def byteStrToWavesJId(x: ByteStr): Id = Id.as(x.arr)
+
+  implicit def privateKeyToWavesJ(x: KeyPair): JPrivateKey = JPrivateKey.as(x.privateKey.arr)
+  implicit def publicKeyToWavesJ(x: PublicKey): JPublicKey = JPublicKey.as(x.arr)
+
+  implicit def addressToWavesJ(x: Address): JAddress = JAddress.as(x.bytes.arr)
+
+  implicit def assetIdToWavesJ(x: Asset): AssetId = x match {
+    case Asset.IssuedAsset(id) => AssetId.as(id.arr)
+    case Asset.Waves => AssetId.WAVES
   }
 
-  implicit def toWavesJ(x: AssetPair): JAssetPair  = new JAssetPair(x.amountAsset, x.priceAsset)
-  implicit def toWavesJ(x: OrderType): JOrder.Type = if (x == OrderType.BUY) JOrder.Type.BUY else JOrder.Type.SELL
-  implicit def toWavesJ(x: ByteStr): ByteString    = new ByteString(x.arr)
-  implicit def toWavesJ(x: Order): JOrder = x.version match {
-    case 1 =>
-      new JOrderV1(
-        x.sender,
-        x.matcherPublicKey,
-        x.orderType,
-        x.assetPair,
-        x.amount,
-        x.price,
-        x.timestamp,
-        x.expiration,
-        x.matcherFee,
-        new ByteString(x.signature)
-      )
-    case 2 =>
-      new JOrderV2(
-        x.sender,
-        x.matcherPublicKey,
-        x.orderType,
-        x.assetPair,
-        x.amount,
-        x.price,
-        x.timestamp,
-        x.expiration,
-        x.matcherFee,
-        x.version,
-        x.proofs.proofs.map(toWavesJ).asJava
-      )
-    case 3 =>
-      new JOrderV3(
-        x.sender,
-        x.matcherPublicKey,
-        x.orderType,
-        x.assetPair,
-        x.amount,
-        x.price,
-        x.timestamp,
-        x.expiration,
-        x.matcherFee,
-        x.feeAsset,
-        x.version,
-        x.proofs.proofs.map(toWavesJ).asJava
-      )
+  implicit def orderTypeToWavesJ(x: OrderType): JOrderType = if (x == OrderType.BUY) JOrderType.BUY else JOrderType.SELL
+
+  implicit class OrderOps(val self: Order) {
+
+    def toWavesJ(chainId: Byte = GenesisConfig.chainId): JOrder = {
+      val unsignedOrder =
+        JOrder
+          .builder(
+            self.orderType,
+            Amount.of(self.amount, self.assetPair.amountAsset),
+            Amount.of(self.price, self.assetPair.priceAsset),
+            self.matcherPublicKey
+          )
+          .chainId(chainId)
+          .sender(self.sender)
+          .timestamp(self.timestamp)
+          .expiration(self.expiration)
+          .fee(Amount.of(self.matcherFee, self.feeAsset))
+          .version(self.version)
+          .getUnsigned
+
+      self.proofs.zipWithIndex.foldLeft(unsignedOrder) {
+        case (resultOrder, (proof, index)) =>
+          resultOrder.setProof(index, JProof.as(proof.arr))
+      }
+    }
+
   }
 
-  implicit def toWavesJ(x: ExchangeTransaction): JExchangeTransaction = x.version match {
-    case 1 =>
-      new JExchangeTransactionV1(
-        x.buyOrder,
-        x.sellOrder,
-        x.amount,
-        x.price,
-        x.buyMatcherFee,
-        x.sellMatcherFee,
-        x.fee,
-        x.timestamp,
-        x.proofs.toSignature
-      )
-    case 2 =>
-      new JExchangeTransactionV2(
-        x.buyOrder,
-        x.sellOrder,
-        x.amount,
-        x.price,
-        x.buyMatcherFee,
-        x.sellMatcherFee,
-        x.fee,
-        x.timestamp,
-        x.proofs.proofs.map(toWavesJ).asJava
-      )
+  implicit class ExchangeTransactionOps(val self: ExchangeTransaction) {
+
+    def toWavesJ(chainId: Byte = GenesisConfig.chainId): JExchangeTransaction = {
+      val unsignedTx =
+        JExchangeTransaction
+          .builder(
+            self.buyOrder.toWavesJ(chainId),
+            self.sellOrder.toWavesJ(chainId),
+            self.amount,
+            self.price,
+            self.buyMatcherFee,
+            self.sellMatcherFee
+          )
+          .chainId(chainId)
+          .sender(self.sender)
+          .fee(self.fee)
+          .timestamp(self.timestamp)
+          .version(2)
+          .getUnsigned
+
+      self.proofs.zipWithIndex.foldLeft(unsignedTx) {
+        case (resultTx, (proof, idx)) =>
+          resultTx.setProof(idx, JProof.as(proof.arr))
+      }
+    }
+
   }
+
 }
 
 object Implicits extends ToWavesJConversions

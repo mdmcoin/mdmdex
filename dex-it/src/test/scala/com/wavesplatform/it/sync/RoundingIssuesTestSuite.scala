@@ -1,16 +1,18 @@
 package com.wavesplatform.it.sync
 
+import cats.syntax.option._
 import com.typesafe.config.{Config, ConfigFactory}
 import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.api.http.entities.{HttpOrderStatus, HttpV0LevelAgg}
 import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.order.OrderType
 import com.wavesplatform.it.MatcherSuiteBase
-import com.wavesplatform.wavesj.transactions.ExchangeTransaction
+import im.mak.waves.transactions.ExchangeTransaction
 
 class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
-  override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "$BtcId", "TN" ]""")
+  override protected def dexInitialSuiteConfig: Config =
+    ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "$BtcId", "TN" ]""")
 
   override protected def beforeAll(): Unit = {
     wavesNode1.start()
@@ -20,7 +22,7 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
   "should correctly fill an order with small amount" in {
     val aliceBalanceBefore = wavesNode1.api.balance(alice, Waves)
-    val bobBalanceBefore   = wavesNode1.api.balance(bob, Waves)
+    val bobBalanceBefore = wavesNode1.api.balance(bob, Waves)
 
     val counter = mkOrder(alice, wavesUsdPair, OrderType.BUY, 3100000000L, 238)
     dex1.api.place(counter)
@@ -29,25 +31,31 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
     dex1.api.place(submitted)
 
     val filledAmount = 420169L
-    dex1.api.waitForOrder(submitted)(_ == HttpOrderStatus(Status.Filled, Some(filledAmount), Some(3949587L)))
-    dex1.api.waitForOrder(counter)(_ == HttpOrderStatus(Status.PartiallyFilled, Some(filledAmount), Some(542L)))
+    val totalExecutedPriceAssets = 1L // = 420169 * 238 / 10^8
+
+    dex1.api.waitForOrder(submitted)(_ == HttpOrderStatus(Status.Filled, filledAmount.some, 3949587L.some))
+    dex1.api.waitForOrder(counter)(_ == HttpOrderStatus(Status.PartiallyFilled, filledAmount.some, 542L.some))
+
+    Seq(alice -> counter, bob -> submitted).foreach {
+      case (owner, ao) =>
+        dex1.api.orderStatusInfoByIdWithSignature(owner, ao).totalExecutedPriceAssets shouldBe totalExecutedPriceAssets
+    }
 
     val tx = waitForOrderAtNode(counter)
     dex1.api.cancel(alice, counter)
 
-    val exchangeTx =
-      wavesNode1.api.transactionInfo(tx.head.getId).getOrElse(throw new RuntimeException(s"Can't find tx with id = '${tx.head.getId}'")) match {
-        case r: ExchangeTransaction => r
-        case x                      => throw new RuntimeException(s"Expected ExchangeTransaction, but got $x")
-      }
+    val exchangeTx = wavesNode1.api.transactionInfo(tx.head.id()) match {
+      case r: ExchangeTransaction => r
+      case x => throw new RuntimeException(s"Expected ExchangeTransaction, but got $x")
+    }
 
-    exchangeTx.getPrice shouldBe counter.price
-    exchangeTx.getAmount shouldBe filledAmount
-    exchangeTx.getBuyMatcherFee shouldBe 40L
-    exchangeTx.getSellMatcherFee shouldBe 296219L
+    exchangeTx.price() shouldBe counter.price
+    exchangeTx.amount() shouldBe filledAmount
+    exchangeTx.buyMatcherFee() shouldBe 40L
+    exchangeTx.sellMatcherFee() shouldBe 296219L
 
     val aliceBalanceAfter = wavesNode1.api.balance(alice, Waves)
-    val bobBalanceAfter   = wavesNode1.api.balance(bob, Waves)
+    val bobBalanceAfter = wavesNode1.api.balance(bob, Waves)
 
     (aliceBalanceAfter - aliceBalanceBefore) shouldBe (-542L + 420169L)
     (bobBalanceAfter - bobBalanceBefore) shouldBe (-3949587L - 420169L)

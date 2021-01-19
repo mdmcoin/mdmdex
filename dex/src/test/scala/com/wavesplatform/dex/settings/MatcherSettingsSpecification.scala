@@ -17,16 +17,16 @@ import com.wavesplatform.dex.settings.EventsQueueSettings.CircuitBreakerSettings
 import com.wavesplatform.dex.settings.OrderFeeSettings.PercentSettings
 import com.wavesplatform.dex.test.matchers.DiffMatcherWithImplicits
 import com.wavesplatform.dex.test.matchers.ProduceError.produce
-import net.ceedubs.ficus.Ficus._
 import org.scalatest.matchers.should.Matchers
+import pureconfig.ConfigSource
 
 import scala.concurrent.duration._
 
 class MatcherSettingsSpecification extends BaseSettingsSpecification with Matchers with DiffMatcherWithImplicits {
 
   "MatcherSettings" should "read values" in {
-    val config   = configWithSettings()
-    val settings = config.as[MatcherSettings]("TN.dex")
+    val config = configWithSettings()
+    val settings = ConfigSource.fromConfig(config).at("TN.dex").loadOrThrow[MatcherSettings]
 
     settings.id should be("matcher-1")
     settings.accountStorage should be(AccountStorage.Settings.InMem(ByteStr.decodeBase64("c3lrYWJsZXlhdA==").get))
@@ -72,11 +72,11 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     settings.blacklistedAssets shouldBe Set(AssetPair.extractAsset("AbunLGErT5ctzVN8MVjb4Ad9YgjpubB8Hqb17VxzfAck").get.asInstanceOf[IssuedAsset])
     settings.blacklistedNames.map(_.pattern.pattern()) shouldBe Seq("b")
     settings.blacklistedAddresses shouldBe Set("3N5CBq8NYBMBU3UVS3rfMgaQEpjZrkWcBAD")
-    settings.orderBookSnapshotHttpCache shouldBe OrderBookHttpInfo.Settings(
+    settings.orderBookHttp shouldBe OrderBookHttpInfo.Settings(
       depthRanges = List(1, 5, 333),
       defaultDepth = Some(5)
     )
-    settings.eventsQueue.tpe shouldBe "kafka"
+    settings.eventsQueue.`type` shouldBe "kafka"
     settings.eventsQueue.local shouldBe LocalMatcherQueue.Settings(enableStoring = false, 1.day, 99, cleanBeforeConsume = false)
     settings.eventsQueue.kafka.topic shouldBe "some-events"
     settings.eventsQueue.kafka.consumer.fetchMaxDuration shouldBe 10.seconds
@@ -88,10 +88,11 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
         maxFailures = 999,
         callTimeout = 123.seconds,
         resetTimeout = 1.day
-      ))
+      )
+    )
     settings.processConsumedTimeout shouldBe 663.seconds
-    settings.orderFee should matchTo(Map[Long, OrderFeeSettings](-1L -> PercentSettings(AssetType.AMOUNT, 0.1)))
-    settings.deviation shouldBe DeviationsSettings(enabled = true, 1000000, 1000000, 1000000)
+    settings.orderFee should matchTo(Map[Long, OrderFeeSettings](-1L -> PercentSettings(AssetType.Amount, 0.1)))
+    settings.maxPriceDeviations shouldBe DeviationsSettings(enable = true, 1000000, 1000000, 1000000)
     settings.allowedAssetPairs shouldBe Set.empty[AssetPair]
     settings.allowedOrderVersions shouldBe Set(11, 22)
     settings.orderRestrictions shouldBe Map.empty[AssetPair, OrderRestrictionsSettings]
@@ -103,14 +104,15 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     val expectedJwtPublicKey = """foo
 bar
 baz"""
-    settings.webSocketSettings should matchTo(
+    settings.webSockets should matchTo(
       WebSocketSettings(
-        externalClientHandler = WsExternalClientHandlerActor.Settings(1.day, 3.days, expectedJwtPublicKey, SubscriptionsSettings(20, 20), WsHealthCheckSettings(9.minutes, 129.minutes)),
+        externalClientHandler = WsExternalClientHandlerActor
+          .Settings(1.day, 3.days, expectedJwtPublicKey, SubscriptionsSettings(20, 20), WsHealthCheckSettings(9.minutes, 129.minutes)),
         internalBroadcast = WsInternalBroadcastActor.Settings(923.millis),
         internalClientHandler = WsInternalClientHandlerActor.Settings(WsHealthCheckSettings(10.minutes, 374.minutes))
       )
     )
-    settings.addressActorSettings should matchTo(AddressActor.Settings(100.milliseconds, 18.seconds, 400))
+    settings.addressActor should matchTo(AddressActor.Settings(100.milliseconds, 18.seconds, 400))
   }
 
   "DeviationsSettings in MatcherSettings" should "be validated" in {
@@ -119,6 +121,11 @@ baz"""
       s"""
          |max-price-deviations {
          |  enable = foobar
+         |  max-price-profit = 1000000
+         |  max-price-loss = 1000000
+         |  max-fee-deviation = 1000000
+         |
+         |  # TODO COMPAT
          |  profit = 1000000
          |  loss = 1000000
          |  fee = 1000000
@@ -129,6 +136,11 @@ baz"""
       s"""
          |max-price-deviations {
          |  enable = yes
+         |  max-price-profit = -1000000
+         |  max-price-loss = 1000000
+         |  max-fee-deviation = 1000000
+         |
+         |  # TODO COMPAT
          |  profit = -1000000
          |  loss = 1000000
          |  fee = 1000000
@@ -139,6 +151,11 @@ baz"""
       s"""
          |max-price-deviations {
          |  enable = yes
+         |  max-price-profit = 1000000
+         |  max-price-loss = 0
+         |  max-fee-deviation = -1000000
+         |
+         |  # TODO COMPAT
          |  profit = 1000000
          |  loss = 0
          |  fee = -1000000
@@ -146,19 +163,15 @@ baz"""
      """.stripMargin
 
     def configStr(x: String): Config = configWithSettings(deviationsStr = x)
-    val settingsInvalidEnable        = getSettingByConfig(configStr(invalidEnable))
-    val settingsInvalidProfit        = getSettingByConfig(configStr(invalidProfit))
-    val settingsInvalidLossAndFee    = getSettingByConfig(configStr(invalidLossAndFee))
+    val settingsInvalidEnable = getSettingByConfig(configStr(invalidEnable))
+    val settingsInvalidProfit = getSettingByConfig(configStr(invalidProfit))
+    val settingsInvalidLossAndFee = getSettingByConfig(configStr(invalidLossAndFee))
 
-    settingsInvalidEnable shouldBe Left("Invalid setting max-price-deviations.enable value: foobar")
-
-    settingsInvalidProfit shouldBe
-      Left("Invalid setting max-price-deviations.profit value: -1000000 (required 0 < percent)")
-
-    settingsInvalidLossAndFee shouldBe
-      Left(
-        "Invalid setting max-price-deviations.loss value: 0 (required 0 < percent), " +
-          "Invalid setting max-price-deviations.fee value: -1000000 (required 0 < percent)")
+    settingsInvalidEnable should produce("TN.dex.max-price-deviations.enable")
+    settingsInvalidProfit should produce("TN.dex.max-price-deviations.max-price-profit")
+    Seq("TN.dex.max-price-deviations.max-fee-deviation", "TN.dex.max-price-deviations.max-price-loss").foreach { message =>
+      settingsInvalidLossAndFee should produce(message)
+    }
   }
 
   "OrderFeeSettings in MatcherSettings" should "be validated" in {
@@ -184,7 +197,7 @@ baz"""
          |}
        """.stripMargin
 
-    val invalidAssetTypeAndPercent =
+    val invalidAssetType =
       s"""
          |order-fee {
          |  -1: {
@@ -205,7 +218,28 @@ baz"""
          |}
        """.stripMargin
 
-    val invalidAssetAndFee =
+    val invalidPercent =
+      s"""
+         |order-fee {
+         |  -1: {
+         |    mode = percent
+         |    dynamic {
+         |      base-maker-fee = 300000
+         |      base-taker-fee = 300000
+         |    }
+         |    fixed {
+         |      asset = WAVES
+         |      min-fee = 300000
+         |    }
+         |    percent {
+         |      asset-type = spending
+         |      min-fee = 121.2
+         |    }
+         |  }
+         |}
+       """.stripMargin
+
+    val invalidAsset =
       s"""
          |order-fee {
          |  -1: {
@@ -217,6 +251,27 @@ baz"""
          |    fixed {
          |      asset = ;;;;
          |      min-fee = -4000000
+         |    }
+         |    percent {
+         |      asset-type = test
+         |      min-fee = 50
+         |    }
+         |  }
+         |}
+       """.stripMargin
+
+    val invalidFee =
+      s"""
+         |order-fee {
+         |  -1: {
+         |    mode = fixed
+         |    dynamic {
+         |      base-maker-fee = 300000
+         |      base-taker-fee = 300000
+         |    }
+         |    fixed {
+         |      asset = DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J
+         |      min-fee = -300000
          |    }
          |    percent {
          |      asset-type = test
@@ -247,29 +302,15 @@ baz"""
          |}
        """.stripMargin
 
-    def configStr(x: String): Config    = configWithSettings(orderFeeStr = x)
-    val settingsInvalidMode             = getSettingByConfig(configStr(invalidMode()))
-    val settingsDeprecatedNameMode      = getSettingByConfig(configStr(invalidMode("waves")))
-    val settingsInvalidTypeAndPercent   = getSettingByConfig(configStr(invalidAssetTypeAndPercent))
-    val settingsInvalidAssetAndFee      = getSettingByConfig(configStr(invalidAssetAndFee))
-    val settingsInvalidFeeInDynamicMode = getSettingByConfig(configStr(invalidFeeInDynamicMode))
+    def configStr(x: String): Config = configWithSettings(orderFeeStr = x)
 
-    settingsInvalidMode shouldBe Left("Invalid setting order-fee value: Invalid setting order-fee.-1.mode value: invalid")
-
-    settingsDeprecatedNameMode shouldBe Left("Invalid setting order-fee value: Invalid setting order-fee.-1.mode value: waves")
-
-    settingsInvalidTypeAndPercent shouldBe
-      Left(
-        "Invalid setting order-fee value: Invalid setting order-fee.-1.percent.asset-type value: test, " +
-          "Invalid setting order-fee.-1.percent.min-fee value: 121.2 (required 0 < percent <= 100)")
-
-    settingsInvalidAssetAndFee shouldBe
-      Left(
-        "Invalid setting order-fee value: Invalid setting order-fee.-1.fixed.asset value: ;;;;, " +
-          "Invalid setting order-fee.-1.fixed.min-fee value: -4000000 (required 0 < fee)")
-    settingsInvalidFeeInDynamicMode shouldBe Left(
-      s"Invalid setting order-fee value: Invalid setting order-fee.-1.dynamic.base-maker-fee value: -4500000 (required 0 < base maker fee)"
-    )
+    getSettingByConfig(configStr(invalidMode())) should produce("TN.dex.order-fee.-1.mode.+\n.+invalid".r)
+    getSettingByConfig(configStr(invalidMode("TN"))) should produce("TN.dex.order-fee.-1.mode.+\n.+TN".r)
+    getSettingByConfig(configStr(invalidAssetType)) should produce("TN.dex.order-fee.-1.percent.asset-type.+\n.+test".r)
+    getSettingByConfig(configStr(invalidPercent)) should produce("order-fee.-1.percent.min-fee")
+    getSettingByConfig(configStr(invalidAsset)) should produce("order-fee.-1.fixed.asset.+\n.+;".r)
+    getSettingByConfig(configStr(invalidFee)) should produce("order-fee.-1.fixed.min-fee")
+    getSettingByConfig(configStr(invalidFeeInDynamicMode)) should produce("order-fee.-1.dynamic.base-maker-fee")
   }
 
   "Allowed asset pairs in MatcherSettings" should "be validated" in {
@@ -308,113 +349,24 @@ baz"""
       """.stripMargin
 
     getSettingByConfig(configStr(incorrectAssetsCount)) should produce(
-      "Invalid setting allowed-asset-pairs value: TN-BTC-ETH (incorrect assets count, expected 2 but got 3), ETH (incorrect assets count, expected 2 but got 1)"
+      """TN.dex.allowed-asset-pairs.1.+
+.+TN-BTC-ETH.+incorrect assets count, expected 2 but got 3.+
+.+TN.dex.allowed-asset-pairs.2.+
+.+ETH.+incorrect assets count, expected 2 but got 1""".r
     )
 
     getSettingByConfig(configStr(incorrectAssets)) should produce(
-      "Invalid setting allowed-asset-pairs value: TN-;;; (requirement failed: Wrong char ';' in Base58 string ';;;')"
+      "TN.dex.allowed-asset-pairs.0.+\n.+TN-;;;.+requirement failed: Wrong char ';' in Base58 string ';;;'".r
     )
 
     getSettingByConfig(configStr(duplicates)).explicitGet().allowedAssetPairs.size shouldBe 2
 
     getSettingByConfig(configStr(nonEmptyCorrect)).explicitGet().allowedAssetPairs shouldBe
-      Set(
-        AssetPair.createAssetPair("TN", "BTC").get,
-        AssetPair.createAssetPair("TN", "ETH").get,
-        AssetPair.createAssetPair("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "TN").get
-      )
-  }
-
-  "Order restrictions" should "be validated" in {
-
-    def configStr(x: String): Config = configWithSettings(orderRestrictionsStr = x)
-
-    val nonEmptyCorrect =
-      """order-restrictions = {
-        | "TN-BTC": {
-        |   step-amount = 0.001
-        |   min-amount  = 0.001
-        |   max-amount  = 1000000
-        | },
-        | "ETH-USD": {
-        |   step-amount = 0.01
-        |   min-amount  = 0.05
-        |   max-amount  = 20000
-        | }
-        |}
-      """.stripMargin
-
-    val incorrectPairAndStepAmount =
-      """order-restrictions = {
-        | "TN-BTC": {
-        |   step-amount = -0.013
-        |   min-amount  = 0.001
-        |   max-amount  = 1000000
-        | },
-        | "ETH-;;;": {
-        |   step-amount = 0.01
-        |   min-amount  = 0.05
-        |   max-amount  = 20000
-        | }
-        |}
-      """.stripMargin
-
-    val incorrectMinAndMax =
-      """order-restrictions = {
-        | "TN-BTC": {
-        |   step-amount = 0.013
-        |   min-amount  = 0.001
-        |   max-amount  = 1000000
-        |   min-price   = 100
-        |   max-price   = 10
-        | },
-        | "ETH-TN": {
-        |   step-price = 0.14
-        |   max-price  = 17
-        | }
-        |}
-      """.stripMargin
-
-    withClue("default") {
-      getSettingByConfig(configStr("")).explicitGet().orderRestrictions shouldBe Map.empty
-    }
-
-    withClue("nonempty correct") {
-      getSettingByConfig(configStr(nonEmptyCorrect)).explicitGet().orderRestrictions shouldBe
-        Map(
-          AssetPair.createAssetPair("TN", "BTC").get ->
-            OrderRestrictionsSettings(
-              stepAmount = 0.001,
-              minAmount = 0.001,
-              maxAmount = 1000000,
-              stepPrice = OrderRestrictionsSettings.Default.stepPrice,
-              minPrice = OrderRestrictionsSettings.Default.minPrice,
-              maxPrice = OrderRestrictionsSettings.Default.maxPrice
-            ),
-          AssetPair.createAssetPair("ETH", "USD").get ->
-            OrderRestrictionsSettings(
-              stepAmount = 0.01,
-              minAmount = 0.05,
-              maxAmount = 20000,
-              stepPrice = OrderRestrictionsSettings.Default.stepPrice,
-              minPrice = OrderRestrictionsSettings.Default.minPrice,
-              maxPrice = OrderRestrictionsSettings.Default.maxPrice
-            )
-        )
-    }
-
-    withClue("incorrect pair and step amount") {
-      getSettingByConfig(configStr(incorrectPairAndStepAmount)) should produce(
-        "Invalid setting order-restrictions.TN-BTC.step-amount value: -0.013 (required 0 < value)," +
-        " Can't parse asset pair 'ETH-;;;'"
-
-      )
-    }
-
-    withClue("incorrect min and max") {
-      getSettingByConfig(configStr(incorrectMinAndMax)) should produce(
-        "Required order-restrictions.TN-BTC.min-price < order-restrictions.TN-BTC.max-price")
-    }
+    Set(
+      AssetPair.createAssetPair("TN", "BTC").get,
+      AssetPair.createAssetPair("TN", "ETH").get,
+      AssetPair.createAssetPair("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "TN").get
+    )
   }
 
   "Matching rules" should "be validated" in {
@@ -437,17 +389,17 @@ baz"""
 
     def incorrectRulesOrder(firstRuleOffset: Long, secondRuleOffset: Long): String =
       s"""matching-rules = {
-        |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
-        |    {
-        |      start-offset = $firstRuleOffset
-        |      tick-size    = 0.002
-        |    },
-        |    {
-        |      start-offset = $secondRuleOffset
-        |      tick-size    = 0.001
-        |    }
-        |  ]
-        |}
+         |  "TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS": [
+         |    {
+         |      start-offset = $firstRuleOffset
+         |      tick-size    = 0.002
+         |    },
+         |    {
+         |      start-offset = $secondRuleOffset
+         |      tick-size    = 0.001
+         |    }
+         |  ]
+         |}
       """.stripMargin
 
     withClue("default") {
@@ -457,23 +409,25 @@ baz"""
     withClue("nonempty correct") {
       getSettingByConfig(configStr(nonEmptyCorrect)).explicitGet().matchingRules shouldBe Map(
         AssetPair.fromString("TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get ->
-          NonEmptyList[DenormalizedMatchingRule](
-            DenormalizedMatchingRule(100L, 0.002),
-            List(
-              DenormalizedMatchingRule(500L, 0.001)
-            )
+        NonEmptyList[DenormalizedMatchingRule](
+          DenormalizedMatchingRule(100L, 0.002),
+          List(
+            DenormalizedMatchingRule(500L, 0.001)
           )
+        )
       )
     }
 
     withClue("incorrect rules order: 100, 100") {
       getSettingByConfig(configStr(incorrectRulesOrder(100, 100))) should produce(
-        "Invalid setting matching-rules value: Rules should be ordered by offset, but they are: 100, 100")
+        "TN.dex.matching-rules.TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS.+\n.+but they are: 100, 100".r
+      )
     }
 
     withClue("incorrect rules order: 100, 88") {
       getSettingByConfig(configStr(incorrectRulesOrder(100, 88))) should produce(
-        "Invalid setting matching-rules value: Rules should be ordered by offset, but they are: 100, 88")
+        "TN.dex.matching-rules.TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS.+\n.+but they are: 100, 88".r
+      )
     }
   }
 
@@ -483,13 +437,15 @@ baz"""
       s"""
          | subscriptions {
          |   max-order-book-number = 0
-         |   max-address-number = 1
+         |   max-address-number = 0
          | }
          """.stripMargin
 
     getSettingByConfig(configWithSettings(subscriptionsSettings = invalidSubscriptionsSettings)) should produce(
-      "Invalid setting web-sockets.external-client-handler.subscriptions.max-order-book-number value: 0 (max order book number should be > 1), " +
-        "Invalid setting web-sockets.external-client-handler.subscriptions.max-address-number value: 1 (max address number should be > 1)"
+      """TN.dex.web-sockets.external-client-handler.subscriptions.max-address-number.+
+.+should be > 0
+.+TN.dex.web-sockets.external-client-handler.subscriptions.max-order-book-number.+
+.+should be > 0""".r
     )
   }
 }

@@ -12,7 +12,7 @@ import com.wavesplatform.dex.domain.order.Order.Id
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
 import com.wavesplatform.dex.it.waves.MkWavesEntities.IssueResults
 import com.wavesplatform.it.MatcherSuiteBase
-import com.wavesplatform.wavesj.Transfer
+import im.mak.waves.transactions.mass.Transfer
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -21,7 +21,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
 
 
   private val issuer = alice
-  private val now    = System.currentTimeMillis()
+  private val now = System.currentTimeMillis()
 
   private val IssueResults(issueAsset1Tx, issuedAsset1Id, issuedAsset1) =
     mkIssueExtended(issuer, "asset1", Long.MaxValue, decimals = 0, timestamp = now)
@@ -52,7 +52,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
     Seq(
       AssetPair(Waves, issuedAsset1),
       AssetPair(Waves, issuedAsset2),
-      AssetPair(issuedAsset2, issuedAsset1),
+      AssetPair(issuedAsset2, issuedAsset1)
     )
 
   private val traders: Seq[KeyPair] = (1 to 10).map(i => KeyPair(s"trader-$i".getBytes(StandardCharsets.UTF_8)))
@@ -72,7 +72,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
     broadcastAndAwait(issueAssetTxs: _*)
 
     val transferAssetsTxs = issueAssetTxs.map { issueTx =>
-      mkMassTransfer(issuer, IssuedAsset(issueTx.getId), traders.map(x => new Transfer(x.toAddress, sendAmount)).to(List))
+      mkMassTransfer(issuer, IssuedAsset(issueTx.id()), traders.map(x => new Transfer(x.toAddress, sendAmount)).to(List))
     }
 
     broadcastAndAwait(transferAssetsTxs: _*)
@@ -82,19 +82,19 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
   }
 
   "place orders and check their statuses" in {
-    val ts                 = System.currentTimeMillis()
+    val ts = System.currentTimeMillis()
     val accountOrderInPair = 60
 
     val orders = for {
       account <- traders
-      pair    <- pairs
-      i       <- 1 to accountOrderInPair
+      pair <- pairs
+      i <- 1 to accountOrderInPair
     } yield mkOrder(account, pair, OrderType.SELL, 100000L, 10000L, ts = ts + i)
 
     Await
       .result(
         for {
-          r <- Future.traverse { orders.grouped(orders.size / 5) }(requests)
+          r <- Future.traverse(orders.grouped(orders.size / 5))(requests)
           _ <- {
             val totalSent = r.map(_.count(_._3)).sum
             dex1.asyncApi.waitForCurrentOffset(_ == totalSent - 1)
@@ -108,13 +108,12 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
       }
   }
 
-  private def request(order: Order): Future[(Order.Id, HttpOrderStatus.Status, Boolean)] = {
+  private def request(order: Order): Future[(Order.Id, HttpOrderStatus.Status, Boolean)] =
     for {
       // TODO happens rarely, try to remove after migration to new akka-http
-      sent   <- dex1.asyncApi.tryPlace(order).map(_ => true).recover { case x => log.error("Some error with order placement occurred:", x); false }
+      sent <- dex1.asyncTryApi.place(order).map(_ => true).recover { case x => log.error("Some error with order placement occurred:", x); false }
       status <- dex1.asyncApi.orderStatus(order)
     } yield (order.id(), status.status, sent)
-  }
 
   private def requests(orders: Seq[Order]): Future[Seq[(Id, Status, Boolean)]] = Future.traverse(orders)(request)
 }

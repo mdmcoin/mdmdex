@@ -19,11 +19,12 @@ import scala.concurrent.duration.DurationInt
 class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChecks {
 
   private val messagesInterval = 100.millis
+
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
     .parseString(s"""TN.dex {
-         |  price-assets = [ "$UsdId", "$BtcId", "TN"]
-         |  web-sockets.internal-broadcast.messages-interval = $messagesInterval
-         |}""".stripMargin)
+                    |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
+                    |  web-sockets.internal-broadcast.messages-interval = $messagesInterval
+                    |}""".stripMargin)
     .withFallback(jwtPublicKeyConfig)
 
   override protected def beforeAll(): Unit = {
@@ -70,8 +71,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 1,
               executedFee = 0.0008,
               executedPrice = 3,
+              totalExecutedPriceAssets = 3,
               isMarket = false
-            ))
+            )
+          )
         }
 
         orderEvents(order2.id()) should matchTo {
@@ -83,8 +86,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 1,
               executedFee = 0.04,
               executedPrice = 3,
+              totalExecutedPriceAssets = 3,
               isMarket = false
-            ))
+            )
+          )
         }
 
         wsc.close()
@@ -115,8 +120,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 1,
               executedFee = 0.004,
               executedPrice = 3,
+              totalExecutedPriceAssets = 3,
               isMarket = false
-            ))
+            )
+          )
         }
 
         orderEvents(order2.id()) should matchTo {
@@ -128,8 +135,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 2,
               executedFee = 0.04,
               executedPrice = 3,
+              totalExecutedPriceAssets = 6,
               isMarket = false
-            ))
+            )
+          )
         }
 
         orderEvents(order3.id()) should matchTo {
@@ -141,6 +150,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 2,
               executedFee = 0.02666666,
               executedPrice = 3,
+              totalExecutedPriceAssets = 9,
               isMarket = true
             ),
             mkExecutedFullOrder(
@@ -150,6 +160,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 1,
               executedFee = 0.01333333,
               executedPrice = 3,
+              totalExecutedPriceAssets = 3,
               isMarket = true
             )
           )
@@ -160,7 +171,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
 
       "one cancel" in {
         val order = mkOrderDP(bob, wavesUsdPair, OrderType.SELL, 5.waves, 3, matcherFee = 0.004.btc, feeAsset = btc)
-        val wsc   = mkWsInternalConnection()
+        val wsc = mkWsInternalConnection()
 
         placeAndAwaitAtDex(order)
         cancelAndAwait(bob, order)
@@ -178,7 +189,8 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               order,
               OrderStatus.Cancelled(0.waves, 0.btc),
               avgWeighedPrice = 0
-            ))
+            )
+          )
         }
 
         wsc.close()
@@ -195,7 +207,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
         orders.foreach(dex1.api.place)
         orders.foreach(dex1.api.waitForOrderStatus(_, Status.Filled))
 
-        val buffer      = wsc.receiveAtLeastN[WsOrdersUpdate](1)
+        val buffer = wsc.receiveAtLeastN[WsOrdersUpdate](1)
         val orderEvents = buffer.orderEvents
         orderEvents.keySet should matchTo(orders.map(_.id()).toSet)
 
@@ -208,8 +220,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 2,
               executedFee = 0.004,
               executedPrice = 3,
+              totalExecutedPriceAssets = 6,
               isMarket = false
-            ))
+            )
+          )
         }
 
         orderEvents(order2.id()) should matchTo {
@@ -221,8 +235,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 2,
               executedFee = 0.04,
               executedPrice = 2,
+              totalExecutedPriceAssets = 4,
               isMarket = false
-            ))
+            )
+          )
         }
 
         orderEvents(order3.id()) should matchTo {
@@ -234,6 +250,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 2,
               executedFee = 0.02,
               executedPrice = 3,
+              totalExecutedPriceAssets = 10,
               isMarket = false
             ),
             mkExecutedFullOrder(
@@ -243,6 +260,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 2,
               executedFee = 0.02,
               executedPrice = 2,
+              totalExecutedPriceAssets = 4,
               isMarket = false
             )
           )
@@ -267,7 +285,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
         dex1.api.waitForOrderStatus(order4, Status.PartiallyFilled)
         Thread.sleep(messagesInterval.toMillis * 2)
 
-        val buffer      = wsc.receiveAtLeastN[WsOrdersUpdate](1)
+        val buffer = wsc.receiveAtLeastN[WsOrdersUpdate](1)
         val orderEvents = buffer.orderEvents
         orderEvents.keySet should matchTo(orders.map(_.id()).toSet)
 
@@ -280,6 +298,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 2,
               executedFee = 0.04,
               executedPrice = 3,
+              totalExecutedPriceAssets = 6,
               isMarket = false
             )
           )
@@ -294,8 +313,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 1,
               executedFee = 0.04,
               executedPrice = 0.005,
+              totalExecutedPriceAssets = 0.005,
               isMarket = false
-            ))
+            )
+          )
         }
 
         orderEvents(order3.id()) should matchTo {
@@ -312,6 +333,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 2,
               executedFee = 4,
               executedPrice = 3,
+              totalExecutedPriceAssets = 6,
               isMarket = false
             )
           )
@@ -326,8 +348,10 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
               executedAmount = 1,
               executedFee = 0.001,
               executedPrice = 0.005,
+              totalExecutedPriceAssets = 0.005,
               isMarket = false
-            ))
+            )
+          )
         }
 
         checkItemsOrder(buffer)
@@ -336,26 +360,37 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
     }
   }
 
-  private def mkExecutedFullOrder(order: Order,
-                                  status: OrderStatus,
-                                  avgWeighedPrice: Double,
-                                  executedAmount: Double,
-                                  executedFee: Double,
-                                  executedPrice: Double,
-                                  isMarket: Boolean): WsFullOrder =
-    mkFullOrder(order, status, avgWeighedPrice, WsExecutionInfo(executedAmount, executedFee, executedPrice).some, isMarket)
+  private def mkExecutedFullOrder(
+    order: Order,
+    status: OrderStatus,
+    avgWeighedPrice: Double,
+    executedAmount: Double,
+    executedFee: Double,
+    executedPrice: Double,
+    totalExecutedPriceAssets: Double,
+    isMarket: Boolean
+  ): WsFullOrder =
+    mkFullOrder(
+      order,
+      status,
+      avgWeighedPrice,
+      WsExecutionInfo(executedAmount, executedFee, executedPrice, totalExecutedPriceAssets).some,
+      isMarket
+    )
 
-  private def mkFullOrder(order: Order,
-                          status: OrderStatus,
-                          avgWeighedPrice: Double,
-                          executionInfo: Option[WsExecutionInfo] = none,
-                          isMarket: Boolean = false): WsFullOrder = {
+  private def mkFullOrder(
+    order: Order,
+    status: OrderStatus,
+    avgWeighedPrice: Double,
+    executionInfo: Option[WsExecutionInfo] = none,
+    isMarket: Boolean = false
+  ): WsFullOrder = {
     val amountAssetDecimals = efc.unsafeAssetDecimals(order.assetPair.amountAsset)
-    val priceAssetDecimals  = efc.unsafeAssetDecimals(order.assetPair.priceAsset)
+    val priceAssetDecimals = efc.unsafeAssetDecimals(order.assetPair.priceAsset)
 
     def denormalizeAmount(value: Long): Double = Denormalization.denormalizeAmountAndFee(value, amountAssetDecimals).toDouble
-    def denormalizeFee(value: Long): Double    = Denormalization.denormalizeAmountAndFee(value, order.feeAsset).toDouble
-    def denormalizePrice(value: Long): Double  = Denormalization.denormalizePrice(value, amountAssetDecimals, priceAssetDecimals).toDouble
+    def denormalizeFee(value: Long): Double = Denormalization.denormalizeAmountAndFee(value, order.feeAsset).toDouble
+    def denormalizePrice(value: Long): Double = Denormalization.denormalizePrice(value, amountAssetDecimals, priceAssetDecimals).toDouble
 
     WsFullOrder(
       id = order.id(),
@@ -376,7 +411,8 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
       eventTimestamp = 0L,
       executedAmount = executionInfo.map(_.amount),
       executedFee = executionInfo.map(_.fee),
-      executionPrice = executionInfo.map(_.price)
+      executionPrice = executionInfo.map(_.price),
+      totalExecutedPriceAssets = executionInfo.map(_.totalPriceAssets)
     )
   }
 
@@ -387,4 +423,5 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
         next.eventTimestamp should be >= prev.eventTimestamp
     }
   }
+
 }

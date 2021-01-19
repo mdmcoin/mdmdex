@@ -14,7 +14,7 @@ Matcher Extension in matcher-node image is already configured. Extension uses po
 
 ```
 # gRPC integration settings for Waves Node
-waves.dex.grpc.integration {
+TN.dex.grpc.integration {
 
     # Extension's host
     host = localhost
@@ -36,7 +36,7 @@ waves.dex {
   account-storage {
    
     type = "not-specified" # "in-mem" or "encrypted-file"
-    in-mem.seed-in-base64 = ""
+    in-mem.seed-in-base-64 = ""
     
     encrypted-file.password = "password-for-file"
   }

@@ -4,6 +4,7 @@ pipeline {
     }
     options {
         ansiColor('xterm')
+        timeout(time: 45, unit: 'MINUTES')
     }
     parameters {
         string(name: 'SBT_THREAD_NUMBER', defaultValue: '6', description: '')
@@ -91,10 +92,10 @@ pipeline {
                                           ''', returnStdout: true)
                     currentBuild.description = "<a href='https://overload.yandex.net/${OVERLOAD}'>Yandex</a> <br/> <a href='${GRAFANA}'>Grafana</a>"
                 }
-                cleanup {
-                    cleanWs()
-                }
             }
+        }
+        cleanup {
+            cleanWs()
         }
     }
 }

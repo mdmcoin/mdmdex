@@ -1,32 +1,23 @@
 package com.wavesplatform.dex.it
 
-import com.wavesplatform.dex.domain.account.AddressScheme
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.order.Order
-import com.wavesplatform.wavesj.Transaction
-import com.wavesplatform.wavesj.json.WavesJsonMapper
-import com.wavesplatform.wavesj.transactions.ExchangeTransaction
+import im.mak.waves.transactions.{ExchangeTransaction, Transaction}
 import play.api.libs.json._
-import play.api.libs.json.jackson.PlayJsonModule
 
 import scala.util.{Failure, Success, Try}
 
 package object json {
 
-  private val mapper = new WavesJsonMapper(AddressScheme.current.chainId)
-  mapper.registerModule(new PlayJsonModule(JsonParserSettings()))
-
-  private def wavesJDeserializeTx(json: JsValue): Transaction = mapper.readValue(json.toString, classOf[Transaction])
-
   implicit val transactionFormat: Format[Transaction] = Format[Transaction](
     Reads { json =>
-      Try(wavesJDeserializeTx(json)) match {
+      Try(Transaction.fromJson(json.toString)) match {
         case Success(x) => JsSuccess(x)
         case Failure(e) => JsError(e.getMessage)
       }
     },
-    Writes(tx => Json.parse(mapper.writeValueAsString(tx)))
+    Writes(tx => Json.parse(tx.toJson))
   )
 
   implicit val byteStrFormat: Format[ByteStr] = Format(
@@ -66,11 +57,12 @@ package object json {
           val assetPair = (
             assetPairStrArr match {
               case Array(amtAssetStr, prcAssetStr) => AssetPair.createAssetPair(amtAssetStr, prcAssetStr)
-              case _                               => throw new Exception(s"$assetPairStr (incorrect assets count, expected 2 but got ${assetPairStrArr.size})")
+              case _ => throw new Exception(s"$assetPairStr (incorrect assets count, expected 2 but got ${assetPairStrArr.size})")
             }
           ).fold(ex => throw new Exception(s"$assetPairStr (${ex.getMessage})"), identity)
           assetPair -> offset
       }
     }
   }
+
 }
