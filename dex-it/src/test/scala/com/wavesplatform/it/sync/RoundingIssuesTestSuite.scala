@@ -7,7 +7,7 @@ import com.wavesplatform.dex.api.http.entities.{HttpOrderStatus, HttpV0LevelAgg}
 import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.order.OrderType
 import com.wavesplatform.it.MatcherSuiteBase
-import im.mak.waves.transactions.ExchangeTransaction
+import im.mak.waves.transactions.{ExchangeTransaction}
 
 class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
@@ -40,6 +40,10 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
       case (owner, ao) =>
         dex1.api.orderStatusInfoByIdWithSignature(owner, ao).totalExecutedPriceAssets shouldBe totalExecutedPriceAssets
     }
+
+
+    val txs = dex1.api.waitForTransactionsByOrder(counter, 1)
+    log.warn(s"Transactions: ${txs.map(_.toJson).mkString("\n")}")
 
     val tx = waitForOrderAtNode(counter)
     dex1.api.cancel(alice, counter)
