@@ -219,7 +219,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
           minAmount = 0.001,
           maxAmount = 1000000,
           stepPrice = 0.002,
-          minPrice = 0.003,
+          minPrice = 0.04,
           maxPrice = 500000
         )
       )
@@ -262,15 +262,15 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
           minAmount = 0.001,
           maxAmount = 1000000,
           stepPrice = 0.002,
-          minPrice = 0.003,
+          minPrice = 0.04,
           maxPrice = 500000
         ),
-        AssetPair.createAssetPair("ETH", "WAVES").get ->
+        AssetPair.createAssetPair("ETH", "TN").get ->
         OrderRestrictionsSettings(
           stepAmount = 0.0001,
           minAmount = 0.01,
           maxAmount = 2000,
-          stepPrice = 0.003,
+          stepPrice = 0.04,
           minPrice = 0.004,
           maxPrice = 10000
         ),
@@ -279,7 +279,7 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
           stepAmount = 0.1,
           minAmount = 0.1,
           maxAmount = 200,
-          stepPrice = 0.003,
+          stepPrice = 0.04,
           minPrice = 0.004,
           maxPrice = 15000
         )
@@ -310,10 +310,10 @@ class OrderRestrictionSpecification extends BaseSettingsSpecification with Match
           minAmount = 0.001,
           maxAmount = 1000000,
           stepPrice = 0.002,
-          minPrice = 0.003,
+          minPrice = 0.04,
           maxPrice = OrderRestrictionsSettings.Default.maxPrice
         ),
-        AssetPair.createAssetPair("ETH", "WAVES").get ->
+        AssetPair.createAssetPair("ETH", "TN").get ->
         OrderRestrictionsSettings(
           stepAmount = 0.0001,
           minAmount = OrderRestrictionsSettings.Default.minAmount,
