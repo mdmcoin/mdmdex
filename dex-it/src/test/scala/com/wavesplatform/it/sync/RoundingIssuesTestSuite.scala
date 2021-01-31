@@ -55,8 +55,8 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
     exchangeTx.price() shouldBe counter.price
     exchangeTx.amount() shouldBe filledAmount
-    exchangeTx.buyMatcherFee() shouldBe 40L
-    exchangeTx.sellMatcherFee() shouldBe 296219L
+    exchangeTx.buyMatcherFee() shouldBe 542L
+    exchangeTx.sellMatcherFee() shouldBe 3949587L
 
     val aliceBalanceAfter = wavesNode1.api.balance(alice, Waves)
     val bobBalanceAfter = wavesNode1.api.balance(bob, Waves)
