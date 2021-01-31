@@ -9,11 +9,15 @@ object GenesisConfig {
 
   val chainId = config.getString("TN.blockchain.custom.address-scheme-character").head.toByte
 
-  def setupAddressScheme(): Unit =
+  def setupAddressScheme(): Unit = {
     if (AddressScheme.current.chainId != chainId)
       AddressScheme.current = new AddressScheme {
         override val chainId: Byte = GenesisConfig.chainId
       }
+
+    import im.mak.waves.transactions.WavesConfig
+    WavesConfig.chainId(GenesisConfig.chainId)
+  }
 
   setupAddressScheme()
 }

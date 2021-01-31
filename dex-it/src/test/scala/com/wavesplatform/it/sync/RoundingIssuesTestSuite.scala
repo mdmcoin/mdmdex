@@ -7,7 +7,7 @@ import com.wavesplatform.dex.api.http.entities.{HttpOrderStatus, HttpV0LevelAgg}
 import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.order.OrderType
 import com.wavesplatform.it.MatcherSuiteBase
-import im.mak.waves.transactions.ExchangeTransaction
+import im.mak.waves.transactions.{ExchangeTransaction}
 
 class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
@@ -41,6 +41,10 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
         dex1.api.orderStatusInfoByIdWithSignature(owner, ao).totalExecutedPriceAssets shouldBe totalExecutedPriceAssets
     }
 
+
+    val txs = dex1.api.waitForTransactionsByOrder(counter, 1)
+    log.warn(s"Transactions: ${txs.map(_.toJson).mkString("\n")}")
+
     val tx = waitForOrderAtNode(counter)
     dex1.api.cancel(alice, counter)
 
@@ -51,8 +55,8 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
     exchangeTx.price() shouldBe counter.price
     exchangeTx.amount() shouldBe filledAmount
-    exchangeTx.buyMatcherFee() shouldBe 40L
-    exchangeTx.sellMatcherFee() shouldBe 296219L
+    exchangeTx.buyMatcherFee() shouldBe 542L
+    exchangeTx.sellMatcherFee() shouldBe 3949587L
 
     val aliceBalanceAfter = wavesNode1.api.balance(alice, Waves)
     val bobBalanceAfter = wavesNode1.api.balance(bob, Waves)

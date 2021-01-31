@@ -1,12 +1,12 @@
 package com.wavesplatform.it.api
 
 import java.util.concurrent.ThreadLocalRandom
-
 import cats.Id
 import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.api.http.entities.{HttpOrderBookHistoryItem, HttpOrderStatus}
 import com.wavesplatform.dex.domain.account.KeyPair
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.bytes.codec.Base58
 import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.it.api.dex.DexApi
 import com.wavesplatform.dex.it.api.node.{NodeApi, NodeApiExtensions}
@@ -55,8 +55,16 @@ trait ApiExtensions extends NodeApiExtensions {
 
   protected def waitForOrderAtNode(orderId: Order.Id, dexApi: DexApi[Id], wavesNodeApi: NodeApi[Id]): Seq[ExchangeTransaction] =
     dexApi.waitForTransactionsByOrder(orderId, 1).unsafeTap {
-      _.foreach(tx => wavesNodeApi.waitForTransaction(tx.id()))
+      _.foreach { tx =>
+        log.info(s"waitForOrderAtNode: j=${tx.id()}, d=${Base58.encode(tx.id().bytes())}")
+        wavesNodeApi.waitForTransaction(tx.id())
+      }
     }
+
+//  protected def waitForOrderAtNode(orderId: Order.Id, dexApi: DexApi[Id], wavesNodeApi: NodeApi[Id]): Seq[ExchangeTransaction] =
+//    dexApi.waitForTransactionsByOrder(orderId, 1).unsafeTap {
+//      _.foreach(tx => wavesNodeApi.waitForTransaction(tx.id()))
+//    }
 
   protected def matcherState(
     assetPairs: Seq[AssetPair],
