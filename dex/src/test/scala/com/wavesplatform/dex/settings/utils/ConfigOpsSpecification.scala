@@ -10,7 +10,7 @@ class ConfigOpsSpecification extends AnyWordSpecLike with Matchers with MatcherS
 
   val config: Config = ConfigFactory.parseString(
     s"""
-       |waves.dex {
+       |TN.dex {
        |  id = "matcher-1"
        |  user = "test-user",
        |  private {

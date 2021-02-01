@@ -207,7 +207,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       eventually {
         wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 150L - 50000L)
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 50000L)
-        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 1920L)
+        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 25600L)
       }
 
       dex1.api.deleteRate(eth)

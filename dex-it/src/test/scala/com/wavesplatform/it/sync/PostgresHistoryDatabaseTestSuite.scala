@@ -219,7 +219,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
     placeAndAwaitAtNode(sellOrder)
 
     // buy counter order is not executed completely, but has filled status
-    dex1.api.orderStatus(buyOrder) should matchTo(HttpOrderStatus(Status.Filled, 270476663L.some, 299999L.some))
+    dex1.api.orderStatus(buyOrder) should matchTo(HttpOrderStatus(Status.Filled, 270476663L.some, 3999992L.some))
 
     val buyOrderEvents = getEventsInfoByOrderId(buyOrder.id())
 
@@ -298,8 +298,8 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
   "Postgres order history should correctly save events: 1 big counter and 2 small submitted" in {
 
-    def sellOrder: Order = mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.35, matcherFee = 0.00000030.btc, feeAsset = btc)
-    val buyOrder = mkOrderDP(alice, wctUsdPair, BUY, 300.wct, 0.35, matcherFee = 0.00001703.eth, feeAsset = eth)
+    def sellOrder: Order = mkOrderDP(bob, wctUsdPair, SELL, 100.wct, 0.35, matcherFee = 0.00000395.btc, feeAsset = btc)
+    val buyOrder = mkOrderDP(alice, wctUsdPair, BUY, 300.wct, 0.35, matcherFee = 0.00022704.eth, feeAsset = eth)
 
     dex1.api.place(buyOrder)
 
@@ -333,13 +333,13 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
                 btc.toString,
                 100,
                 0.35,
-                0.00000030,
+                0.00000395,
                 finalizeTimestamp
               )
             )
 
             getEventsInfoByOrderId(order.id()) should matchTo(
-              List(EventBriefInfo(order.idStr(), eventTrade, 100, 100, 0.00000030, 0.00000030, statusFilled, OrderExecutedReason))
+              List(EventBriefInfo(order.idStr(), eventTrade, 100, 100, 0.00000395, 0.00000395, statusFilled, OrderExecutedReason))
             )
           }
         }
@@ -359,7 +359,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
               eth.toString,
               300,
               0.35,
-              0.00001703,
+              0.00022704,
               finalizeTimestamp
             )
           )
@@ -367,9 +367,9 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
         getEventsInfoByOrderId(buyOrder.id()) should matchTo(
           List(
-            EventBriefInfo(buyOrder.idStr(), eventTrade, 100, 100, 0.00000567, 0.00000567, statusPartiallyFilled, OrderExecutedReason),
-            EventBriefInfo(buyOrder.idStr(), eventTrade, 100, 200, 0.00000567, 0.00001134, statusPartiallyFilled, OrderExecutedReason),
-            EventBriefInfo(buyOrder.idStr(), eventCancel, 0, 200, 0, 0.00001134, statusCancelled, OrderCanceledReason.RequestExecuted)
+            EventBriefInfo(buyOrder.idStr(), eventTrade, 100, 100, 0.00007568, 0.00007568, statusPartiallyFilled, OrderExecutedReason),
+            EventBriefInfo(buyOrder.idStr(), eventTrade, 100, 200, 0.00007568, 0.00015136, statusPartiallyFilled, OrderExecutedReason),
+            EventBriefInfo(buyOrder.idStr(), eventCancel, 0, 200, 0, 0.00015136, statusCancelled, OrderCanceledReason.RequestExecuted)
           )
         )
       }
@@ -377,7 +377,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
   }
 
   "Postgres order history should correctly save events with Waves as amount and fee" in {
-    val buyOrder = mkOrderDP(alice, wavesUsdPair, BUY, 300.waves, 0.35, matcherFee = 0.00370300.waves, feeAsset = Waves)
+    val buyOrder = mkOrderDP(alice, wavesUsdPair, BUY, 300.waves, 0.35, matcherFee = 0.04.waves, feeAsset = Waves)
     val sellOrder = mkOrderDP(bob, wavesUsdPair, SELL, 300.waves, 0.35, matcherFee = 0.30.usd, feeAsset = usd)
 
     dex1.api.place(buyOrder)
