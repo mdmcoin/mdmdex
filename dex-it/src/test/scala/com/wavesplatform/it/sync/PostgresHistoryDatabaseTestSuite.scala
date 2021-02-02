@@ -395,17 +395,17 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
             limitOrderType,
             alice.publicKey.toString,
             buySide,
-            "WAVES",
+            "TN",
             usd.toString,
-            "WAVES",
+            "TN",
             300,
             0.35,
-            0.00370300,
+            0.04,
             finalizeTimestamp
           )
         )
         getEventsInfoByOrderId(buyOrder.id()) should matchTo(
-          List(EventBriefInfo(buyOrder.idStr(), eventTrade, 300, 300, 0.00370300, 0.00370300, statusFilled, OrderExecutedReason))
+          List(EventBriefInfo(buyOrder.idStr(), eventTrade, 300, 300, 0.04, 0.04, statusFilled, OrderExecutedReason))
         )
       }
     }
@@ -419,7 +419,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
             limitOrderType,
             bob.publicKey.toString,
             sellSide,
-            "WAVES",
+            "TN",
             usd.toString,
             usd.toString,
             300,
