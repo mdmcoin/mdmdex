@@ -310,15 +310,15 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
 
       "user issued a new asset after establishing the connection" in {
 
-        val acc = mkAccountWithBalance(10.waves -> Waves)
+        val acc = mkAccountWithBalance(1100.waves -> Waves)
         val wsc = mkWsAddressConnection(acc)
 
-        assertChanges(wsc, squash = false)(Map(Waves -> WsBalances(10, 0)))()
+        assertChanges(wsc, squash = false)(Map(Waves -> WsBalances(1100, 0)))()
         val IssueResults(txIssue, _, issuedAsset) = mkIssueExtended(acc, "testAsset", 1000.asset8)
         broadcastAndAwait(txIssue)
 
         assertChanges(wsc)(
-          Map(Waves -> WsBalances(9, 0)),
+          Map(Waves -> WsBalances(100, 0)),
           Map(issuedAsset -> WsBalances(1000, 0))
         )()
 
@@ -327,14 +327,14 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
 
       "user issued a new asset before establishing the connection" in {
 
-        val acc = mkAccountWithBalance(10.waves -> Waves)
+        val acc = mkAccountWithBalance(1100.waves -> Waves)
         val IssueResults(txIssue, _, issuedAsset) = mkIssueExtended(acc, "testAsset", 1000.asset8)
 
         broadcastAndAwait(txIssue)
 
         val wsc = mkWsAddressConnection(acc)
         assertChanges(wsc)(
-          Map(Waves -> WsBalances(9, 0)),
+          Map(Waves -> WsBalances(100, 0)),
           Map(issuedAsset -> WsBalances(1000, 0))
         )()
 
@@ -343,14 +343,14 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
 
       "user burnt part of the asset amount" in {
 
-        val acc = mkAccountWithBalance(10.waves -> Waves, 20.usd -> usd)
+        val acc = mkAccountWithBalance(1100.waves -> Waves, 20.usd -> usd)
         val wsc = mkWsAddressConnection(acc)
 
-        assertChanges(wsc, squash = false)(Map(Waves -> WsBalances(10, 0), usd -> WsBalances(20, 0)))()
+        assertChanges(wsc, squash = false)(Map(Waves -> WsBalances(1100, 0), usd -> WsBalances(20, 0)))()
         broadcastAndAwait(mkBurn(acc, usd, 10.usd))
 
         assertChanges(wsc)(
-          Map(Waves -> WsBalances(9, 0)),
+          Map(Waves -> WsBalances(1099.8, 0)),
           Map(usd -> WsBalances(10, 0))
         )()
 
@@ -366,7 +366,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
         broadcastAndAwait(mkBurn(acc, usd, 20.usd))
 
         assertChanges(wsc)(
-          Map(Waves -> WsBalances(9, 0)),
+          Map(Waves -> WsBalances(9.8, 0)),
           Map(usd -> WsBalances(0, 0))
         )()
 

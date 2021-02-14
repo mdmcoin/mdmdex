@@ -59,7 +59,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
     orderType = OrderType.SELL,
     amount = 1.waves,
     price = 50000L,
-    matcherFee = 1920L,
+    matcherFee = 25600L,
     version = 3,
     feeAsset = eth
   )
