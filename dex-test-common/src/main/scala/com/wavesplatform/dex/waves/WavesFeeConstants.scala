@@ -18,7 +18,7 @@ trait WavesFeeConstants {
   val leasingAmount: Long = transferAmount
   val issueAmount: Long = transferAmount
   val massTransferFeePerTransfer: Long = 0.01.waves
-  val massTransferDefaultFee: Long = 0.02.waves
+  val massTransferDefaultFee: Long = 0.32.waves
   val someAssetAmount: Long = 9999999999999L
   val matcherFee: Long = 0.04.waves
   val orderFee: Long = matcherFee
