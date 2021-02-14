@@ -10,7 +10,7 @@ class MatcherConfigTestSuite extends MatcherSuiteBase {
     ConfigFactory.parseString(
       s"""TN.dex {
          |  seed = "test"
-         |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
+         |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
          |}
        """.stripMargin
     )

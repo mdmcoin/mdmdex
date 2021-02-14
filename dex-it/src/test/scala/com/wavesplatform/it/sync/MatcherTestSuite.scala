@@ -580,7 +580,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
 
       // matcherFee = baseFee * 10^(feeAssetDecimals - 8) * rate = 3 * 10^5 * 10^(6 - 8) * 3.63615 = 10908.45 = 10909 USDN cents = 0.010909 USDN
 
-      val sellOrder = mkOrderDP(carol, wavesUsdnPair, SELL, 5.waves, 2.44, feeAsset = usdn, matcherFee = 0.010909.usdn)
+      val sellOrder = mkOrderDP(carol, wavesUsdnPair, SELL, 5.waves, 2.44, feeAsset = usdn, matcherFee = 0.145447.usdn)
       val buyOrder = mkOrderDP(alice, wavesUsdnPair, BUY, 5.waves, 2.44)
 
       placeAndAwaitAtDex(sellOrder)
@@ -590,7 +590,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       val buyOrderStatus = dex1.api.orderStatusInfoByIdWithSignature(alice, buyOrder)
 
       Seq(sellOrderStatus, buyOrderStatus).foreach(_.totalExecutedPriceAssets shouldBe 12.2.usdn)
-      sellOrderStatus.filledFee shouldBe 0.010909.usdn
+      sellOrderStatus.filledFee shouldBe 0.145447.usdn
 
       dex1.api.deleteRate(usdn)
     }
@@ -604,10 +604,10 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       ob.asks should have size 1
       ob.bids shouldBe empty
 
-      // Before: [ "$UsdnId", "$BtcId", "$UsdId", "WAVES", $EthId ]
+      // Before: [ "$UsdnId", "$BtcId", "$UsdId", "TN", $EthId ]
       dex1.restartWithNewSuiteConfig(
         ConfigFactory
-          .parseString(s"""TN.dex.price-assets = [ "$UsdnId", "$BtcId", "$UsdId", $EthId, "WAVES"]""".stripMargin)
+          .parseString(s"""TN.dex.price-assets = [ "$UsdnId", "$BtcId", "$UsdId", $EthId, "TN"]""".stripMargin)
           .withFallback(dexInitialSuiteConfig)
       )
 
