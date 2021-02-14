@@ -73,8 +73,8 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
     dex1.api.place(submitted)
 
     val filledAmount = 223344937L
-    dex1.api.waitForOrder(submitted)(_ == HttpOrderStatus(Status.Filled, filledAmount = Some(filledAmount), filledFee = Some(299999L)))
-    dex1.api.waitForOrder(counter)(_ == HttpOrderStatus(Status.PartiallyFilled, filledAmount = Some(filledAmount), filledFee = Some(72559L)))
+    dex1.api.waitForOrder(submitted)(_ == HttpOrderStatus(Status.Filled, filledAmount = Some(filledAmount), filledFee = Some(3999998)))
+    dex1.api.waitForOrder(counter)(_ == HttpOrderStatus(Status.PartiallyFilled, filledAmount = Some(filledAmount), filledFee = Some(967456)))
 
     withClue("Alice's reserved balance before cancel")(dex1.api.reservedBalance(alice) shouldBe empty)
 
@@ -94,8 +94,8 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
     val submitted = mkOrder(alice, wavesUsdPair, OrderType.BUY, 100000000L, 1000L)
     dex1.api.place(submitted)
 
-    dex1.api.waitForOrder(submitted)(_ == HttpOrderStatus(Status.Filled, filledAmount = Some(99523810L), filledFee = Some(298571L)))
-    dex1.api.waitForOrder(counter2)(_ == HttpOrderStatus(Status.PartiallyFilled, filledAmount = Some(2857143L), filledFee = Some(8571L)))
+    dex1.api.waitForOrder(submitted)(_ == HttpOrderStatus(Status.Filled, filledAmount = Some(99523810L), filledFee = Some(3980951L)))
+    dex1.api.waitForOrder(counter2)(_ == HttpOrderStatus(Status.PartiallyFilled, filledAmount = Some(2857143L), filledFee = Some(114285)))
 
     withClue("orderBook check") {
       val ob = dex1.api.orderBook(wavesUsdPair)
