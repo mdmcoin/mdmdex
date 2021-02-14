@@ -491,7 +491,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
         )
 
         getEventsInfoByOrderId(bigSellOrder.id()) should matchTo(
-          List(EventBriefInfo(bigSellOrder.idStr(), eventTrade, 300, 300, 0.00000010, 0.00000010, statusPartiallyFilled, OrderExecutedReason))
+          List(EventBriefInfo(bigSellOrder.idStr(), eventTrade, 300, 300, 0.00000131, 0.00000131, statusPartiallyFilled, OrderExecutedReason))
         )
       }
     }
@@ -499,7 +499,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
   "Postgres order history should correctly save market orders and their events" in {
 
-    def bigBuyOrder: Order = mkOrderDP(alice, wctUsdPair, BUY, 500.wct, 0.35, matcherFee = 0.00001703.eth, feeAsset = eth)
+    def bigBuyOrder: Order = mkOrderDP(alice, wctUsdPair, BUY, 500.wct, 0.35, matcherFee = 0.00022704.eth, feeAsset = eth)
 
     withClue("place buy market order into empty order book") {
 
@@ -523,7 +523,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
             eth.toString,
             500,
             0.35,
-            0.00001703,
+            0.00022704,
             finalizeTimestamp
           )
         )
@@ -551,7 +551,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
       val marketBuyOrder = bigBuyOrder
       dex1.api.placeMarket(marketBuyOrder)
-      dex1.api.waitForOrder(marketBuyOrder)(_ == HttpOrderStatus(Status.Filled, filledAmount = Some(300.wct), filledFee = Some(1020L)))
+      dex1.api.waitForOrder(marketBuyOrder)(_ == HttpOrderStatus(Status.Filled, filledAmount = Some(300.wct), filledFee = Some(13620L)))
 
       eventually {
         val finalizeTimestamp = expectFinalization(marketBuyOrder.idStr())
@@ -566,17 +566,17 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
             eth.toString,
             500,
             0.35,
-            0.00001703,
+            0.00022704,
             finalizeTimestamp
           )
         )
 
         getEventsInfoByOrderId(marketBuyOrder.id()) should matchTo(
           List(
-            EventBriefInfo(marketBuyOrder.idStr(), eventTrade, 100, 100, 0.00000340, 0.00000340, statusPartiallyFilled, OrderExecutedReason),
-            EventBriefInfo(marketBuyOrder.idStr(), eventTrade, 100, 200, 0.00000340, 0.00000680, statusPartiallyFilled, OrderExecutedReason),
-            EventBriefInfo(marketBuyOrder.idStr(), eventTrade, 100, 300, 0.00000340, 0.00001020, statusPartiallyFilled, OrderExecutedReason),
-            EventBriefInfo(marketBuyOrder.idStr(), eventCancel, 0, 300, 0, 0.00001020, statusFilled, OrderCanceledReason.BecameUnmatchable)
+            EventBriefInfo(marketBuyOrder.idStr(), eventTrade, 100, 100, 0.00004540, 0.00004540, statusPartiallyFilled, OrderExecutedReason),
+            EventBriefInfo(marketBuyOrder.idStr(), eventTrade, 100, 200, 0.00004540, 0.00009080, statusPartiallyFilled, OrderExecutedReason),
+            EventBriefInfo(marketBuyOrder.idStr(), eventTrade, 100, 300, 0.00004540, 0.00013620, statusPartiallyFilled, OrderExecutedReason),
+            EventBriefInfo(marketBuyOrder.idStr(), eventCancel, 0, 300, 0, 0.00013620, statusFilled, OrderCanceledReason.BecameUnmatchable)
           )
         )
       }
