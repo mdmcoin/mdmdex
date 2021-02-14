@@ -438,8 +438,8 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
   "Postgres order history should correctly save events: 1 small counter and 1 big submitted" in {
 
-    val smallBuyOrder = mkOrderDP(alice, wctUsdPair, BUY, 300.wct, 0.35, 0.00001703.eth, feeAsset = eth)
-    val bigSellOrder = mkOrderDP(bob, wctUsdPair, SELL, 900.wct, 0.35, 0.00000030.btc, feeAsset = btc)
+    val smallBuyOrder = mkOrderDP(alice, wctUsdPair, BUY, 300.wct, 0.35, 0.00022704.eth, feeAsset = eth)
+    val bigSellOrder = mkOrderDP(bob, wctUsdPair, SELL, 900.wct, 0.35, 0.00000395.btc, feeAsset = btc)
 
     dex1.api.place(smallBuyOrder)
     dex1.api.place(bigSellOrder)
@@ -461,13 +461,13 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
             eth.toString,
             300,
             0.35,
-            0.00001703,
+            0.00022704,
             finalizeTimestamp
           )
         )
 
         getEventsInfoByOrderId(smallBuyOrder.id()) should matchTo(
-          List(EventBriefInfo(smallBuyOrder.idStr(), eventTrade, 300, 300, 0.00001703, 0.00001703, statusFilled, OrderExecutedReason))
+          List(EventBriefInfo(smallBuyOrder.idStr(), eventTrade, 300, 300, 0.00022704, 0.00022704, statusFilled, OrderExecutedReason))
         )
       }
     }
@@ -485,7 +485,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
             btc.toString,
             900,
             0.35,
-            0.00000030,
+            0.00000395,
             None
           )
         )
