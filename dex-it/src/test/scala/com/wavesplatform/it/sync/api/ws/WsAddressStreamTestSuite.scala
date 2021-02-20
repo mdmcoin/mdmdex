@@ -418,13 +418,13 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
     assertChanges(wsc1, squash = false)(Map(Waves -> WsBalances(10, 0), usd -> WsBalances(10, 0)))()
 
     broadcastAndAwait(mkBurn(acc, usd, 10.usd))
-    assertChanges(mkWsAddressConnection(acc), squash = false)(Map(Waves -> WsBalances(9, 0)))()
+    assertChanges(mkWsAddressConnection(acc), squash = false)(Map(Waves -> WsBalances(9.8, 0)))()
 
     broadcastAndAwait(mkTransfer(alice, acc, 5.usd, usd, 1.waves))
-    assertChanges(mkWsAddressConnection(acc), squash = false)(Map(Waves -> WsBalances(9, 0), usd -> WsBalances(5, 0)))()
+    assertChanges(mkWsAddressConnection(acc), squash = false)(Map(Waves -> WsBalances(9.8, 0), usd -> WsBalances(5, 0)))()
 
     broadcastAndAwait(mkTransfer(acc, alice, 5.usd, usd, 1.waves))
-    assertChanges(mkWsAddressConnection(acc), squash = false)(Map(Waves -> WsBalances(8, 0)))()
+    assertChanges(mkWsAddressConnection(acc), squash = false)(Map(Waves -> WsBalances(8.8, 0)))()
   }
 
   "Subscription should be cancelled after jwt expiration" in {
