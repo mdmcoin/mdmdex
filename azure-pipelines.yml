@@ -5,6 +5,7 @@
 
 variables:
   SBT_THREAD_NUMBER: 4
+  OTHER_NODE_IMAGE: turtlenetwork/tnnode:1.1.11
 
 jobs:
 - job: Default
@@ -15,7 +16,6 @@ jobs:
   steps:
   - script: |
       docker pull testcontainersofficial/ryuk:0.3.0
-      export OTHER_NODE_IMAGE=turtlenetwork/tnnode:1.1.11
 
   - script: |
       sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  dex-it/docker
