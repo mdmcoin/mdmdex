@@ -12,7 +12,7 @@ class OrderPercentFeeSpendingTestSuite extends OrderFeeBaseTestSuite {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
     s"""
-       |waves.dex {
+       |TN.dex {
        |  allowed-order-versions = [1, 2, 3]
        |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
        |  order-fee.-1 {
