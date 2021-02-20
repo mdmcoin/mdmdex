@@ -205,7 +205,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       waitForOrderAtNode(order)
 
       eventually {
-        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 150L - 50000L)
+        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 2000L - 50000L)
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 50000L)
         wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 25600L)
       }
@@ -227,22 +227,22 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         orderType = OrderType.SELL,
         amount = 2.waves,
         price = 50000L,
-        matcherFee = 1920L,
+        matcherFee = 25600L,
         feeAsset = eth
       )
 
       dex1.api.place(aliceOrder)
-      dex1.api.reservedBalance(alice)(eth) shouldBe 1920L
+      dex1.api.reservedBalance(alice)(eth) shouldBe 25600L
       dex1.api.place(mkBobOrder)
       dex1.api.waitForOrderStatus(aliceOrder, Status.PartiallyFilled)
 
       waitForOrderAtNode(aliceOrder)
 
       eventually {
-        dex1.api.reservedBalance(alice)(eth) shouldBe 960L
-        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 150L - 50000L)
+        dex1.api.reservedBalance(alice)(eth) shouldBe 12800L
+        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 2000L - 50000L)
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 50000L)
-        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 960L)
+        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 12800L)
       }
 
       dex1.api.deleteRate(eth)
@@ -255,9 +255,9 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       waitForOrderAtNode(bobSecondOrder)
 
       eventually {
-        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 300L - 100000L)
+        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 4000L - 100000L)
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 100000L)
-        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 1920L)
+        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 25600L)
       }
 
       dex1.api.deleteRate(btc)
@@ -274,12 +274,12 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       val newBtcRate = btcRate * 2
 
       dex1.httpApi.upsertRate(btc, newBtcRate).code shouldBe StatusCodes.Ok
-      dex1.api.reservedBalance(bob)(btc) shouldBe 50150L
+      dex1.api.reservedBalance(bob)(btc) shouldBe 52000L
       dex1.api.place(mkAliceOrder)
 
       waitForOrderAtNode(bobOrder)
 
-      eventually(wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 50150L))
+      eventually(wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 52000L))
 
       List(btc, eth).foreach(dex1.api.deleteRate)
     }
@@ -310,11 +310,11 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       List(bobOrder, aliceOrder).foreach(waitForOrderAtNode(_))
 
       eventually {
-        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 50150L)
+        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 52000L)
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 50000L)
-        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 1920L)
-        wavesNode1.api.balance(matcher, eth) shouldBe (matcherEthBalance + 1920L)
-        wavesNode1.api.balance(matcher, btc) shouldBe (matcherBtcBalance + 150L)
+        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 25600L)
+        wavesNode1.api.balance(matcher, eth) shouldBe (matcherEthBalance + 25600L)
+        wavesNode1.api.balance(matcher, btc) shouldBe (matcherBtcBalance + 2000L)
         wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 1.waves)
         wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 1.waves)
       }
@@ -338,7 +338,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         orderType = OrderType.SELL,
         amount = 2.waves,
         price = 50000L,
-        matcherFee = 1920L,
+        matcherFee = 25600L,
         feeAsset = eth
       )
       dex1.api.place(aliceOrder)
@@ -347,10 +347,10 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       List(bobOrder, aliceOrder).foreach(waitForOrderAtNode(_))
 
       eventually {
-        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 50150L)
+        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 52000L)
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 50000L)
-        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 960L)
-        wavesNode1.api.balance(matcher, eth) shouldBe (matcherEthBalance + 960L)
+        wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 12800L)
+        wavesNode1.api.balance(matcher, eth) shouldBe (matcherEthBalance + 12800L)
       }
 
       dex1.api.cancelAll(alice)
@@ -381,7 +381,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
           orderType = OrderType.SELL,
           amount = aliceOrderAmount,
           price = 50000L,
-          matcherFee = 1920L,
+          matcherFee = 25600L,
           feeAsset = eth
         )
         dex1.api.place(aliceOrder)
@@ -390,7 +390,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         List(bobOrder, aliceOrder).foreach(waitForOrderAtNode(_))
 
         eventually {
-          wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 50150L)
+          wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 52000L)
           wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 50000L)
           wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - aliceBalanceDiff)
           wavesNode1.api.balance(matcher, eth) shouldBe (matcherEthBalance + aliceBalanceDiff)
@@ -420,7 +420,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         orderType = OrderType.SELL,
         amount = 1.waves,
         price = 50000L,
-        matcherFee = 150L,
+        matcherFee = 2000L,
         feeAsset = btc
       )
 
@@ -441,7 +441,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         orderType = OrderType.BUY,
         amount = 1.waves,
         price = 50000L,
-        matcherFee = 150L,
+        matcherFee = 2000L,
         version = 3,
         feeAsset = btc
       )
@@ -454,7 +454,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         orderType = OrderType.SELL,
         amount = 2.waves,
         price = 50000L,
-        matcherFee = 1920L,
+        matcherFee = 25600L,
         feeAsset = eth
       )
 
@@ -462,7 +462,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       List(bobOrder, aliceOrder).foreach(waitForOrderAtNode(_))
       dex1.api.cancel(alice, aliceOrder).status shouldBe "OrderCanceled"
       dex1.api.reservedBalance(alice).keys.size shouldBe 0
-      wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 960L)
+      wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 12800L)
       List(btc, eth).foreach(dex1.api.deleteRate)
     }
   }
