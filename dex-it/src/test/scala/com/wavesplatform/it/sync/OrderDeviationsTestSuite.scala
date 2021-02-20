@@ -80,10 +80,10 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
     broadcastAndAwait(IssueBtcTx, IssueEthTx, IssueUsdTx, scriptAssetTx, anotherScriptAssetTx)
     Seq(scriptAsset, anotherScriptAsset, eth, usd).foreach { asset =>
       broadcastAndAwait(
-        mkTransfer(alice, bob, defaultAssetQuantity / 2, asset, 0.005.waves)
+        mkTransfer(alice, bob, defaultAssetQuantity / 2, asset, 0.06.waves)
       )
     }
-    broadcastAndAwait(mkTransfer(bob, alice, defaultAssetQuantity / 2, btc, 0.005.waves))
+    broadcastAndAwait(mkTransfer(bob, alice, defaultAssetQuantity / 2, btc, 0.06.waves))
 
     dex1.start()
   }
@@ -137,7 +137,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
         waitForOrderAtNode(bestAskOrder)
 
         dex1.api.reservedBalance(alice) should matchTo(Map(assetPair.amountAsset -> 100000000000L, feeAsset -> 2 * matcherFee))
-        dex1.api.reservedBalance(bob) should matchTo(Map(assetPair.priceAsset -> 691500000L))
+        dex1.api.reservedBalance(bob) should matchTo(Map(assetPair.priceAsset -> 710000000L))
 
         cancelAll(alice, bob)
       }
@@ -172,7 +172,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
           val bestBidOrder = mkOrder(bob, assetPair, BUY, 1000.waves, 4000000, 2 * matcherFee, feeAsset = assetPair.priceAsset)
           placeAndAwaitAtDex(bestBidOrder)
 
-          dex1.api.orderBook(assetPair).bids shouldBe List(HttpV0LevelAgg(1000.waves, 300000))
+          dex1.api.orderBook(assetPair).bids shouldBe List(HttpV0LevelAgg(1000.waves, 4000000))
           dex1.api.reservedBalance(bob)(assetPair.priceAsset) shouldBe 300600000L
 
           dex1.tryApi.place(mkOrder(bob, assetPair, BUY, 1000.waves, 89999, matcherFee, feeAsset = assetPair.priceAsset)) should failWith(
