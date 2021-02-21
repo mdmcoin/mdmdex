@@ -4,7 +4,7 @@
 # https://aka.ms/yaml
 
 variables:
-  SBT_THREAD_NUMBER: 4
+  SBT_THREAD_NUMBER: 3
   OTHER_NODE_IMAGE: turtlenetwork/tnnode:1.1.11
 
 jobs:
