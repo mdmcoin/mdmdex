@@ -180,7 +180,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
             orderIsOutOfDeviationBounds("0.00089999", BUY)
           )
 
-          dex1.api.reservedBalance(bob) shouldBe Map(assetPair.priceAsset -> 300600000L)
+          dex1.api.reservedBalance(bob) shouldBe Map(assetPair.priceAsset -> 4008000000L)
 
           dex1.api.cancel(bob, bestBidOrder)
 
