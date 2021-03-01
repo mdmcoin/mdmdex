@@ -12,7 +12,7 @@ trait WavesFeeConstants {
   val smartIssueFee: Long = 1000.waves + smartFee
   val burnFee: Long = 0.2.waves
   val sponsorFee: Long = 10.waves
-  val setAssetScriptFee: Long = 1.waves
+  val setAssetScriptFee: Long = 1.04.waves
   val setScriptFee: Long = 1.waves
   val transferAmount: Long = 10.waves
   val leasingAmount: Long = transferAmount
