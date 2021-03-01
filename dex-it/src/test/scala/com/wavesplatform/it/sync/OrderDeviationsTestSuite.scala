@@ -263,7 +263,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
         waitForOrderAtNode(bestBidOrder)
 
         dex1.api.reservedBalance(alice) should matchTo(Map(assetPair.amountAsset -> 300000000000L, feeAsset -> 7 * matcherFee))
-        dex1.api.reservedBalance(bob) should matchTo(Map(assetPair.priceAsset -> 300300000L))
+        dex1.api.reservedBalance(bob) should matchTo(Map(assetPair.priceAsset -> 304000000L))
 
         cancelAll(alice, bob)
       }
