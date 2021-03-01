@@ -173,7 +173,7 @@ class OrderDeviationsTestSuite extends MatcherSuiteBase {
           placeAndAwaitAtDex(bestBidOrder)
 
           dex1.api.orderBook(assetPair).bids shouldBe List(HttpV0LevelAgg(1000.waves, 4000000))
-          dex1.api.reservedBalance(bob)(assetPair.priceAsset) shouldBe 300600000L
+          dex1.api.reservedBalance(bob)(assetPair.priceAsset) shouldBe 4008000000L
 
           dex1.tryApi.place(mkOrder(bob, assetPair, BUY, 1000.waves, 89999, matcherFee, feeAsset = assetPair.priceAsset)) should failWith(
             9441295, // DeviantOrderPrice
