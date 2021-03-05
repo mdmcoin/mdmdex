@@ -358,7 +358,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
     }
 
     "are partial filled both" in {
-      val params = Map(9.waves -> 213L, 1900.waves -> 1L, 2000.waves -> 1L)
+      val params = Map(9.waves -> 2844L, 1900.waves -> 13L, 2000.waves -> 12L)
       for ((aliceOrderAmount, aliceBalanceDiff) <- params) {
 
         val bobBtcBalance = wavesNode1.api.balance(bob, btc)
@@ -469,24 +469,24 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
   "fee in pairs with different decimals count" in {
     upsertRates(usd -> 5d)
-    dex1.tryApi.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, matcherFee = 1L, feeAsset = usd)) should failWith(
+    dex1.tryApi.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, matcherFee = 10L, feeAsset = usd)) should failWith(
       9441542, // FeeNotEnough
-      s"Required 0.02 $UsdId as fee for this order, but given 0.01 $UsdId"
+      s"Required 0.2 $UsdId as fee for this order, but given 0.1 $UsdId"
     )
 
     upsertRates(usd -> 3)
-    broadcastAndAwait(mkTransfer(alice, bob.toAddress, 1L, usd))
+    broadcastAndAwait(mkTransfer(alice, bob.toAddress, 12L, usd))
 
     val aliceWavesBalance = wavesNode1.api.balance(alice, Waves)
     val aliceUsdBalance = wavesNode1.api.balance(alice, usd)
     val bobWavesBalance = wavesNode1.api.balance(bob, Waves)
     val bobUsdBalance = wavesNode1.api.balance(bob, usd)
 
-    val bobOrder = mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, matcherFee = 1L, feeAsset = usd)
+    val bobOrder = mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, matcherFee = 12L, feeAsset = usd)
     dex1.api.place(bobOrder)
 
     dex1.api.orderBook(wavesUsdPair).asks shouldBe List(HttpV0LevelAgg(1.waves, 300))
-    dex1.api.reservedBalance(bob) shouldBe Map(usd -> 1L, Waves -> 1.waves)
+    dex1.api.reservedBalance(bob) shouldBe Map(usd -> 12L, Waves -> 1.waves)
     dex1.api.cancel(bob, bobOrder)
 
     wavesNode1.api.balance(alice, Waves) shouldBe aliceWavesBalance
@@ -495,20 +495,20 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
     wavesNode1.api.balance(bob, Waves) shouldBe bobWavesBalance
     wavesNode1.api.balance(bob, usd) shouldBe bobUsdBalance
 
-    val aliceOrderId = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 300, matcherFee = 1L, feeAsset = usd)
+    val aliceOrderId = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 300, matcherFee = 12L, feeAsset = usd)
     dex1.api.place(aliceOrderId)
 
     dex1.api.orderBook(wavesUsdPair).bids shouldBe List(HttpV0LevelAgg(1.waves, 300))
-    dex1.api.reservedBalance(alice) shouldBe Map(usd -> 301)
+    dex1.api.reservedBalance(alice) shouldBe Map(usd -> 312)
 
-    dex1.api.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, 1L, feeAsset = usd))
+    dex1.api.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, 12L, feeAsset = usd))
 
     waitForOrderAtNode(aliceOrderId)
     wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance + 1.waves)
-    wavesNode1.api.balance(alice, usd) shouldBe (aliceUsdBalance - 301)
+    wavesNode1.api.balance(alice, usd) shouldBe (aliceUsdBalance - 312)
 
     wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance - 1.waves)
-    wavesNode1.api.balance(bob, usd) shouldBe (bobUsdBalance + 299)
+    wavesNode1.api.balance(bob, usd) shouldBe (bobUsdBalance + 288)
 
     dex1.api.deleteRate(usd)
   }
@@ -566,7 +566,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
       withClue("buy order") {
 
-        broadcastAndAwait(mkTransfer(bob, alice, 1, wct, 0.001.waves))
+        broadcastAndAwait(mkTransfer(bob, alice, 1, wct, 0.02.waves))
 
         val aliceWctBalance = wavesNode1.api.balance(alice, wct)
         val aliceWavesBalance = wavesNode1.api.balance(alice, Waves)
@@ -646,7 +646,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         val aliceBtcBalance = wavesNode1.api.balance(alice, btc)
         val aliceWavesBalance = wavesNode1.api.balance(alice, Waves)
 
-        val aliceOrderId = mkOrder(alice, wavesBtcPair, OrderType.SELL, 100.waves, 10591, 1, feeAsset = btc)
+        val aliceOrderId = mkOrder(alice, wavesBtcPair, OrderType.SELL, 100.waves, 10591, 12, feeAsset = btc)
         val bobOrderId = mkOrder(bob, wavesBtcPair, OrderType.BUY, 50.waves, 10591, matcherFee, version = 3)
 
         dex1.api.place(aliceOrderId)
@@ -676,7 +676,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         val aliceBtcBalance = wavesNode1.api.balance(alice, btc)
         val aliceWavesBalance = wavesNode1.api.balance(alice, Waves)
 
-        val aliceOrderId = mkOrder(alice, wavesBtcPair, OrderType.SELL, 100.waves, 10591, 1, feeAsset = usd)
+        val aliceOrderId = mkOrder(alice, wavesBtcPair, OrderType.SELL, 100.waves, 10591, 12, feeAsset = usd)
         val bobOrderId = mkOrder(bob, wavesBtcPair, OrderType.BUY, 50.waves, 10591, matcherFee, version = 3)
 
         dex1.api.place(aliceOrderId)
@@ -687,7 +687,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
         waitForOrderAtNode(bobOrderId)
 
-        wavesNode1.api.balance(alice, usd) shouldBe (aliceUsdBalance - 1)
+        wavesNode1.api.balance(alice, usd) shouldBe (aliceUsdBalance - 12)
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 529550)
         wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 50.waves)
 
@@ -697,7 +697,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         waitForOrderAtNode(anotherBobOrderId)
         waitForOrderAtNode(aliceOrderId)
 
-        wavesNode1.api.balance(alice, usd) shouldBe (aliceUsdBalance - 1)
+        wavesNode1.api.balance(alice, usd) shouldBe (aliceUsdBalance - 12)
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 1059100L)
         wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 100.waves)
       }
