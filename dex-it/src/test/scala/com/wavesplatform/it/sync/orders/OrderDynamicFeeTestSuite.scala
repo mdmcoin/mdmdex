@@ -657,7 +657,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
         waitForOrderAtNode(bobOrderId)
 
-        wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 529549)
+        wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 529544)
         wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 50.waves)
 
         val anotherBobOrderId = mkOrder(bob, wavesBtcPair, OrderType.BUY, 50.waves, 10591, matcherFee, version = 3)
@@ -666,7 +666,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         waitForOrderAtNode(anotherBobOrderId)
         waitForOrderAtNode(aliceOrderId)
 
-        wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 1059099L)
+        wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 1059088L)
         wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 100.waves)
       }
 
@@ -687,7 +687,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
         waitForOrderAtNode(bobOrderId)
 
-        wavesNode1.api.balance(alice, usd) shouldBe (aliceUsdBalance - 12)
+        wavesNode1.api.balance(alice, usd) shouldBe (aliceUsdBalance - 6)
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 529550)
         wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 50.waves)
 
@@ -795,7 +795,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         }
       }
 
-      broadcastAndAwait(mkTransfer(alice, bob, defaultAssetQuantity / 2, eth, 0.005.waves))
+      broadcastAndAwait(mkTransfer(alice, bob, defaultAssetQuantity / 2, eth, 0.02.waves))
 
       dex1.restartWithNewSuiteConfig(ConfigFactory.parseString("TN.dex.order-fee.-1.mode = percent"))
       check()
