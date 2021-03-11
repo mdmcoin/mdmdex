@@ -31,7 +31,7 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
     ConfigFactory
       .parseString(
         """TN.dex {
-          |  price-assets = ["TN"]
+          |  price-assets = ["TN"]wa
           |  snapshots-interval = 51
           |}""".stripMargin
       )
