@@ -98,7 +98,7 @@ object WsExternalClientHandlerActor {
 
       def unsubscribeAddress(address: Address): Unit = {
         context.log.debug(s"WsUnsubscribe(address=$address)")
-        addressRef ! AddressDirectoryActor.Envelope(address, AddressActor.WsCommand.RemoveWsSubscription(clientRef))
+        addressRef ! AddressDirectoryActor.Command.ForwardMessage(address, AddressActor.WsCommand.RemoveWsSubscription(clientRef))
       }
 
       def unsubscribeOrderBook(assetPair: AssetPair): Unit = {
@@ -183,7 +183,7 @@ object WsExternalClientHandlerActor {
                         .find(_._1 == subscribe.key)
                         .fold {
 
-                          addressRef ! AddressDirectoryActor.Envelope(subscribe.key, AddressActor.WsCommand.AddWsSubscription(clientRef))
+                          addressRef ! AddressDirectoryActor.Command.ForwardMessage(subscribe.key, AddressActor.WsCommand.AddWsSubscription(clientRef))
                           context.log.debug(s"WsAddressSubscribe(k=$address, t=$authType) is successful, will expire in $subscriptionLifetime")
 
                           if (addressSubscriptions.lengthCompare(maxAddressNumber) == 0) {
@@ -271,6 +271,8 @@ object WsExternalClientHandlerActor {
 
                     case Inr(Inr(_)) => Behaviors.same
                   }
+
+                case _ => throw new IllegalArgumentException(s"Can't process message=$wsMessage")
               }
 
             case Event.AssetPairValidated(assetPair) =>
@@ -302,7 +304,7 @@ object WsExternalClientHandlerActor {
             case command: Command.CloseConnection =>
               context.log.trace("Got CloseConnection: {}", command.reason.message.text)
               clientRef ! WsError.from(command.reason, matcherTime)
-              clientRef ! WsServerMessage.Complete
+              context.scheduleOnce(100.millis, clientRef, WsServerMessage.Complete) // Otherwise a connection is closed too quickly
               cancelSchedules(nextPing, pongTimeout)
               Behaviors.same // Will receive Completed when WsServerMessage.Complete will be delivered
 

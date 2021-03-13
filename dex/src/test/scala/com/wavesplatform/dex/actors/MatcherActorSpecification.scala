@@ -34,6 +34,7 @@ class MatcherActorSpecification
     extends MatcherSpec("MatcherActor")
     with MatcherSpecBase
     with WithDB
+    with HasOecInteraction
     with BeforeAndAfterEach
     with PathMockFactory
     with ImplicitSender
@@ -68,7 +69,7 @@ class MatcherActorSpecification
       val order = buy(pair, 2000L, 1)
 
       probe.send(actor, wrapLimitOrder(order))
-      addressActor.expectMsgType[Events.OrderAdded]
+      addressActor.expectOecProcess[Events.OrderAdded]
     }
 
     "mark an order book as failed" when {
@@ -237,7 +238,10 @@ class MatcherActorSpecification
 
         "multiple order books" in snapshotTest(pair23, pair45) { (matcherActor, probes) =>
           val eventSender = TestProbe()
-          val List(probe23, probe45) = probes
+          val (probe23, probe45) = probes match {
+            case List(probe23, probe45) => (probe23, probe45)
+            case _ => throw new IllegalArgumentException(s"Unexpected snapshots")
+          }
           sendBuyOrders(eventSender, matcherActor, pair23, 0 to 1)
           sendBuyOrders(eventSender, matcherActor, pair45, 2 to 3)
 
@@ -500,6 +504,7 @@ object MatcherActorSpecification {
     p.setAutoPilot { (sender: ActorRef, msg: Any) =>
       msg match {
         case _: Message.GetSnapshot => sender ! Response.GetSnapshot(None)
+        case _ => throw new RuntimeException(s"Unexpected message: $msg")
       }
       TestActor.KeepRunning
     }

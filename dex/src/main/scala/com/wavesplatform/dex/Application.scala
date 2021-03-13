@@ -1,10 +1,5 @@
 package com.wavesplatform.dex
 
-import java.io.File
-import java.security.Security
-import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.{ThreadLocalRandom, TimeoutException}
-
 import akka.Done
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.{typed, ActorRef, ActorSystem, CoordinatedShutdown, Props}
@@ -21,9 +16,10 @@ import ch.qos.logback.classic.LoggerContext
 import com.typesafe.config._
 import com.wavesplatform.dex.actors.ActorSystemOps.ImplicitOps
 import com.wavesplatform.dex.actors.address.{AddressActor, AddressDirectoryActor}
+import com.wavesplatform.dex.actors.events.OrderEventsCoordinatorActor
 import com.wavesplatform.dex.actors.orderbook.{AggregatedOrderBookActor, OrderBookActor, OrderBookSnapshotStoreActor}
-import com.wavesplatform.dex.actors.tx.{BroadcastExchangeTransactionActor, CreateExchangeTransactionActor, WriteExchangeTransactionActor}
-import com.wavesplatform.dex.actors.{MatcherActor, OrderBookAskAdapter, RootActorSystem, SpendableBalancesActor}
+import com.wavesplatform.dex.actors.tx.{ExchangeTransactionBroadcastActor, WriteExchangeTransactionActor}
+import com.wavesplatform.dex.actors.{MatcherActor, OrderBookAskAdapter, RootActorSystem}
 import com.wavesplatform.dex.api.http.headers.{CustomMediaTypes, MatcherHttpServer}
 import com.wavesplatform.dex.api.http.routes.{MatcherApiRoute, MatcherApiRouteV1}
 import com.wavesplatform.dex.api.http.{CompositeHttpService, OrderBookHttpInfo}
@@ -41,23 +37,27 @@ import com.wavesplatform.dex.domain.bytes.codec.Base58
 import com.wavesplatform.dex.domain.utils.{EitherExt2, LoggerFacade, ScorexLogging}
 import com.wavesplatform.dex.effect.{liftValueAsync, FutureResult}
 import com.wavesplatform.dex.error.{ErrorFormatterContext, MatcherError}
-import com.wavesplatform.dex.grpc.integration.WavesBlockchainClientBuilder
-import com.wavesplatform.dex.grpc.integration.clients.WavesBlockchainAssetsWatchingClient
-import com.wavesplatform.dex.grpc.integration.clients.WavesBlockchainClient.BalanceChanges
+import com.wavesplatform.dex.grpc.integration.clients.combined.CombinedWavesBlockchainClient
+import com.wavesplatform.dex.grpc.integration.clients.domain.AddressBalanceUpdates
+import com.wavesplatform.dex.grpc.integration.clients.{MatcherExtensionAssetsWatchingClient, WavesBlockchainClient}
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import com.wavesplatform.dex.history.HistoryRouterActor
 import com.wavesplatform.dex.logs.SystemInformationReporter
-import com.wavesplatform.dex.model.OrderValidator.AsyncBlockchain
 import com.wavesplatform.dex.model.{AssetPairBuilder, ExchangeTransactionCreator, Fee, OrderValidator, ValidationStages}
 import com.wavesplatform.dex.queue._
 import com.wavesplatform.dex.settings.MatcherSettings
 import com.wavesplatform.dex.time.NTP
 import kamon.Kamon
 import kamon.influxdb.InfluxDBReporter
+import monix.execution.ExecutionModel
 import mouse.any.anySyntaxMouse
 import org.slf4j.LoggerFactory
 import pureconfig.ConfigSource
 
+import java.io.File
+import java.security.Security
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.{ThreadLocalRandom, TimeoutException}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{blocking, Future, Promise}
@@ -66,7 +66,7 @@ import scala.util.{Failure, Success}
 
 class Application(settings: MatcherSettings, config: Config)(implicit val actorSystem: ActorSystem) extends ScorexLogging {
 
-  private val monixScheduler = monix.execution.Scheduler.Implicits.global
+  private val monixScheduler = monix.execution.Scheduler.Implicits.global.withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
   private val grpcExecutionContext = actorSystem.dispatchers.lookup("akka.actor.grpc-dispatcher")
 
   private val cs = CoordinatedShutdown(actorSystem)
@@ -146,10 +146,10 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     assetsCache.unsafeGetHasScript
   )
 
-  private val wavesBlockchainAsyncClient = new WavesBlockchainAssetsWatchingClient(
-    settings = settings.wavesBlockchainClient,
-    underlying = WavesBlockchainClientBuilder.async(
+  private val wavesBlockchainAsyncClient = new MatcherExtensionAssetsWatchingClient(
+    underlying = CombinedWavesBlockchainClient(
       settings.wavesBlockchainClient,
+      matcherPublicKey,
       monixScheduler = monixScheduler,
       grpcExecutionContext = grpcExecutionContext
     ),
@@ -165,20 +165,16 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
 
   private val txWriterRef = actorSystem.actorOf(WriteExchangeTransactionActor.props(db), WriteExchangeTransactionActor.name)
 
-  private val wavesNetTxBroadcasterRef = actorSystem.actorOf(
-    BroadcastExchangeTransactionActor
-      .props(
-        settings.exchangeTransactionBroadcast,
-        time,
-        wavesBlockchainAsyncClient.wereForged,
-        wavesBlockchainAsyncClient.broadcastTx
+  private val wavesNetTxBroadcasterRef = actorSystem.spawn(
+    ExchangeTransactionBroadcastActor(
+      settings = ExchangeTransactionBroadcastActor.Settings(
+        settings.exchangeTransactionBroadcast.interval,
+        settings.exchangeTransactionBroadcast.maxPendingTime
       ),
+      blockchain = wavesBlockchainAsyncClient.checkedBroadcastTx,
+      time = time
+    ),
     "exchange-transaction-broadcast"
-  )
-
-  actorSystem.actorOf(
-    CreateExchangeTransactionActor.props(transactionCreator.createTransaction, List(txWriterRef, wavesNetTxBroadcasterRef)),
-    CreateExchangeTransactionActor.name
   )
 
   private val wsInternalBroadcastRef: typed.ActorRef[WsInternalBroadcastActor.Command] = actorSystem.spawn(
@@ -201,6 +197,13 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     ).some
     else none
 
+  private val addressActorBlockchainInteraction = new AddressActor.BlockchainInteraction {
+
+    override def getFullBalances(address: Address, exclude: Set[Asset]): Future[AddressBalanceUpdates] =
+      wavesBlockchainAsyncClient.fullBalancesSnapshot(address, exclude)
+
+  }
+
   private val addressDirectoryRef =
     actorSystem.actorOf(AddressDirectoryActor.props(orderDB, mkAddressActorProps, historyRouterRef), AddressDirectoryActor.name)
 
@@ -214,18 +217,26 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
   private def storeCommand(payload: ValidatedCommand): Future[Option[ValidatedCommandWithMeta]] =
     storeBreaker.withCircuitBreaker(matcherQueue.store(payload))
 
-  private def mkAddressActorProps(address: Address, started: Boolean): Props = AddressActor.props(
+  private def mkAddressActorProps(address: Address, recovered: Boolean): Props = AddressActor.props(
     address,
     time,
     orderDB,
     ValidationStages.mkSecond(wavesBlockchainAsyncClient, orderBookAskAdapter),
     storeCommand,
-    started,
-    spendableBalancesRef,
+    recovered,
+    addressActorBlockchainInteraction,
     settings.addressActor
   )
 
-  private val spendableBalancesRef = actorSystem.actorOf(SpendableBalancesActor.props(wavesBlockchainAsyncClient, addressDirectoryRef))
+  private val orderEventsCoordinatorRef = actorSystem.spawn(
+    behavior = OrderEventsCoordinatorActor.apply(
+      addressDirectoryRef = addressDirectoryRef,
+      dbWriterRef = txWriterRef,
+      broadcasterRef = wavesNetTxBroadcasterRef,
+      createTransaction = transactionCreator.createTransaction
+    ),
+    name = "events-coordinator"
+  )
 
   private val matcherActorRef: ActorRef = {
     def mkOrderBookProps(assetPair: AssetPair, matcherActor: ActorRef): Props = {
@@ -233,7 +244,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       OrderBookActor.props(
         OrderBookActor.Settings(AggregatedOrderBookActor.Settings(settings.webSockets.externalClientHandler.messagesInterval)),
         matcherActor,
-        addressDirectoryRef,
+        orderEventsCoordinatorRef,
         orderBookSnapshotStoreRef,
         wsInternalBroadcastRef,
         assetPair,
@@ -353,6 +364,16 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       )
     }
 
+    _ = {
+      log.info("Start watching Node updates")
+      // Note, updates is lazy, so it is initialized here
+      wavesBlockchainAsyncClient.updates
+        .dropWhile { case (_, isReady) => !isReady }
+        .foreach { update =>
+          orderEventsCoordinatorRef ! OrderEventsCoordinatorActor.Command.ApplyNodeUpdates(update._1)
+        }(monixScheduler)
+    }
+
     _ <- {
       log.info(s"Preparing HTTP service (Matcher's ID = ${settings.id}) ...")
       // Indirectly initializes matcherActor, so it must be after loadAllKnownAssets
@@ -379,7 +400,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
 
     deadline = settings.startEventsProcessingTimeout.fromNow
     (firstQueueOffset, lastOffsetQueue) <- {
-      log.info("Gettings queue offsets ...")
+      log.info("Getting queue offsets ...")
       val requests = new RepeatableRequests(matcherQueue, deadline)
       requests.firstOffset zip requests.lastOffset
     }
@@ -403,15 +424,9 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       log.info(s"Last queue offset is $lastOffsetQueue")
       waitOffsetReached(lastOffsetQueue, deadline)
     }
-
-    connectedNodeAddress <- wavesBlockchainAsyncClient.getNodeAddress
   } yield {
-    log.info("Last offset has been reached, notify addresses")
-    log.info(s"DEX server is connected to Node with an address: ${connectedNodeAddress.getHostAddress}")
-    addressDirectoryRef ! AddressDirectoryActor.StartWork
-
-    log.info("Start watching balances")
-    watchBalanceChanges(spendableBalancesRef)
+    log.info("Last offset has been reached, switching to a normal mode")
+    addressDirectoryRef ! AddressDirectoryActor.Command.StartWork
   }
 
   startGuard.onComplete {
@@ -420,17 +435,6 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     case Failure(e) =>
       log.error(s"Can't start matcher: ${e.getMessage}", e)
       forceStopApplication(StartingMatcherError)
-  }
-
-  private def watchBalanceChanges(recipient: ActorRef): Unit = {
-
-    def aggregateChangesByAddress(xs: List[BalanceChanges]): Map[Address, Map[Asset, Long]] = xs.foldLeft(Map.empty[Address, Map[Asset, Long]]) {
-      case (result, bc) => result.updated(bc.address, result.getOrElse(bc.address, Map.empty) + (bc.asset -> bc.balance))
-    }
-
-    wavesBlockchainAsyncClient.realTimeBalanceBatchChanges
-      .map(aggregateChangesByAddress)
-      .foreach(recipient ! SpendableBalancesActor.Command.UpdateStates(_))(monixScheduler)
   }
 
   private def loadAllKnownAssets(): Future[Unit] =
@@ -502,12 +506,12 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     p.future
   }
 
-  private def getAndCacheDecimals(assetsCache: AssetsStorage, blockchain: AsyncBlockchain, asset: Asset): FutureResult[Int] =
+  private def getAndCacheDecimals(assetsCache: AssetsStorage, blockchain: WavesBlockchainClient, asset: Asset): FutureResult[Int] =
     getAndCacheDescription(assetsCache, blockchain, asset).map(_.decimals)(catsStdInstancesForFuture)
 
   private def getAndCacheDescription(
     assetsCache: AssetsStorage,
-    blockchain: AsyncBlockchain,
+    blockchain: WavesBlockchainClient,
     asset: Asset
   ): FutureResult[BriefAssetDescription] =
     asset match {

@@ -1,3 +1,4 @@
+
 import CommonSettings.autoImport.network
 import ReleasePlugin.autoImport._
 import sbt.Keys._
@@ -100,9 +101,9 @@ lazy val root = (project in file("."))
 
 inScope(Global)(
   Seq(
-    scalaVersion := "2.13.3",
+    scalaVersion := "2.13.4",
     semanticdbEnabled := true,
-    semanticdbVersion := scalafixSemanticdb.revision,
+    semanticdbVersion :=  scalafixSemanticdb.revision,
     organization := "com.wavesplatform",
     organizationName := "TurtleNetwork",
     organizationHomepage := Some(url("https://Turtlenetwork.eu")),
@@ -176,13 +177,13 @@ def allProjects: List[ProjectReference] = ReflectUtilities.allVals[Project](this
 Compile / cleanAll := {
   val xs = allProjects
   streams.value.log.info(s"Cleaning ${xs.mkString(", ")}")
-  clean.all(ScopeFilter(inProjects(allProjects: _*), inConfigurations(Compile, Test))).value
+  clean.all(ScopeFilter(inProjects(allProjects: _*), inConfigurations(Compile, Test))).value.head
 }
 
 lazy val quickCheckRaw = taskKey[Unit]("Build a project and run unit tests")
 quickCheckRaw := Def
   .sequential(
-    root / Test / compile,
+    compile.all(ScopeFilter(inProjects(allProjects: _*), inConfigurations(Compile, Test))), // root / compile doesn't work
     `waves-ext` / Test / test,
     `waves-integration` / Test / test,
     dex / Test / test,

@@ -44,7 +44,7 @@ class OrderBookSnapshotsTestSuite extends MatcherSuiteBase {
     ordersPack1.foreach(dex1.api.place)
     dex1.api.waitForCurrentOffset(_ == ordersPack1Size - 1)
 
-    val allSnapshotOffsets1 = dex1.api.allSnapshotOffsets
+    val allSnapshotOffsets1 = dex1.api.getAllSnapshotOffsets
 
     withClue("We doesn't show pairs, those have snapshot's offset equal to -1") {
       if (allSnapshotOffsets1.contains(assetPair1)) allSnapshotOffsets1(assetPair1) should be < interval
@@ -54,7 +54,7 @@ class OrderBookSnapshotsTestSuite extends MatcherSuiteBase {
     ordersPack2.foreach(dex1.api.place)
     dex1.api.waitForCurrentOffset(_ == ordersPack1Size + ordersPack2Size - 1)
 
-    val allSnapshotOffsets2 = dex1.api.allSnapshotOffsets
+    val allSnapshotOffsets2 = dex1.api.getAllSnapshotOffsets
 
     withClue("Asset pairs has right offsets") {
       allSnapshotOffsets2.foreach {
@@ -70,7 +70,7 @@ class OrderBookSnapshotsTestSuite extends MatcherSuiteBase {
     dex1.restart()
     dex1.api.waitForCurrentOffset(_ == ordersPack1Size + ordersPack2Size - 1)
     ordersPack1.foreach { order =>
-      dex1.api.orderStatus(order) should not be HttpOrderStatus.Status.NotFound.name
+      dex1.api.getOrderStatus(order) should not be HttpOrderStatus.Status.NotFound.name
     }
   }
 }

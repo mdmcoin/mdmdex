@@ -1,7 +1,7 @@
 package com.wavesplatform.dex.domain.asset
 
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
-import com.wavesplatform.dex.domain.bytes.{deser, ByteStr}
+import com.wavesplatform.dex.domain.bytes.{ByteStr, deser}
 import com.wavesplatform.dex.domain.validation.Validation
 import com.wavesplatform.dex.domain.validation.Validation.booleanOperators
 import io.swagger.annotations.{ApiModel, ApiModelProperty}
@@ -48,7 +48,7 @@ object AssetPair {
 
   def extractAsset(a: String): Try[Asset] = a match {
     case Asset.WavesName => Success(Waves)
-    case other => ByteStr.decodeBase58(other).map(IssuedAsset)
+    case other => ByteStr.decodeBase58(other).map(IssuedAsset(_))
   }
 
   def extractAssetPair(s: String): Try[AssetPair] = s.split('-') match {

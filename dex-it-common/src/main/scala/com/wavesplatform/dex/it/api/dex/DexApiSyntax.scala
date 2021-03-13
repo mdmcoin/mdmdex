@@ -15,7 +15,7 @@ object DexApiSyntax {
 
   implicit final class Ops[F[_]: Functor](val self: DexApi[F])(implicit R: CanRepeat[F]) {
 
-    def tradingPairInfo(assetPair: AssetPair): F[Option[HttpMarketDataWithMeta]] = self.allOrderBooks.map {
+    def tradingPairInfo(assetPair: AssetPair): F[Option[HttpMarketDataWithMeta]] = self.getOrderBooks.map {
       _.markets.find(marketData => marketData.amountAsset == assetPair.amountAsset && marketData.priceAsset == assetPair.priceAsset)
     }
 
@@ -29,14 +29,14 @@ object DexApiSyntax {
       waitForOrder(order.assetPair, order.id())(pred)
 
     def waitForOrder(assetPair: AssetPair, id: Order.Id)(pred: HttpOrderStatus => Boolean): F[HttpOrderStatus] =
-      R.repeatUntil(self.orderStatus(assetPair, id), RepeatRequestOptions.default)(pred)
+      R.repeatUntil(self.getOrderStatus(assetPair, id), RepeatRequestOptions.default)(pred)
 
     def waitForOrderPlacement(order: Order): F[HttpSuccessfulPlace] = R.repeatUntil(self.place(order))(_.success)
 
     def waitForOrderHistory[A](owner: KeyPair, activeOnly: Option[Boolean])(
       pred: List[HttpOrderBookHistoryItem] => Boolean
     ): F[List[HttpOrderBookHistoryItem]] =
-      R.repeatUntil(self.orderHistory(owner, activeOnly), RepeatRequestOptions.default)(pred)
+      R.repeatUntil(self.getOrderHistoryByPublicKey(owner, activeOnly), RepeatRequestOptions.default)(pred)
 
     def waitForTransactionsByOrder(order: Order, atLeast: Int): F[List[ExchangeTransaction]] =
       waitForTransactionsByOrder(order.id(), atLeast)
@@ -45,10 +45,10 @@ object DexApiSyntax {
       waitForTransactionsByOrder(id)(_.lengthCompare(atLeast) >= 0)
 
     def waitForTransactionsByOrder(id: Order.Id)(pred: List[ExchangeTransaction] => Boolean): F[List[ExchangeTransaction]] =
-      R.repeatUntil(self.transactionsByOrder(id), RepeatRequestOptions.default)(pred)
+      R.repeatUntil(self.getTransactionsByOrder(id), RepeatRequestOptions.default)(pred)
 
     def waitForCurrentOffset(pred: Long => Boolean): F[HttpOffset] =
-      R.repeatUntil(self.currentOffset, RepeatRequestOptions(1.second, 120))(pred)
+      R.repeatUntil(self.getCurrentOffset, RepeatRequestOptions(1.second, 120))(pred)
 
     def waitForWsConnections(pred: HttpWebSocketConnections => Boolean): F[HttpWebSocketConnections] =
       R.repeatUntil(self.wsConnections, RepeatRequestOptions(1.second, 120))(pred)

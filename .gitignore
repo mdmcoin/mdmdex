@@ -1,15 +1,23 @@
 # IDE/Editor files
-.idea
-.ensime
+.idea/
+.ensime/
 .ensime_cache/
 *.iml
-.metals
+.metals/
+.bsp/
+matcher.iml
+.bloop/
+project/metals.sbt
+project/project/
 
 # scala build folders and files
 target
 *.tgz
 *.jar
 !third-party/yourkit/yjp-controller-api-redist.jar
+
+# other dependencies
+.node_modules
 
 # vim
 *.*~

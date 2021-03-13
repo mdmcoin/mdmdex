@@ -4,6 +4,7 @@ import java.math.{BigDecimal, BigInteger, RoundingMode}
 
 import cats.instances.long.catsKernelStdGroupForLong
 import cats.syntax.group._
+import com.wavesplatform.dex.domain.account.Address
 import com.wavesplatform.dex.domain.asset.Asset
 import com.wavesplatform.dex.domain.model.Price
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
@@ -125,7 +126,7 @@ sealed trait AcceptedOrder {
   def forMarket(fm: MarketOrder => Unit): Unit
   def forLimit(fl: LimitOrder => Unit): Unit
 
-  def status: OrderStatus =
+  lazy val status: OrderStatus =
     if (amount == order.amount) OrderStatus.Accepted
     else if (isValid) OrderStatus.PartiallyFilled(filledAmount, filledFee)
     else OrderStatus.Filled(filledAmount, filledFee)
@@ -271,7 +272,7 @@ object LimitOrder {
 }
 
 case class BuyLimitOrder(amount: Long, fee: Long, order: Order, avgWeighedPriceNominator: BigInteger) extends BuyOrder with LimitOrder {
-  override def toString: String = s"BuyLimitOrder($amount,$fee,$id,$avgWeighedPriceNominator)"
+  override def toString: String = s"BuyLimitOrder($amount,$fee,$id,$avgWeighedPriceNominator,o=${order.sender.toAddress})"
 
   def partial(amount: Long, fee: Long, avgWeighedPriceNominator: BigInteger): BuyLimitOrder =
     copy(amount = amount, fee = fee, avgWeighedPriceNominator = avgWeighedPriceNominator)
@@ -279,7 +280,7 @@ case class BuyLimitOrder(amount: Long, fee: Long, order: Order, avgWeighedPriceN
 }
 
 case class SellLimitOrder(amount: Long, fee: Long, order: Order, avgWeighedPriceNominator: BigInteger) extends SellOrder with LimitOrder {
-  override def toString: String = s"SellLimitOrder($amount,$fee,$id,$avgWeighedPriceNominator)"
+  override def toString: String = s"SellLimitOrder($amount,$fee,$id,$avgWeighedPriceNominator,o=${order.sender.toAddress})"
 
   def partial(amount: Long, fee: Long, avgWeighedPriceNominator: BigInteger): SellLimitOrder =
     copy(amount = amount, fee = fee, avgWeighedPriceNominator = avgWeighedPriceNominator)
@@ -409,7 +410,7 @@ object Events {
     def reason: EventReason
   }
 
-  case class OrderExecuted(submitted: AcceptedOrder, counter: LimitOrder, timestamp: Long, counterExecutedFee: Price, submittedExecutedFee: Price)
+  case class OrderExecuted(submitted: AcceptedOrder, counter: LimitOrder, timestamp: Long, counterExecutedFee: Long, submittedExecutedFee: Long)
       extends Event {
 
     def executedPrice: Long = counter.price
@@ -452,12 +453,25 @@ object Events {
       case mo: MarketOrder => submittedMarketRemaining(mo)
     }
 
+    def spentAmount(orderType: OrderType): Long = if (orderType == OrderType.SELL) executedAmount else executedAmountOfPriceAsset
+
+    def counterExecutedSpending: Map[Asset, Long] =
+      Map(counter.spentAsset -> spentAmount(counter.order.orderType)) |+|
+      Map(counter.feeAsset -> counterExecutedFee)
+
+    def submittedExecutedSpending: Map[Asset, Long] =
+      Map(submitted.spentAsset -> spentAmount(submitted.order.orderType)) |+|
+      Map(submitted.feeAsset -> submittedExecutedFee)
+
+    // Set, because is could be one trader
+    def traders: Set[Address] = Set(counter.order.senderPublicKey.toAddress, submitted.order.senderPublicKey.toAddress)
+
     override def reason: EventReason = OrderExecutedReason
   }
 
   case object OrderExecutedReason extends EventReason
 
-  case class OrderAdded(order: AcceptedOrder, reason: OrderAddedReason, timestamp: Price) extends Event
+  case class OrderAdded(order: AcceptedOrder, reason: OrderAddedReason, timestamp: Long) extends Event
   sealed trait OrderAddedReason extends EventReason
 
   object OrderAddedReason {

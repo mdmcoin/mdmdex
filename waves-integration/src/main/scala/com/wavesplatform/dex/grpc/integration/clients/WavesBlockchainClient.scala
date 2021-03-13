@@ -1,49 +1,48 @@
 package com.wavesplatform.dex.grpc.integration.clients
 
-import java.net.InetAddress
-
 import com.wavesplatform.dex.domain.account.Address
 import com.wavesplatform.dex.domain.asset.Asset
 import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
 import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
-import com.wavesplatform.dex.grpc.integration.clients.WavesBlockchainClient.BalanceChanges
+import com.wavesplatform.dex.grpc.integration.clients.domain.{AddressBalanceUpdates, WavesNodeUpdates}
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import monix.reactive.Observable
 
-object WavesBlockchainClient {
+import scala.concurrent.Future
 
-  final case class BalanceChanges(address: Address, asset: Asset, balance: Long)
+// TODO DEX-998
+trait WavesBlockchainClient {
+  /**
+   * @return (update, ready) ready == the last processed height >= the last height in blockchain
+   */
+  def updates: Observable[(WavesNodeUpdates, Boolean)]
 
-  type SpendableBalance = Map[Asset, Long]
-  type SpendableBalanceChanges = Map[Address, SpendableBalance]
-}
+  def partialBalancesSnapshot(address: Address, assets: Set[Asset]): Future[AddressBalanceUpdates]
+  def fullBalancesSnapshot(address: Address, excludeAssets: Set[Asset]): Future[AddressBalanceUpdates]
 
-trait WavesBlockchainClient[F[_]] {
+  def isFeatureActivated(id: Short): Future[Boolean]
 
-  // TODO rename to spendableBalanceChanges after release 2.1.2
-  def realTimeBalanceChanges: Observable[BalanceChanges]
+  def assetDescription(asset: IssuedAsset): Future[Option[BriefAssetDescription]]
 
-  def spendableBalances(address: Address, assets: Set[Asset]): F[Map[Asset, Long]]
-  def allAssetsSpendableBalance(address: Address): F[Map[Asset, Long]]
+  def hasScript(asset: IssuedAsset): Future[Boolean]
+  def runScript(asset: IssuedAsset, input: ExchangeTransaction): Future[RunScriptResult]
 
-  def isFeatureActivated(id: Short): F[Boolean]
+  def hasScript(address: Address): Future[Boolean]
+  def runScript(address: Address, input: Order): Future[RunScriptResult]
 
-  def assetDescription(asset: IssuedAsset): F[Option[BriefAssetDescription]]
+  /**
+   * Confirmed or not
+   */
+  def areKnown(txIds: Seq[ByteStr]): Future[Map[ByteStr, Boolean]]
 
-  def hasScript(asset: IssuedAsset): F[Boolean]
-  def runScript(asset: IssuedAsset, input: ExchangeTransaction): F[RunScriptResult]
+  // TODO Deprecated, remove in >= 2.3.1
+  def broadcastTx(tx: ExchangeTransaction): Future[BroadcastResult]
 
-  def hasScript(address: Address): F[Boolean]
-  def runScript(address: Address, input: Order): F[RunScriptResult]
+  def checkedBroadcastTx(tx: ExchangeTransaction): Future[CheckedBroadcastResult]
 
-  def wereForged(txIds: Seq[ByteStr]): F[Map[ByteStr, Boolean]]
-  def broadcastTx(tx: ExchangeTransaction): F[Boolean]
+  def isOrderConfirmed(orderId: ByteStr): Future[Boolean]
 
-  def forgedOrder(orderId: ByteStr): F[Boolean]
-
-  def getNodeAddress: F[InetAddress]
-
-  def close(): F[Unit]
+  def close(): Future[Unit]
 }

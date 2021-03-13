@@ -17,8 +17,6 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{Assertion, BeforeAndAfterAll}
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
 class ExchangeTransactionCreatorSpecification
     extends AnyWordSpec
     with Matchers
@@ -48,6 +46,7 @@ class ExchangeTransactionCreatorSpecification
 
             tc.createTransaction(oe).explicitGet() shouldBe a[ExchangeTransactionV2]
           }
+        case _ => throw new RuntimeException("Unexpected list")
       }
     }
 

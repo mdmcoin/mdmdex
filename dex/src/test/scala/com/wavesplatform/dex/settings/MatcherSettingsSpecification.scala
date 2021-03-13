@@ -3,13 +3,17 @@ package com.wavesplatform.dex.settings
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import com.wavesplatform.dex.actors.address.AddressActor
+import com.wavesplatform.dex.actors.tx.ExchangeTransactionBroadcastActor
 import com.wavesplatform.dex.api.http.OrderBookHttpInfo
 import com.wavesplatform.dex.api.ws.actors.{WsExternalClientHandlerActor, WsHealthCheckSettings, WsInternalBroadcastActor, WsInternalClientHandlerActor}
 import com.wavesplatform.dex.db.{AccountStorage, OrderDB}
+import com.wavesplatform.dex.domain.account.PublicKey
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.utils.EitherExt2
+import com.wavesplatform.dex.grpc.integration.clients.combined.{CombinedStream, CombinedWavesBlockchainClient}
+import com.wavesplatform.dex.grpc.integration.clients.domain.portfolio.SynchronizedPessimisticPortfolios
 import com.wavesplatform.dex.grpc.integration.settings.{GrpcClientSettings, WavesBlockchainClientSettings}
 import com.wavesplatform.dex.model.Implicits.AssetPairOps
 import com.wavesplatform.dex.queue.LocalMatcherQueue
@@ -17,8 +21,10 @@ import com.wavesplatform.dex.settings.EventsQueueSettings.CircuitBreakerSettings
 import com.wavesplatform.dex.settings.OrderFeeSettings.PercentSettings
 import com.wavesplatform.dex.test.matchers.DiffMatcherWithImplicits
 import com.wavesplatform.dex.test.matchers.ProduceError.produce
+import com.wavesplatform.dex.tool.ComparisonTool
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
+import sttp.client.UriContext
 
 import scala.concurrent.duration._
 
@@ -52,8 +58,26 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
             connectTimeout = 99.seconds
           )
         ),
+        blockchainUpdatesGrpc = GrpcClientSettings(
+          target = "127.1.2.10:7444",
+          maxHedgedAttempts = 10,
+          maxRetryAttempts = 14,
+          keepAliveWithoutCalls = true,
+          keepAliveTime = 9.seconds,
+          keepAliveTimeout = 12.seconds,
+          idleTimeout = 21.seconds,
+          channelOptions = GrpcClientSettings.ChannelOptionsSettings(
+            connectTimeout = 100.seconds
+          )
+        ),
         defaultCachesExpiration = 101.millis,
-        balanceStreamBufferSize = 100
+        balanceStreamBufferSize = 100,
+        combinedClientSettings = CombinedWavesBlockchainClient.Settings(
+          maxRollbackHeight = 90,
+          maxCachedLatestBlockUpdates = 7,
+          combinedStream = CombinedStream.Settings(199.millis),
+          pessimisticPortfolios = SynchronizedPessimisticPortfolios.Settings(400)
+        )
       )
     )
     settings.exchangeTxBaseFee should be(4000000)
@@ -83,6 +107,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     settings.eventsQueue.kafka.consumer.maxBufferSize shouldBe 777
     settings.eventsQueue.kafka.consumer.client.getInt("foo") shouldBe 2
     settings.eventsQueue.kafka.producer.client.getInt("bar") shouldBe 3
+    settings.eventsQueue.kafka.producer.enable shouldBe false
     settings.eventsQueue.circuitBreaker should matchTo(
       CircuitBreakerSettings(
         maxFailures = 999,
@@ -96,8 +121,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     settings.allowedAssetPairs shouldBe Set.empty[AssetPair]
     settings.allowedOrderVersions shouldBe Set(11, 22)
     settings.orderRestrictions shouldBe Map.empty[AssetPair, OrderRestrictionsSettings]
-    settings.exchangeTransactionBroadcast shouldBe ExchangeTransactionBroadcastSettings(
-      broadcastUntilConfirmed = true,
+    settings.exchangeTransactionBroadcast shouldBe ExchangeTransactionBroadcastActor.Settings(
       interval = 1.day,
       maxPendingTime = 30.days
     )
@@ -113,6 +137,14 @@ baz"""
       )
     )
     settings.addressActor should matchTo(AddressActor.Settings(100.milliseconds, 18.seconds, 400))
+    settings.comparisonTool should matchTo(ComparisonTool.Settings(
+      checks = ComparisonTool.ChecksSettings(interval = 55.minutes, duration = 3.days, strike = 9),
+      matcherRestApis = List(uri"https://127.0.0.1:1234"),
+      tradableBalanceCheck = ComparisonTool.TradableBalanceCheck(
+        accountPks = List(PublicKey.fromBase58String("DuzcrAJcA8B7dEdaGfutD8NKQHB1Vix9JUoNWiMK9PMH").explicitGet()),
+        assetPairs = List(AssetPair.extractAssetPair("WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get)
+      )
+    ))
   }
 
   "DeviationsSettings in MatcherSettings" should "be validated" in {

@@ -31,17 +31,23 @@ final case class WavesNodeContainer(override val internalIp: String, underlying:
   override protected val cachedRestApiAddress: CachedData[InetSocketAddress] = CachedData(getExternalAddress(WavesNodeContainer.restApiPort))
 
   private val cachedNetworkAddress = CachedData(getInternalAddress(WavesNodeContainer.networkPort))
-  private val cachedGrpcApiAddress = CachedData(getExternalAddress(WavesNodeContainer.dexGrpcExtensionPort))
+  private val cachedMatcherExtGrpcApiAddress = CachedData(getExternalAddress(WavesNodeContainer.matcherGrpcExtensionPort))
+  private val cachedBlockchainUpdatesExtGrpcApiAddress = CachedData(getExternalAddress(WavesNodeContainer.blockchainUpdatesGrpcExtensionPort))
 
   def networkAddress: InetSocketAddress = cachedNetworkAddress.get()
-  def grpcApiAddress: InetSocketAddress = cachedGrpcApiAddress.get()
+  def matcherExtGrpcApiAddress: InetSocketAddress = cachedMatcherExtGrpcApiAddress.get()
+  def blockchainUpdatesExtGrpcApiAddress: InetSocketAddress = cachedBlockchainUpdatesExtGrpcApiAddress.get()
 
-  def grpcApiTarget: String = s"${grpcApiAddress.getHostName}:${grpcApiAddress.getPort}"
+  // This won't help after reconnect to the network, need to recreate clients
+  def matcherExtApiTarget: String = s"${matcherExtGrpcApiAddress.getHostName}:${matcherExtGrpcApiAddress.getPort}"
+  def blockchainUpdatesExtApiTarget: String = s"${blockchainUpdatesExtGrpcApiAddress.getHostName}:${blockchainUpdatesExtGrpcApiAddress.getPort}"
 
   private val apiFunctorK: FunctorK[NodeApi] = FunctorK[NodeApi] // IntelliJ FIX
 
   val tf = new Transformations[ErrorResponse]
   import tf._
+
+  // See DexContainer about apis
 
   def api: NodeApi[SyncUnsafe] = apiFunctorK.mapK(asyncRawApi)(toSyncUnsafe)
   def tryApi: NodeApi[SyncTry] = apiFunctorK.mapK(asyncRawApi)(toSyncTry)
@@ -70,9 +76,11 @@ final case class WavesNodeContainer(override val internalIp: String, underlying:
   override def invalidateCaches(): Unit = {
     super.invalidateCaches()
     cachedNetworkAddress.invalidate()
-    cachedGrpcApiAddress.invalidate()
+    cachedMatcherExtGrpcApiAddress.invalidate()
+    cachedBlockchainUpdatesExtGrpcApiAddress.invalidate()
   }
 
+  override def printDebugMessage(text: String): Unit = asyncRawApi.print(text)
 }
 
 object WavesNodeContainer extends ScorexLogging {
@@ -80,9 +88,10 @@ object WavesNodeContainer extends ScorexLogging {
   private val baseContainerPath: String = "/opt/TN"
   private val containerLogsPath: String = s"$baseContainerPath/logs"
 
-  private val restApiPort: Int  = 6861 // application.conf waves.rest-api.port
-  private val networkPort: Int  = 6860 // application.conf waves.network.port
-  val dexGrpcExtensionPort: Int = 6887 // application.conf TN.dex.grpc.integration.port
+  private val restApiPort: Int = 6861 // application.conf waves.rest-api.port
+  private val networkPort: Int = 6860 // application.conf waves.network.port
+  val matcherGrpcExtensionPort: Int = 6887 // application.conf waves.dex.grpc.integration.port
+  val blockchainUpdatesGrpcExtensionPort: Int = 6881 // application.conf waves.dex.blockchain-updates-grpc.integration.port
 
   val wavesNodeNetAlias: String = "TN.nodes"
 
@@ -104,7 +113,7 @@ object WavesNodeContainer extends ScorexLogging {
 
     val underlying = GenericContainer(
       dockerImage = image,
-      exposedPorts = List(restApiPort, networkPort, dexGrpcExtensionPort),
+      exposedPorts = List(restApiPort, networkPort, matcherGrpcExtensionPort, blockchainUpdatesGrpcExtensionPort),
       env = getEnv(name, internalIp),
       waitStrategy = ignoreWaitStrategy
     ).configure { c =>
@@ -145,7 +154,8 @@ object WavesNodeContainer extends ScorexLogging {
       s"-Djava.util.logging.config.file=$baseContainerPath/jul.properties",
       s"-Dlogback.configurationFile=$baseContainerPath/logback-container.xml",
       s"-Dlogback.brief.fullPath=$containerLogsPath/container-$containerName.log",
-      s"-DTN.network.declared-address=$ip:6883"
+      s"-DTN.network.declared-address=$ip:6883",
+      "-Dmonix.environment.batchSize=1" // TODO DEX-993 Prod node setting?
     ).mkString(" ", " ", " ")
   )
 

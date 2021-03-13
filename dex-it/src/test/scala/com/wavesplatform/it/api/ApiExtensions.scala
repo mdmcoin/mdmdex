@@ -42,7 +42,7 @@ trait ApiExtensions extends NodeApiExtensions {
   }
 
   protected def cancelAndAwait(owner: KeyPair, order: Order, expectedStatus: HttpOrderStatus.Status = Status.Cancelled): HttpOrderStatus = {
-    dex1.api.cancel(owner, order)
+    dex1.api.cancelOrder(owner, order)
     dex1.api.waitForOrderStatus(order, expectedStatus)
   }
 
@@ -73,16 +73,16 @@ trait ApiExtensions extends NodeApiExtensions {
     dexApi: DexApi[Id] = dex1.api
   ): MatcherState = {
 
-    val offset = dexApi.currentOffset
-    val snapshots = dexApi.allSnapshotOffsets
-    val orderBooks = assetPairs.map(x => (x, (dexApi.orderBook(x), dexApi.orderBookStatus(x))))
-    val orderStatuses = orders.map(x => x.idStr() -> dexApi.orderStatus(x))
-    val orderTransactionIds = orders.map(x => x.idStr() -> dexApi.transactionsByOrder(x).map(_.id().toString).toSet)
-    val reservedBalances = accounts.map(x => x -> dexApi.reservedBalance(x))
+    val offset = dexApi.getCurrentOffset
+    val snapshots = dexApi.getAllSnapshotOffsets
+    val orderBooks = assetPairs.map(x => (x, (dexApi.getOrderBook(x), dexApi.getOrderBookStatus(x))))
+    val orderStatuses = orders.map(x => x.idStr() -> dexApi.getOrderStatus(x))
+    val orderTransactionIds = orders.map(x => x.idStr() -> dexApi.getTransactionsByOrder(x).map(_.id().toString).toSet)
+    val reservedBalances = accounts.map(x => x -> dexApi.getReservedBalance(x))
     val accountsOrderHistory = accounts.flatMap(a => assetPairs.map(p => a -> p))
 
     val orderHistory = accountsOrderHistory.map {
-      case (account, pair) => (account, pair, dexApi.orderHistoryByPair(account, pair))
+      case (account, pair) => (account, pair, dexApi.getOrderHistoryByAssetPairAndPublicKey(account, pair))
     }
 
     val orderHistoryMap = orderHistory

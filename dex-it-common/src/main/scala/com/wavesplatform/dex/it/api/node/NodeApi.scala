@@ -17,7 +17,9 @@ trait NodeApi[F[_]] {
   def assetBalanceOrig(address: Address, asset: IssuedAsset): F[AssetBalanceResponse]
 
   def broadcast(tx: Transaction): F[Unit]
+  def unconfirmedTransactions: F[List[Transaction]]
   def transactionInfo(id: Id): F[Transaction]
+  def unconfirmedTransactionInfo(id: Id): F[Transaction]
 
   def currentHeightOrig: F[HeightResponse]
 
@@ -25,6 +27,10 @@ trait NodeApi[F[_]] {
 
   def connect(toNode: InetSocketAddress): F[Unit]
   def connectedPeers: F[ConnectedPeersResponse]
+
+  def rollback(toHeight: Int, returnTransactionsToUtx: Boolean): F[Unit]
+
+  def print(message: String): F[Unit]
 }
 
 object NodeApi {} // ClassNotFound NodeApi$ without this line

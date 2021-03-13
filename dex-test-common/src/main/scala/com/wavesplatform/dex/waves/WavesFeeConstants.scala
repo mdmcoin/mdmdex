@@ -24,6 +24,7 @@ trait WavesFeeConstants {
   val orderFee: Long = matcherFee
   val smartMatcherFee: Long = 0.08.waves
   val smartMinFee: Long = minFee + smartFee
+  val invokeScriptFee: Long = 1.waves
 
   val tradeFee: Long = 0.04.waves
   val smartTradeFee: Long = tradeFee + smartFee

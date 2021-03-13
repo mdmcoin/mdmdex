@@ -111,8 +111,26 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |          connect-timeout = 99s
          |        }
          |      }
-         |      default-caches-expiration = 101ms,
+         |      blockchain-updates-grpc {
+         |        target = "127.1.2.10:7444"
+         |        max-hedged-attempts = 10
+         |        max-retry-attempts = 14
+         |        keep-alive-without-calls = true
+         |        keep-alive-time = 9s
+         |        keep-alive-timeout = 12s
+         |        idle-timeout = 21s
+         |        channel-options {
+         |          connect-timeout = 100s
+         |        }
+         |      }
+         |      default-caches-expiration = 101ms
          |      balance-stream-buffer-size = 100
+         |      combined-client-settings {
+         |        max-rollback-height = 90
+         |        max-cached-latest-block-updates = 7
+         |        combined-stream.restart-delay = 199ms
+         |        pessimistic-portfolios.max-confirmed-transactions = 400
+         |      }
          |    }
          |    exchange-tx-base-fee = 4000000
          |    actor-response-timeout = 11s
@@ -177,7 +195,6 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |    $orderRestrictionsStr
          |    $matchingRulesStr
          |    exchange-transaction-broadcast {
-         |      broadcast-until-confirmed = yes
          |      interval = 1 day
          |      max-pending-time = 30 days
          |    }
@@ -208,6 +225,21 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |      max-active-orders = 400
          |      ws-messages-interval = 100ms
          |      batch-cancel-timeout = 18 seconds
+         |    }
+         |
+         |    comparison-tool {
+         |      checks {
+         |        interval = 55m
+         |        duration = 3d
+         |        strike = 9
+         |      }
+         |
+         |      matcher-rest-apis = ["https://127.0.0.1:1234"]
+         |
+         |      tradable-balance-check {
+         |        account-pks = ["DuzcrAJcA8B7dEdaGfutD8NKQHB1Vix9JUoNWiMK9PMH"]
+         |        asset-pairs = ["WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"]
+         |      }
          |    }
          |  }
          |}""".stripMargin

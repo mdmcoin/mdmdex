@@ -68,7 +68,7 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
     val acc = mkAccountWithBalance(10.waves -> Waves)
     dex1.disconnectFromNetwork()
     broadcastAndAwait(mkTransfer(acc, alice.toAddress, 4.waves, Waves, 0.05.waves))
-    dex2.api.tradableBalance(acc, ethWavesPair)(Waves) shouldBe 5.95.waves
+    dex2.api.getTradableBalance(acc, ethWavesPair)(Waves) shouldBe 5.95.waves
     dex1.connectToNetwork()
   }
 
@@ -83,14 +83,22 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
     val bobCancels = (1 to cancelsNumber).map(_ => choose(bobOrders)).toSet.map(MatcherCommand.Cancel(dex2, bob, _))
     val cancels = Random.shuffle(aliceCancels ++ bobCancels)
 
-    successfulCommandsNumber = executeCommands(places ++ cancels)
+    successfulCommandsNumber = executeCommands(places)
+    // We have to do this separately because an order could be in progress (during placement).
+    //  So we could cancel it, but later.
+    //  But instead we receive OrderNotFound.
+    //    And this is the different case than OrderNotFound in an order book (executed),
+    //    because we didn't saved it to the queue.
+    successfulCommandsNumber += executeCommands(cancels.toSeq)
+
     successfulCommandsNumber += executeCommands(List(MatcherCommand.Place(dex1, lastOrder)))
     log.info(s"Successful commands: $successfulCommandsNumber")
   }
 
   "Wait until all requests are processed" in {
+    val expectedOffset = successfulCommandsNumber - 1
     try {
-      val offset1 = dex1.api.waitForCurrentOffset(_ == successfulCommandsNumber - 1) // Index starts from 0
+      val offset1 = dex1.api.waitForCurrentOffset(_ == expectedOffset) // Index starts from 0
       dex2.api.waitForCurrentOffset(_ == offset1)
 
       withClue("Last command processed") {
@@ -98,7 +106,7 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
       }
     } catch {
       case NonFatal(e) =>
-        log.info(s"Last offsets: node1=${dex1.api.lastOffset}, node2=${dex2.api.lastOffset}")
+        log.info(s"Last offsets: node1=${dex1.api.getLastOffset}, node2=${dex2.api.getLastOffset}, expected=$expectedOffset")
         throw e
     }
   }
@@ -131,7 +139,7 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
       val obs1 = wsob1.receiveAtLeastN[WsOrderBookChanges](1).reduce(mergeOrderBookChanges)
       val obs2 = wsob2.receiveAtLeastN[WsOrderBookChanges](1).reduce(mergeOrderBookChanges)
 
-      obs1 should be equals obs2
+      obs1 should matchTo(obs2)
     }
 
     wsob1.close()
@@ -184,7 +192,7 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
       Future
         .sequence {
           orders.map { order =>
-            dex1.asyncTryApi.cancel(owner, order).map {
+            dex1.asyncTryApi.cancelOrder(owner, order).map {
               case Left(x) if x.error != 9437194 => throw new RuntimeException(s"Unexpected error: $x") // OrderCanceled
               case _ => ()
             }
@@ -204,8 +212,8 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
       3.minutes
     )
 
-    Await.result(dex1.asyncApi.orderHistory(alice, Some(true)), 5.seconds) shouldBe empty
-    Await.result(dex1.asyncApi.orderHistory(bob, Some(true)), 5.seconds) shouldBe empty
+    Await.result(dex1.asyncApi.getOrderHistoryByPublicKey(alice, Some(true)), 5.seconds) shouldBe empty
+    Await.result(dex1.asyncApi.getOrderHistoryByPublicKey(bob, Some(true)), 5.seconds) shouldBe empty
   }
 
   private def mkOrders(account: KeyPair, number: Int = placesNumber) =

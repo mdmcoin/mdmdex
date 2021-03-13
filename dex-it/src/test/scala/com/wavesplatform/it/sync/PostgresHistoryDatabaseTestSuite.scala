@@ -219,12 +219,13 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
     placeAndAwaitAtNode(sellOrder)
 
     // buy counter order is not executed completely, but has filled status
-    dex1.api.orderStatus(buyOrder) should matchTo(HttpOrderStatus(Status.Filled, 270476663L.some, 3999992L.some))
+    dex1.api.getOrderStatus(buyOrder) should matchTo(HttpOrderStatus(Status.Filled, 270476663L.some, 3999992L.some))
 
-    val buyOrderEvents = getEventsInfoByOrderId(buyOrder.id())
-
-    buyOrderEvents should have size 1
-    buyOrderEvents.head.status shouldBe statusFilled
+    eventually {
+      val buyOrderEvents = getEventsInfoByOrderId(buyOrder.id())
+      buyOrderEvents should have size 1
+      buyOrderEvents.head.status shouldBe statusFilled
+    }
 
     getEventsInfoByOrderId(sellOrder.id()).last.status shouldBe statusPartiallyFilled
 
@@ -255,7 +256,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
       placeAndAwaitAtDex(counter)
       placeAndAwaitAtNode(submitted)
 
-      val filledEventTimestamp = expectFinalization(submitted.idStr())
+      val filledEventTimestamp = eventually(expectFinalization(submitted.idStr()))
       eventually {
         Seq(counter, submitted).foreach { order =>
           getOrderInfoById(order.id()).get.closedAt should matchTo(filledEventTimestamp)
@@ -271,7 +272,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
       // Because we have to wait more than 30 seconds
       eventually(timeout = Timeout(90.seconds), interval = Interval(1.second)) {
-        dex1.api.orderStatus(order).status shouldBe Status.Cancelled
+        dex1.api.getOrderStatus(order).status shouldBe Status.Cancelled
       }
 
       eventually {
@@ -315,7 +316,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
     dex1.api.waitForOrderStatus(buyOrder, Status.PartiallyFilled)
     dex1.api.waitForOrderStatus(sellOrder2, Status.Filled)
 
-    dex1.api.cancel(alice, buyOrder)
+    dex1.api.cancelOrder(alice, buyOrder)
 
     withClue("checking info for 2 small submitted orders\n") {
       Set(sellOrder1, sellOrder2).foreach { order =>

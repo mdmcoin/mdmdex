@@ -18,38 +18,38 @@ class MatcherRestartTestSuite extends MatcherSuiteBase {
       placeAndAwaitAtDex(aliceOrder)
 
       // Check that order is correct
-      val orders = dex1.api.orderBook(ethWavesPair)
+      val orders = dex1.api.getOrderBook(ethWavesPair)
       orders.asks.head.amount shouldBe 500
       orders.asks.head.price shouldBe 2.waves * Order.PriceConstant
 
       // Sell order should be in the dex1.api.orderBook
-      dex1.api.orderHistory(alice).head.status shouldBe Status.Accepted.name
+      dex1.api.getOrderHistoryByPublicKey(alice).head.status shouldBe Status.Accepted.name
 
       // Reboot matcher's node
       dex1.restart()
 
       dex1.api.waitForOrderStatus(aliceOrder, Status.Accepted)
-      dex1.api.orderHistory(alice).head.status shouldBe Status.Accepted.name
+      dex1.api.getOrderHistoryByPublicKey(alice).head.status shouldBe Status.Accepted.name
 
-      val orders1 = dex1.api.orderBook(ethWavesPair)
+      val orders1 = dex1.api.getOrderBook(ethWavesPair)
       orders1.asks.head.amount shouldBe 500
       orders1.asks.head.price shouldBe 2.waves * Order.PriceConstant
 
       placeAndAwaitAtDex(mkOrder(alice, ethWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant))
 
       eventually {
-        val orders2 = dex1.api.orderBook(ethWavesPair)
+        val orders2 = dex1.api.getOrderBook(ethWavesPair)
         orders2.asks.head.price shouldBe 2.waves * Order.PriceConstant
       }
 
-      val cancel = dex1.api.cancel(alice, aliceOrder)
+      val cancel = dex1.api.cancelOrder(alice, aliceOrder)
       cancel.status should be("OrderCanceled") // TODO
 
-      val orders3 = dex1.api.orderBook(ethWavesPair)
+      val orders3 = dex1.api.getOrderBook(ethWavesPair)
       orders3.asks.head.amount shouldBe 500
 
       dex1.api.waitForOrderStatus(aliceOrder, Status.Cancelled)
-      dex1.api.orderHistory(alice).head.status shouldBe Status.Accepted.name
+      dex1.api.getOrderHistoryByPublicKey(alice).head.status shouldBe Status.Accepted.name
     }
   }
 }

@@ -4,29 +4,50 @@ import java.time.{LocalDateTime, ZoneId}
 
 import com.wavesplatform.dex.it.api.BaseContainersKit
 import mouse.any._
-import org.scalatest.{Args, Status, Suite}
+import org.scalatest._
 
 import scala.util.{Failure, Success}
 
-trait InformativeTestStart extends Suite { self: BaseContainersKit =>
+trait InformativeTestStart extends TestSuite { self: BaseContainersKit =>
+
+  @volatile private var preventLogs = false
+
+  // As a part of the test
+  protected def step(text: String): Unit = print(text)
 
   override protected def runTest(testName: String, args: Args): Status = {
-
-    def print(text: String): Unit = writeGlobalLog(s"---------- [${LocalDateTime.now(ZoneId.of("UTC"))}] $text ----------")
-
-    print(s"Test '$testName' started")
-
-    super.runTest(testName, args) unsafeTap {
+    if (shouldWrite(success = true)) print(s"STARTED: $testName")
+    super.runTest(testName, args).unsafeTap {
       _.whenCompleted {
-        case Success(r) => print(s"Test '$testName' ${if (r) "succeeded" else "failed"}")
-        case Failure(e) => print(s"Test '$testName' failed with exception '${e.getClass.getSimpleName}'")
+        case Success(success) => if (shouldWrite(success)) print(s"${if (success) "SUCCEEDED" else "FAILED"}: $testName")
+        case Failure(e) => if (shouldWrite(success = false)) print(s"FAILED WITH ${e.getClass.getSimpleName}: $testName")
       }
     }
   }
 
+  // Single quotes to emphasize the text in IDE
+  private def print(text: String): Unit = writeGlobalLog(s"'---------- [${LocalDateTime.now(ZoneId.of("UTC"))}] $text ----------'")
+
+  private def shouldWrite(success: Boolean): Boolean =
+    this match {
+      case _: CancelAfterFailure | _: NoStackTraceCancelAfterFailure =>
+        if (preventLogs) false
+        else if (success) true
+        else {
+          preventLogs = true
+          true
+        }
+      case _ => true
+    }
+
   protected def writeGlobalLog(x: String): Unit = {
     log.debug(x)
-    knownContainers.get().foreach(_.printDebugMessage(x))
+    knownContainers.get().foreach { container =>
+      try container.printDebugMessage(x)
+      catch {
+        case e: Throwable => log.warn(s"Can't write message to ${container.containerId}", e)
+      }
+    }
   }
 
 }

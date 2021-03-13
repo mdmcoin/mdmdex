@@ -72,8 +72,8 @@ object Price {
 
 case class MatcherErrorMessage(text: String, template: String, params: JsObject)
 
-case object MatcherIsStarting extends MatcherError(commonEntity, commonEntity, starting, e"System is starting")
-case object MatcherIsStopping extends MatcherError(commonEntity, commonEntity, stopping, e"System is shutting down")
+case object MatcherIsStarting extends MatcherError(commonEntity, commonEntity, starting, e"System is starting. Please retry later")
+case object MatcherIsStopping extends MatcherError(commonEntity, commonEntity, stopping, e"System is shutting down. Please retry later")
 case object RequestTimeout extends MatcherError(request, commonEntity, stopping, e"Request timed out. Please retry later")
 case object FeatureNotImplemented extends MatcherError(commonEntity, feature, unsupported, e"This feature is not implemented")
 case object FeatureDisabled extends MatcherError(commonEntity, feature, disabled, e"This feature is disabled, contact with the administrator")
@@ -173,12 +173,12 @@ case class WrongExpiration(currentTs: Long, minExpirationOffset: Long, givenExpi
 case class OrderCommonValidationFailed(details: String)
     extends MatcherError(order, commonEntity, commonClass, e"The order is invalid: ${Symbol("details") -> details}")
 
-case class InvalidAsset(theAsset: String)
+case class InvalidAsset(theAsset: String, reason: String = "It should be 'TN' or a Base58 string")
     extends MatcherError(
       asset,
       commonEntity,
       broken,
-      e"The asset '${Symbol("assetId") -> theAsset}' is wrong. It should be 'TN' or a Base58 string"
+      e"The asset '${Symbol("assetId") -> theAsset}' is wrong, reason: ${Symbol("reason") -> reason}"
     )
 
 case class AssetBlacklisted(theAsset: IssuedAsset)
@@ -535,7 +535,11 @@ case object ApiKeyIsNotProvided
 
 case object ApiKeyIsNotValid extends MatcherError(auth, commonEntity, commonClass, e"Provided API key is not correct")
 
-case object UserPublicKeyIsNotValid extends MatcherError(account, pubKey, broken, e"Provided user public key is not correct")
+case class UserPublicKeyIsNotValid(reason: String = "invalid public key")
+    extends MatcherError(account, pubKey, broken, e"Provided public key is not correct, reason: ${Symbol("reason") -> reason}")
+
+case class InvalidBase58String(reason: String)
+  extends MatcherError(order, commonEntity, broken, e"Provided value is not a correct base58 string, reason: ${Symbol("reason") -> reason}")
 
 case class AddressAndPublicKeyAreIncompatible(address: Address, publicKey: PublicKey)
     extends MatcherError(

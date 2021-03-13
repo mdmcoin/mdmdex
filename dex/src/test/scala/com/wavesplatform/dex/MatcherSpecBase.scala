@@ -1,9 +1,5 @@
 package com.wavesplatform.dex
 
-import java.math.BigInteger
-import java.security.SecureRandom
-import java.util.concurrent.atomic.AtomicLong
-
 import com.google.common.base.Charsets
 import com.google.common.primitives.{Bytes, Ints}
 import com.softwaremill.diffx.{Derived, Diff}
@@ -36,6 +32,9 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.Suite
 import pureconfig.ConfigSource
 
+import java.math.BigInteger
+import java.security.SecureRandom
+import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.util.Random
@@ -43,8 +42,10 @@ import scala.util.Random
 trait MatcherSpecBase extends SystemTime with DiffMatcherWithImplicits with DoubleOps with WavesFeeConstants with AllureScalatestContext {
   _: Suite =>
 
-  implicit protected val wsErrorDiff: Diff[WsError] = Derived[Diff[WsError]].ignore[WsError, Long](_.timestamp)
-  implicit protected val orderCanceledDiff: Diff[OrderCanceled] = Derived[Diff[OrderCanceled]].ignore[OrderCanceled, Long](_.timestamp)
+  implicit protected val wsErrorDiff: Derived[Diff[WsError]] = Derived(Diff.gen[WsError].ignore[WsError, Long](_.timestamp))
+
+  implicit protected val orderCanceledDiff: Derived[Diff[OrderCanceled]] =
+    Derived(Diff.gen[OrderCanceled].value.ignore[OrderCanceled, Long](_.timestamp))
 
   private val WalletSeed: ByteStr = ByteStr("Matcher".getBytes("utf-8"))
   private val MatcherSeed: Array[Byte] = wcrypto.secureHash(Bytes.concat(Ints.toByteArray(0), WalletSeed.arr))

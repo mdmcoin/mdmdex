@@ -30,6 +30,9 @@ trait ExchangeTransaction extends ByteAndJsonSerializable with Proven {
   def timestamp: Long
   def version: Byte
 
+  // Set, because is could be one trader
+  def traders: Set[Address] = Set(buyOrder.senderPublicKey.toAddress, sellOrder.senderPublicKey.toAddress)
+
   @ApiModelProperty(
     value = "Transaction ID",
     dataType = "string",
@@ -111,6 +114,8 @@ trait ExchangeTransaction extends ByteAndJsonSerializable with Proven {
 
 object ExchangeTransaction {
 
+  type Id = ByteStr
+
   val typeId: Byte = 7
 
   def parse(bytes: Array[Byte]): Try[ExchangeTransaction] =
@@ -153,7 +158,6 @@ object ExchangeTransaction {
       _ <- Either.cond(buyOrder.isValid(timestamp), (), OrderValidationError(buyOrder, buyOrder.isValid(timestamp).messages()))
       _ <- Either.cond(sellOrder.isValid(timestamp), (), OrderValidationError(sellOrder, sellOrder.isValid(timestamp).labels.mkString("\n")))
       _ <- Either.cond(price <= buyOrder.price && price >= sellOrder.price, (), GenericError("priceIsValid"))
-
     } yield ()
 
 }

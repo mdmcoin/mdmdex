@@ -366,7 +366,7 @@ class WsOrderBookStreamTestSuite extends WsSuiteBase {
       val wsc2 = mkWsOrderBookConnection(wavesBtcPair, dex1)
       assertUpdateId(wsc2, 0)
 
-      dex1.api.cancel(carol, order)
+      dex1.api.cancelOrder(carol, order)
       assertUpdateId(wsc1, 2)
       assertUpdateId(wsc2, 1)
     }
@@ -476,7 +476,7 @@ class WsOrderBookStreamTestSuite extends WsSuiteBase {
 
       wsc.receiveAtLeastNRaw(1).map(m =>
         (Json.parse(m.body) \ "b").asOpt[List[List[String]]] match {
-          case Some(b) => println(s"!!!!!!!!!!!! ${b}"); b.flatMap(_.head).map(_.toDouble)
+          case Some(b) => b.flatMap(_.head).map(_.toDouble)
           case None => List.empty
         }
       ).filter(l => l == l.sorted && l.size > 1) should have size 0

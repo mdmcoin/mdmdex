@@ -90,17 +90,17 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
 
   // offset is 0, after test - 6
   "Tick size isn't set" in {
-    dex1.api.allOrderBooks.markets.size shouldBe 0
+    dex1.api.getOrderBooks.markets.size shouldBe 0
 
     Seq(wctUsdPair -> 0.00000001, wavesBtcPair -> 0.00000001, wavesUsdPair -> 0.01).foreach {
       case (pair, defaultTs) =>
-        dex1.api.orderBookInfo(pair).matchingRules.tickSize shouldBe defaultTs
+        dex1.api.getOrderBookInfo(pair).matchingRules.tickSize shouldBe defaultTs
 
         val order = mkOrder(bob, pair, SELL, amount, price, matcherFee)
         placeAndAwaitAtDex(order)
 
         dex1.api.tradingPairInfo(pair).get.matchingRules.tickSize shouldBe defaultTs
-        dex1.api.cancel(bob, order)
+        dex1.api.cancelOrder(bob, order)
     }
   }
 
@@ -109,7 +109,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     val sellOrder = mkOrder(bob, wctUsdPair, SELL, amount, 15 * price, matcherFee)
     dex1.api.place(sellOrder)
 
-    dex1.api.orderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 15 * price))
+    dex1.api.getOrderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 15 * price))
     dex1.api.place(mkOrder(alice, wctUsdPair, BUY, amount, 17 * price, matcherFee))
     dex1.api.waitForCurrentOffset(_ == 7)
 
@@ -118,15 +118,15 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     val buyOrder = mkOrder(alice, wctUsdPair, BUY, amount, 10 * price, matcherFee)
     dex1.api.place(buyOrder)
 
-    dex1.api.orderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(amount, 8 * price))
-    dex1.api.cancel(alice, buyOrder)
+    dex1.api.getOrderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(amount, 8 * price))
+    dex1.api.cancelOrder(alice, buyOrder)
     dex1.api.waitForCurrentOffset(_ == 9)
 
     val anotherBuyOrder = mkOrder(alice, wctUsdPair, BUY, amount, 10 * price, matcherFee)
     dex1.api.place(anotherBuyOrder)
 
-    dex1.api.orderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(amount, 7 * price))
-    dex1.api.cancel(alice, anotherBuyOrder)
+    dex1.api.getOrderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(amount, 7 * price))
+    dex1.api.cancelOrder(alice, anotherBuyOrder)
   }
 
   // offset is 12, after test - 18
@@ -148,10 +148,10 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     placeAndAwaitAtDex(buyOrder3)
 
     // now there are 2 price levels
-    dex1.api.orderBook(wctUsdPair).bids.map(_.price) shouldBe Seq(7 * price, 5 * price)
+    dex1.api.getOrderBook(wctUsdPair).bids.map(_.price) shouldBe Seq(7 * price, 5 * price)
 
-    dex1.api.reservedBalance(alice)(Waves) shouldBe matcherFee * 3
-    dex1.api.reservedBalance(alice)(usd) shouldBe amount * 7 * 3 * price / PriceConstant
+    dex1.api.getReservedBalance(alice)(Waves) shouldBe matcherFee * 3
+    dex1.api.getReservedBalance(alice)(usd) shouldBe amount * 7 * 3 * price / PriceConstant
 
     // price level 5 will be deleted after cancelling of buyOrder3
     cancelAndAwait(alice, buyOrder3)
@@ -159,11 +159,11 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     wavesNode1.api.balance(alice, usd) shouldBe aliceUsdBalance
     wavesNode1.api.balance(alice, wct) shouldBe aliceWctBalance
 
-    dex1.api.reservedBalance(alice)(Waves) shouldBe matcherFee * 2
-    dex1.api.reservedBalance(alice)(usd) shouldBe amount * 2 * 7 * price / PriceConstant
+    dex1.api.getReservedBalance(alice)(Waves) shouldBe matcherFee * 2
+    dex1.api.getReservedBalance(alice)(usd) shouldBe amount * 2 * 7 * price / PriceConstant
 
-    dex1.api.orderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(2 * amount, 7 * price))
-    Seq(buyOrder1, buyOrder2).foreach(order => dex1.api.cancel(alice, order))
+    dex1.api.getOrderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(2 * amount, 7 * price))
+    Seq(buyOrder1, buyOrder2).foreach(order => dex1.api.cancelOrder(alice, order))
   }
 
   // offset is 18, after test - 22
@@ -178,7 +178,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     val sellOrder = mkOrder(bob, wctUsdPair, SELL, amount, 4 * price, matcherFee)
     placeAndAwaitAtDex(sellOrder)
 
-    dex1.api.orderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 5 * price))
+    dex1.api.getOrderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 5 * price))
 
     val anotherSellOrder = mkOrder(bob, wctUsdPair, SELL, amount, 3 * price, matcherFee)
     placeAndAwaitAtDex(anotherSellOrder)
@@ -188,8 +188,8 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
 
     waitForOrderAtNode(buyOrder)
 
-    dex1.api.orderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 5 * price))
-    dex1.api.orderBook(wctUsdPair).bids shouldBe Nil
+    dex1.api.getOrderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 5 * price))
+    dex1.api.getOrderBook(wctUsdPair).bids shouldBe Nil
 
     wavesNode1.api.balance(bob, usd) shouldBe (bobUsdBalance + 4 * amount)
     wavesNode1.api.balance(bob, wct) shouldBe (bobWctBalance - amount)
@@ -199,7 +199,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance - matcherFee)
     wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - matcherFee)
 
-    dex1.api.cancel(bob, anotherSellOrder)
+    dex1.api.cancelOrder(bob, anotherSellOrder)
   }
 
   // offset is 22, after test - 25
@@ -214,7 +214,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     val sellOrder = mkOrder(bob, wctUsdPair, SELL, amount, 15 * price, matcherFee)
     placeAndAwaitAtDex(sellOrder)
 
-    dex1.api.orderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 20 * price))
+    dex1.api.getOrderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 20 * price))
 
     val buyOrder = mkOrder(alice, wctUsdPair, BUY, 2 * amount, 20 * price, matcherFee)
     placeAndAwaitAtDex(buyOrder, Status.PartiallyFilled)
@@ -230,12 +230,12 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - matcherFee / 2)
 
     withClue("partially filled order cancellation") {
-      dex1.api.orderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(amount, 12 * price))
-      dex1.api.reservedBalance(alice)(Waves) shouldBe matcherFee / 2
-      dex1.api.reservedBalance(alice)(usd) shouldBe 20 * price * amount / PriceConstant
-      dex1.api.cancel(alice, buyOrder)
-      dex1.api.reservedBalance(alice) shouldBe empty
-      dex1.api.orderBook(wctUsdPair).bids shouldBe empty
+      dex1.api.getOrderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(amount, 12 * price))
+      dex1.api.getReservedBalance(alice)(Waves) shouldBe matcherFee / 2
+      dex1.api.getReservedBalance(alice)(usd) shouldBe 20 * price * amount / PriceConstant
+      dex1.api.cancelOrder(alice, buyOrder)
+      dex1.api.getReservedBalance(alice) shouldBe empty
+      dex1.api.getOrderBook(wctUsdPair).bids shouldBe empty
     }
   }
 
@@ -244,15 +244,15 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
     val bestAskOrderId = mkOrder(alice, wctUsdPair, SELL, amount, 17 * price, matcherFee)
     dex1.api.place(bestAskOrderId)
 
-    dex1.api.orderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 24 * price))
+    dex1.api.getOrderBook(wctUsdPair).asks shouldBe Seq(HttpV0LevelAgg(amount, 24 * price))
 
     val bestBidOrderId = mkOrder(bob, wctUsdPair, BUY, amount, 17 * price, matcherFee)
     dex1.api.place(bestBidOrderId)
 
-    dex1.api.orderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(amount, 12 * price))
+    dex1.api.getOrderBook(wctUsdPair).bids shouldBe Seq(HttpV0LevelAgg(amount, 12 * price))
 
-    dex1.api.cancel(alice, bestAskOrderId)
-    dex1.api.cancel(bob, bestBidOrderId)
+    dex1.api.cancelOrder(alice, bestAskOrderId)
+    dex1.api.cancelOrder(bob, bestBidOrderId)
   }
 
   "Placing order on level 0" in {
@@ -284,14 +284,14 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
             val bestAskOrderId = mkOrder(alice, pair, SELL, amount, 17 * price, matcherFee)
             dex1.api.place(bestAskOrderId)
 
-            dex1.api.orderBook(pair).asks shouldBe Seq(HttpV0LevelAgg(amount, 24 * price))
+            dex1.api.getOrderBook(pair).asks shouldBe Seq(HttpV0LevelAgg(amount, 24 * price))
             val bestBidOrderId = mkOrder(bob, pair, BUY, amount, 17 * price, matcherFee)
             dex1.api.place(bestBidOrderId)
 
-            dex1.api.orderBook(pair).bids shouldBe Seq(HttpV0LevelAgg(amount, 12 * price))
+            dex1.api.getOrderBook(pair).bids shouldBe Seq(HttpV0LevelAgg(amount, 12 * price))
 
-            dex1.api.cancel(alice, bestAskOrderId)
-            dex1.api.cancel(bob, bestBidOrderId)
+            dex1.api.cancelOrder(alice, bestAskOrderId)
+            dex1.api.cancelOrder(bob, bestBidOrderId)
 
             val filledOrderId = mkOrder(bob, pair, BUY, amount, 25 * price, matcherFee)
             dex1.api.place(filledOrderId)
@@ -329,7 +329,7 @@ class MatchingRulesTestSuite extends MatcherSuiteBase {
               case x => throw new RuntimeException(s"Impossible case: $x")
             }
 
-            dex1.api.cancel(alice, partiallyFilledOrderId)
+            dex1.api.cancelOrder(alice, partiallyFilledOrderId)
           }
       }
   }

@@ -74,7 +74,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         placeAndAwaitAtDex(mkOrder(alice, oneSmartPair, SELL, amount, price, expectedFee, version = 2))
 
         info("expected fee should be reserved")
-        dex1.api.reservedBalance(alice)(Waves) shouldBe expectedFee
+        dex1.api.getReservedBalance(alice)(Waves) shouldBe expectedFee
 
         val submitted = mkOrder(bob, oneSmartPair, BUY, amount, price, expectedFee, version = 2)
         dex1.api.place(submitted)
@@ -112,7 +112,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
           placeAndAwaitAtDex(mkOrder(alice, bothSmartPair, SELL, amount, price, expectedFee, version = 2))
 
           info("expected fee should be reserved")
-          dex1.api.reservedBalance(alice)(Waves) shouldBe expectedFee
+          dex1.api.getReservedBalance(alice)(Waves) shouldBe expectedFee
 
           val submitted = mkOrder(bob, bothSmartPair, BUY, amount, price, expectedFee, version = 2)
           dex1.api.place(submitted)
@@ -147,7 +147,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         placeAndAwaitAtDex(mkOrder(bob, oneSmartPair, SELL, amount, price, expectedFee, version = 3, feeAsset = feeAsset))
 
         info("expected fee should be reserved")
-        dex1.api.reservedBalance(bob)(feeAsset) shouldBe expectedFee
+        dex1.api.getReservedBalance(bob)(feeAsset) shouldBe expectedFee
 
         val submitted = mkOrder(alice, oneSmartPair, BUY, amount, price, expectedWavesFee, version = 2)
         placeAndAwaitAtDex(submitted, Status.Filled)
@@ -182,15 +182,15 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
 
         val bobOrder = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 48, feeAsset = assetWith2Dec)
         dex1.api.place(bobOrder)
-        dex1.api.reservedBalance(bob)(assetWith2Dec) shouldBe 10048L
+        dex1.api.getReservedBalance(bob)(assetWith2Dec) shouldBe 10048L
 
         //
         val aliceOrder = mkOrder(alice, asset2WithDecWavesPair, BUY, 20000L, 300.waves * 1000000L, 48, feeAsset = assetWith2Dec)
         dex1.api.place(aliceOrder)
         waitForOrderAtNode(bobOrder)
 
-        dex1.api.reservedBalance(alice)(Waves) shouldBe (300.waves * 100L)
-        dex1.api.reservedBalance(bob) shouldBe Map()
+        dex1.api.getReservedBalance(alice)(Waves) shouldBe (300.waves * 100L)
+        dex1.api.getReservedBalance(bob) shouldBe Map()
 
         wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 300.waves * 100L)
         wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 10048L)
@@ -201,7 +201,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         dex1.api.place(anotherBobOrderId)
         waitForOrderAtNode(anotherBobOrderId)
 
-        dex1.api.reservedBalance(alice) shouldBe Map()
+        dex1.api.getReservedBalance(alice) shouldBe Map()
         wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 2 * 300.waves * 100L)
         wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 2 * 10048L)
         wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 2 * 300.waves * 100L)

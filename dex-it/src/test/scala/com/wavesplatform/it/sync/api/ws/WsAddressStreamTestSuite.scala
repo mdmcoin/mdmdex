@@ -220,13 +220,10 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
         placeAndAwaitAtNode(mkOrderDP(alice, wavesUsdPair, SELL, 10.waves, 1.0))
 
         assertChanges(wsc)(
-          Map(usd -> WsBalances(0, 10), Waves -> WsBalances(9.96, 0.04)),
-          Map(Waves -> WsBalances(9.96, 0)),
-          Map(usd -> WsBalances(0, 0)),
-          Map(Waves -> WsBalances(
-            19.96,
-            0
-          )) // since balance increasing comes after transaction mining, + 10 - 0.003, Waves balance on Node = 19.997
+          Map(Waves -> WsBalances(9.96, 0.04), usd -> WsBalances(0, 10)),
+          Map(Waves -> WsBalances(10, 0), usd -> WsBalances(0, 0)),
+          // since balance increasing comes after transaction mining, + 10 - 0.003, Waves balance on Node = 19.997
+          Map(Waves -> WsBalances(19.96, 0))
         )(
           WsOrder.fromDomain(LimitOrder(bo)),
           WsOrder(
@@ -449,7 +446,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
     }
 
     wsc.receiveAtLeastN[WsAddressChanges](1) // snapshot
-    wsc.receiveNoMessages(3.5.seconds)
+    wsc.receiveNoMessagesOf[WsAddressChanges](3.5.seconds)
 
     wsc.close()
   }
@@ -488,7 +485,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
     }
 
     "DEX-817 Invalid WAVES balance after connection (leasing)" in {
-      val bobWavesBalanceBefore = dex1.api.tradableBalance(bob, wavesBtcPair)(Waves)
+      val bobWavesBalanceBefore = dex1.api.getTradableBalance(bob, wavesBtcPair)(Waves)
 
       dex1.stopWithoutRemove()
       val leaseTx = mkLease(bob, alice, bobWavesBalanceBefore - 0.1.waves, fee = leasingFee)
@@ -589,7 +586,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
       wavesNode1.api.balance(carol, Waves) shouldBe expectedWavesBalance.waves
       wavesNode1.api.balance(carol, btc) shouldBe btcBalance.btc
 
-      dex1.api.tradableBalance(carol, wavesBtcPair) should matchTo(
+      dex1.api.getTradableBalance(carol, wavesBtcPair) should matchTo(
         Map(
           Waves -> expectedWavesBalance.waves,
           btc -> btcBalance.btc
@@ -614,12 +611,46 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
 
       // with tradable balance request
       val carol = mkAccountWithBalance(initialBalance)
-      dex1.api.tradableBalance(carol, wavesUsdPair)
+      dex1.api.getTradableBalance(carol, wavesUsdPair)
       getBalanceSnapshot(carol) should matchTo(expectedBalanceSnapshot)
 
       // without tradable balance request
       val eve = mkAccountWithBalance(initialBalance)
       getBalanceSnapshot(eve) should matchTo(expectedBalanceSnapshot)
+    }
+
+    "DEX-1082 Balances not updated" in {
+      val acc = mkAccountWithBalance(10.waves -> Waves)
+      val wsc = mkWsAddressConnection(acc, dex1)
+
+      eventually(wsc.balanceChanges should have size 1)
+
+      broadcastAndAwait(mkTransfer(alice, acc.toAddress, 2.usd, usd, feeAmount = 1.waves))
+      eventually {
+        wsc.balanceChanges.last should matchTo(Map[Asset, WsBalances](
+          usd -> WsBalances(2.0, 0.0)
+        ))
+      }
+      wsc.close()
+      Thread.sleep(1000)
+
+      broadcastAndAwait(mkTransfer(acc, alice, 2.usd, usd, feeAmount = 1.waves))
+      Thread.sleep(1000)
+
+      val wsc2 = mkWsAddressConnection(acc, dex1)
+      eventually {
+        wsc2.balanceChanges should matchTo(List(Map[Asset, WsBalances](
+          Waves -> WsBalances(9.0, 0.0)
+        )))
+      }
+
+      wsc2.clearMessages()
+      broadcastAndAwait(mkTransfer(alice, acc.toAddress, 2.usd, usd, feeAmount = 1.waves))
+      eventually {
+        wsc2.balanceChanges.squashed should matchTo(Map[Asset, WsBalances](
+          usd -> WsBalances(2.0, 0.0)
+        ))
+      }
     }
   }
 }

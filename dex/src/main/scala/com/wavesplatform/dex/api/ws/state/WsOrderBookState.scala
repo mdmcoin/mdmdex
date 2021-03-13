@@ -13,7 +13,6 @@ import com.wavesplatform.dex.domain.model.{Amount, Price}
 import com.wavesplatform.dex.model.{LastTrade, LevelAmounts, OrderBook}
 import monocle.macros.GenLens
 
-import scala.annotation.nowarn
 import scala.collection.immutable.TreeMap
 
 case class WsOrderBookState(
@@ -85,7 +84,7 @@ case class WsOrderBookState(
     // 2. A level could gone from xs
     val r = TreeMap.newBuilder[Price, Amount](xs.ordering)
     levels.foreach { level =>
-      @nowarn val v = xs.getOrElse(level, 0L)
+      val v = xs.getOrElse(level, 0L)
       r += level -> v
     }
     r.result()

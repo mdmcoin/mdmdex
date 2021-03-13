@@ -1,18 +1,13 @@
 package com.wavesplatform.it.sync
 
 import com.typesafe.config.{Config, ConfigFactory}
-import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.order.OrderType
 import com.wavesplatform.dex.it.docker.WavesNodeContainer
 import com.wavesplatform.it.MatcherSuiteBase
 
 class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
-  override protected def dexInitialSuiteConfig: Config =
-    ConfigFactory
-      .parseString(s"""TN.dex.exchange-transaction-broadcast {
-                      |  broadcast-until-confirmed = yes
-                      |  interval = 10s
-                      |}""".stripMargin)
+  override protected def dexInitialSuiteConfig: Config = ConfigFactory
+    .parseString(s"TN.dex.exchange-transaction-broadcast.interval = 10s")
 
   // Validator node
   protected lazy val wavesNode2: WavesNodeContainer =
@@ -29,7 +24,7 @@ class BroadcastUntilConfirmedTestSuite extends MatcherSuiteBase {
     eventually(dex1.tryApi.place(aliceOrder) shouldBe Symbol("right"))
 
     dex1.api.place(bobOrder)
-    dex1.api.waitForOrderStatus(aliceOrder, Status.Filled)
+    // dex1.api.waitForOrderStatus(aliceOrder, Status.Filled) // Because now we are waiting for a transaction in UTX/Blockchain
 
     markup("Wait for a transaction")
     val exchangeTxId = dex1.api.waitForTransactionsByOrder(aliceOrder, 1).head.id()

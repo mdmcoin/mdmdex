@@ -38,7 +38,7 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
     Seq(alice -> counter, bob -> submitted).foreach {
       case (owner, ao) =>
-        dex1.api.orderStatusInfoByIdWithSignature(owner, ao).totalExecutedPriceAssets shouldBe totalExecutedPriceAssets
+        dex1.api.getOrderStatusInfoByIdWithSignature(owner, ao).totalExecutedPriceAssets shouldBe totalExecutedPriceAssets
     }
 
 
@@ -46,7 +46,7 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
     log.warn(s"Transactions: ${txs.map(_.toJson).mkString("\n")}")
 
     val tx = waitForOrderAtNode(counter)
-    dex1.api.cancel(alice, counter)
+    dex1.api.cancelOrder(alice, counter)
 
     val exchangeTx = wavesNode1.api.transactionInfo(tx.head.id()) match {
       case r: ExchangeTransaction => r
@@ -76,12 +76,12 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
     dex1.api.waitForOrder(submitted)(_ == HttpOrderStatus(Status.Filled, filledAmount = Some(filledAmount), filledFee = Some(3999998)))
     dex1.api.waitForOrder(counter)(_ == HttpOrderStatus(Status.PartiallyFilled, filledAmount = Some(filledAmount), filledFee = Some(967456)))
 
-    withClue("Alice's reserved balance before cancel")(dex1.api.reservedBalance(alice) shouldBe empty)
+    withClue("Alice's reserved balance before cancel")(dex1.api.getReservedBalance(alice) shouldBe empty)
 
     waitForOrderAtNode(counter)
-    dex1.api.cancel(bob, counter)
+    dex1.api.cancelOrder(bob, counter)
 
-    withClue("Bob's reserved balance after cancel")(dex1.api.reservedBalance(bob) shouldBe empty)
+    withClue("Bob's reserved balance after cancel")(dex1.api.getReservedBalance(bob) shouldBe empty)
   }
 
   "should correctly fill 2 counter orders" in {
@@ -98,7 +98,7 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
     dex1.api.waitForOrder(counter2)(_ == HttpOrderStatus(Status.PartiallyFilled, filledAmount = Some(2857143L), filledFee = Some(114285)))
 
     withClue("orderBook check") {
-      val ob = dex1.api.orderBook(wavesUsdPair)
+      val ob = dex1.api.getOrderBook(wavesUsdPair)
       ob.bids shouldBe empty
       ob.asks shouldBe List(HttpV0LevelAgg(97142857L, 70L)) // = 100000000 - 2857143
     }
