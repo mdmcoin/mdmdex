@@ -297,7 +297,7 @@ class ExchangeTransactionBroadcastActorSpecification
           price = 6000000L,
           buyMatcherFee = 0L,
           sellMatcherFee = 0L,
-          fee = 300000L,
+          fee = 4000000L,
           timestamp = createdTs,
           proofs = Proofs.empty
         )

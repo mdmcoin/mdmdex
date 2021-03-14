@@ -260,7 +260,7 @@ baz"""
          |      base-taker-fee = 300000
          |    }
          |    fixed {
-         |      asset = WAVES
+         |      asset = TN
          |      min-fee = 300000
          |    }
          |    percent {

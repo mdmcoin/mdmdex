@@ -23,9 +23,9 @@ class BouncingBalancesTestSuite extends WsSuiteBase {
       .parseString(s"""TN.dex.price-assets = [ "$UsdId", "TN" ]""")
       .withFallback(jwtPublicKeyConfig)
 
-  override def wavesNodeInitialSuiteConfig: Config = ConfigFactory.parseString(s"""waves.miner.enable = false""".stripMargin)
+  override def wavesNodeInitialSuiteConfig: Config = ConfigFactory.parseString(s"""TN.miner.enable = false""".stripMargin)
 
-  private val minerNodeSuiteConfig: Config = ConfigFactory.parseString("""waves.miner {
+    private val minerNodeSuiteConfig: Config = ConfigFactory.parseString("""TN.miner {
   enable = true
   micro-block-interval = 1s
   min-micro-block-age = 1s

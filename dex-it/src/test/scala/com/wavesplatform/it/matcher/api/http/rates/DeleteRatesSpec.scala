@@ -40,7 +40,7 @@ class DeleteRatesSpec extends MatcherSuiteBase with ApiKeyHeaderChecks {
     }
 
     "should return an error when user try to update Waves rate" in {
-      validateMatcherError(dex1.rawApi.deleteRate(Waves), StatusCodes.BadRequest, 20971531, "The rate for WAVES cannot be changed")
+      validateMatcherError(dex1.rawApi.deleteRate(Waves), StatusCodes.BadRequest, 20971531, "The rate for TN cannot be changed")
     }
 
     "should return an error when assetId is not a correct base58 string" in {

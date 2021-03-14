@@ -39,7 +39,7 @@ class GetReservedBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
         mkOrder(acc, wavesUsdPair, SELL, 1.waves, 5.usd)
       ).foreach(placeAndAwaitAtDex(_))
 
-      validate200Json(dex1.rawApi.getReservedBalance(acc)) should be(Map(Waves -> 9.009.waves, usd -> 20.usd))
+      validate200Json(dex1.rawApi.getReservedBalance(acc)) should be(Map(Waves -> 9.12.waves, usd -> 20.usd))
     }
 
     "should return non-zero balances with X-API-KEY" in {
@@ -50,7 +50,7 @@ class GetReservedBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
         mkOrder(acc, wavesUsdPair, SELL, 1.waves, 5.usd)
       ).foreach(placeAndAwaitAtDex(_))
 
-      validate200Json(dex1.rawApi.getReservedBalanceWithApiKey(acc)) should be(Map(Waves -> 9.009.waves, usd -> 20.usd))
+      validate200Json(dex1.rawApi.getReservedBalanceWithApiKey(acc)) should be(Map(Waves -> 9.12.waves, usd -> 20.usd))
     }
 
     shouldReturnErrorWithoutApiKeyHeader(dex1.rawApi.getReservedBalance(Base58.encode(alice.publicKey), headers = Map.empty))

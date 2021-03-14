@@ -59,7 +59,7 @@ class UpdateRatesByAssetIdSpec extends MatcherSuiteBase with ApiKeyHeaderChecks 
     }
 
     "should return an error when user try to update Waves rate" in {
-      validateMatcherError(dex1.rawApi.upsertRate(Waves, 0.5), StatusCodes.BadRequest, 20971531, "The rate for WAVES cannot be changed")
+      validateMatcherError(dex1.rawApi.upsertRate(Waves, 0.5), StatusCodes.BadRequest, 20971531, "The rate for TN cannot be changed")
     }
 
     "should return error exception when the amount asset is not correct base58 string" in {
