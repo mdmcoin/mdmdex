@@ -18,7 +18,7 @@ jobs:
       docker pull testcontainersofficial/ryuk:0.3.0
 
   - script: |
-      sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  dex-it/docker
+      sbt -J-Xms5G -J-Xmx5G dex-it/docker
       docker images
     displayName: 'Build docker and show'
     
@@ -38,7 +38,7 @@ jobs:
       tags: 'latest'
     displayName: 'Run push matcher-server '
 
-  - script: 'sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  dex-it/test'
+  - script: 'sbt -J-Xms5G -J-Xmx5G dex-it/test'
     displayName: 'Run docker tests '
       
   - task: PublishTestResults@2
@@ -53,7 +53,7 @@ jobs:
     name: Hosted Ubuntu 1604
 
   steps:
-  - script: 'sbt -J-Xms5G -J-Xmx5G -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled  quickCheck'
+  - script: 'sbt -J-Xms5G -J-Xmx5G quickCheck'
     displayName: 'Run quickCheck tests '
 
   - task: PublishTestResults@2
