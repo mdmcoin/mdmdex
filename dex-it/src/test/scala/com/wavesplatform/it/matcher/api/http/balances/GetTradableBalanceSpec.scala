@@ -37,14 +37,14 @@ class GetTradableBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
       ).foreach(placeAndAwaitAtDex(_))
 
       validate200Json(dex1.rawApi.getTradableBalance(acc, wavesUsdPair)) should be(Map(
-        Waves -> 98.994.waves, // waves = 100 - 1 - 2 * 0.003
+        Waves -> 98.92.waves, // waves = 100 - 1 - 2 * 0.003
         usd -> 48.usd // usd = 50 - 1 * 2
       ))
 
       withClue(" and should recalculate it after match") {
         placeAndAwaitAtNode(mkOrder(alice, wavesUsdPair, BUY, 1.waves, 5.usd))
         validate200Json(dex1.rawApi.getTradableBalance(acc, wavesUsdPair)) should be(Map(
-          Waves -> 98.994.waves,
+          Waves -> 98.92.waves,
           usd -> 53.usd
         ))
       }
@@ -53,7 +53,7 @@ class GetTradableBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
         dex1.api.cancelAll(acc)
         eventually {
           validate200Json(dex1.rawApi.getTradableBalance(acc, wavesUsdPair)) should be(Map(
-            Waves -> 98.997.waves,
+            Waves -> 98.96.waves,
             usd -> 55.usd
           ))
         }
