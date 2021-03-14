@@ -15,8 +15,8 @@ class GetReservedBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
 
   override protected def dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
-      s"""waves.dex {
-         |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
+      s"""TN.dex {
+         |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
          |}""".stripMargin
     )
 

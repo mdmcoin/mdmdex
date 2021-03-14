@@ -27,7 +27,7 @@ TN.dex.grpc.integration {
 Second one is the official Matcher Server image. In order to start container, you need to specify the following settings in `local.conf`, which is located in `/docker/matcher-server/config` on your host machine (if you are using volume):
 
 ```
-waves.dex {
+TN.dex {
 
   # Current network. Default is Mainnet (W), should be the same as at Matcher Node
   address-scheme-character = "W"

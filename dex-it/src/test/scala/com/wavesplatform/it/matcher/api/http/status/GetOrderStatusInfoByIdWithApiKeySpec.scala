@@ -14,8 +14,8 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 class GetOrderStatusInfoByIdWithApiKeySpec extends MatcherSuiteBase with ApiKeyHeaderChecks with TableDrivenPropertyChecks {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
-       |  price-assets = [ "$BtcId", "$UsdId", "WAVES" ]
+    s"""TN.dex {
+       |  price-assets = [ "$BtcId", "$UsdId", "TN" ]
        |}""".stripMargin
   )
 

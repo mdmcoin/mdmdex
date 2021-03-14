@@ -20,7 +20,7 @@ class BouncingBalancesTestSuite extends WsSuiteBase {
 
   override protected val dexInitialSuiteConfig: Config =
     ConfigFactory
-      .parseString(s"""waves.dex.price-assets = [ "$UsdId", "WAVES" ]""")
+      .parseString(s"""TN.dex.price-assets = [ "$UsdId", "TN" ]""")
       .withFallback(jwtPublicKeyConfig)
 
   override def wavesNodeInitialSuiteConfig: Config = ConfigFactory.parseString(s"""waves.miner.enable = false""".stripMargin)

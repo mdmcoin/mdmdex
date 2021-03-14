@@ -17,7 +17,7 @@ class SeveralPartialOrdersTestSuite extends MatcherSuiteBase {
     dex1.start()
   }
 
-  "Alice and Bob trade WAVES-USD" - {
+  "Alice and Bob trade TN-USD" - {
     val price = 238
     val buyOrderAmount = 425532L
     val sellOrderAmount = 840340L

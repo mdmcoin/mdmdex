@@ -21,7 +21,7 @@ class TradeBalanceAndRoundingTestSuite extends MatcherSuiteBase {
     dex1.start()
   }
 
-  "Alice and Bob trade WAVES-USD" - {
+  "Alice and Bob trade TN-USD" - {
     val price = 238
     val buyOrderAmount = 425532L
     val sellOrderAmount = 3100000000L
@@ -118,7 +118,7 @@ class TradeBalanceAndRoundingTestSuite extends MatcherSuiteBase {
     }
   }
 
-  "Alice and Bob trade WAVES-USD check CELLING" - {
+  "Alice and Bob trade TN-USD check CELLING" - {
     val price2 = 289
     val buyOrderAmount2 = 0.07.waves
     val sellOrderAmount2 = 3.waves

@@ -13,8 +13,8 @@ class UpdateRatesByAssetIdSpec extends MatcherSuiteBase with ApiKeyHeaderChecks 
   val defaultRates: HttpRates = Map(Waves -> 1d)
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
-       |  price-assets = [ "$BtcId", "$UsdId", "WAVES" ]
+    s"""TN.dex {
+       |  price-assets = [ "$BtcId", "$UsdId", "TN" ]
        |}""".stripMargin
   )
 

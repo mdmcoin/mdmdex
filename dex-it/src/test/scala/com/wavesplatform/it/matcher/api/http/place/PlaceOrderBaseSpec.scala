@@ -17,8 +17,8 @@ class PlaceOrderBaseSpec extends MatcherSuiteBase with TableDrivenPropertyChecks
   val correctExpiration = System.currentTimeMillis() + 10.days.toMillis
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
-       |  price-assets = [ "$UsdId", "WAVES" ]
+    s"""TN.dex {
+       |  price-assets = [ "$UsdId", "TN" ]
        |}""".stripMargin
   )
 

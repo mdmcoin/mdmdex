@@ -10,8 +10,8 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 class GetOrderBooksSpec extends MatcherSuiteBase with TableDrivenPropertyChecks with RawHttpChecks {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
-       |  price-assets = [ "$BtcId", "$UsdId", "WAVES" ]
+    s"""TN.dex {
+       |  price-assets = [ "$BtcId", "$UsdId", "TN" ]
        |}""".stripMargin
   )
 

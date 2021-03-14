@@ -12,8 +12,8 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 class GetOrderStatusSpec extends MatcherSuiteBase with TableDrivenPropertyChecks with RawHttpChecks {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
-       |  price-assets = [ "$BtcId", "$UsdId", "WAVES" ]
+    s"""TN.dex {
+       |  price-assets = [ "$BtcId", "$UsdId", "TN" ]
        |}""".stripMargin
   )
 
@@ -69,7 +69,7 @@ class GetOrderStatusSpec extends MatcherSuiteBase with TableDrivenPropertyChecks
 
     "should return an error exception when the price asset is not correct base58 string" in {
       validateMatcherError(
-        dex1.rawApi.getOrderStatus("WAVES", "null", order.idStr()),
+        dex1.rawApi.getOrderStatus("TN", "null", order.idStr()),
         StatusCodes.BadRequest,
         11534337,
         "The asset 'null' is wrong, reason: requirement failed: Wrong char 'l' in Base58 string 'null'"
@@ -80,7 +80,7 @@ class GetOrderStatusSpec extends MatcherSuiteBase with TableDrivenPropertyChecks
       val incorrectAsset = "3Q6ndEq2z5UJwF4SF24ySRj9guPoFWaSeXP"
 
       validateMatcherError(
-        dex1.rawApi.getOrderStatus(incorrectAsset, "WAVES", order.idStr()),
+        dex1.rawApi.getOrderStatus(incorrectAsset, "TN", order.idStr()),
         StatusCodes.NotFound,
         11534345,
         s"The asset $incorrectAsset not found"
@@ -91,14 +91,14 @@ class GetOrderStatusSpec extends MatcherSuiteBase with TableDrivenPropertyChecks
 
       def mkAsset(): IssueTransaction = {
         val tx = mkIssue(alice, "name", someAssetAmount, 2)
-        if (tx.id().toString < "WAVES") tx
+        if (tx.id().toString < "TN") tx
         else mkAsset()
       }
 
       val issuedAsset = mkAsset()
       broadcastAndAwait(issuedAsset)
 
-      validate301Redirect(dex1.rawApi.getOrderStatus("WAVES", issuedAsset.assetId().toString, order.idStr()))
+      validate301Redirect(dex1.rawApi.getOrderStatus("TN", issuedAsset.assetId().toString, order.idStr()))
     }
   }
 }

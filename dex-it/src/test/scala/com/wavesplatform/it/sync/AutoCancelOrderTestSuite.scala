@@ -19,7 +19,7 @@ import scala.concurrent.{Await, Future}
 class AutoCancelOrderTestSuite extends MatcherSuiteBase {
 
   override protected def dexInitialSuiteConfig: Config =
-    ConfigFactory.parseString(s"""waves.dex.price-assets = [ "$UsdId", "$BtcId", "WAVES" ]""")
+    ConfigFactory.parseString(s"""TN.dex.price-assets = [ "$UsdId", "$BtcId", "TN" ]""")
 
   protected lazy val dex2: DexContainer = createDex("dex-2")
 

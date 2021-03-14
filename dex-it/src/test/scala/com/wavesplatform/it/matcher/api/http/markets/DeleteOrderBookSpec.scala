@@ -11,8 +11,8 @@ import com.wavesplatform.it.matcher.api.http.ApiKeyHeaderChecks
 class DeleteOrderBookSpec extends MatcherSuiteBase with ApiKeyHeaderChecks {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
-       |  price-assets = [ "$UsdId", "WAVES" ]
+    s"""TN.dex {
+       |  price-assets = [ "$UsdId", "TN" ]
        |}""".stripMargin
   )
 
@@ -40,7 +40,7 @@ class DeleteOrderBookSpec extends MatcherSuiteBase with ApiKeyHeaderChecks {
         dex1.rawApi.deleteOrderBook(wavesUsdPair),
         StatusCodes.ServiceUnavailable,
         8388609,
-        s"The order book for WAVES-$UsdId is unavailable, please contact with the administrator"
+        s"The order book for TN-$UsdId is unavailable, please contact with the administrator"
       )
     }
 
@@ -55,16 +55,16 @@ class DeleteOrderBookSpec extends MatcherSuiteBase with ApiKeyHeaderChecks {
 
     "should return an error exception when the price asset is not correct base58 string" in {
       validateMatcherError(
-        dex1.rawApi.deleteOrderBook("WAVES", "null", Map("X-API-KEY" -> apiKey)),
+        dex1.rawApi.deleteOrderBook("TN", "null", Map("X-API-KEY" -> apiKey)),
         StatusCodes.BadRequest,
         11534337,
         s"The asset 'null' is wrong, reason: requirement failed: Wrong char 'l' in Base58 string 'null'"
       )
     }
 
-    shouldReturnErrorWithoutApiKeyHeader(dex1.rawApi.deleteOrderBook("WAVES", UsdId.toString, Map.empty))
+    shouldReturnErrorWithoutApiKeyHeader(dex1.rawApi.deleteOrderBook("TN", UsdId.toString, Map.empty))
 
-    shouldReturnErrorWithIncorrectApiKeyValue(dex1.rawApi.deleteOrderBook("WAVES", UsdId.toString, incorrectApiKeyHeader))
+    shouldReturnErrorWithIncorrectApiKeyValue(dex1.rawApi.deleteOrderBook("TN", UsdId.toString, incorrectApiKeyHeader))
   }
 
 }

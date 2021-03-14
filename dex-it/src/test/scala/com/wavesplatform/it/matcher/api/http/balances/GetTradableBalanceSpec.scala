@@ -12,8 +12,8 @@ class GetTradableBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
 
   override protected def dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
-      s"""waves.dex {
-         |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
+      s"""TN.dex {
+         |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
          |}""".stripMargin
     )
 
@@ -71,7 +71,7 @@ class GetTradableBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
 
     "should return an error exception when the price asset is not correct base58 string" in {
       validateMatcherError(
-        dex1.rawApi.getTradableBalance(alice.toAddress.stringRepr, "WAVES", "null"),
+        dex1.rawApi.getTradableBalance(alice.toAddress.stringRepr, "TN", "null"),
         StatusCodes.BadRequest,
         11534337,
         s"The asset 'null' is wrong, reason: requirement failed: Wrong char 'l' in Base58 string 'null'"
@@ -81,7 +81,7 @@ class GetTradableBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
     "should return an error when amount asset doesn't exist" in {
       val incorrectAsset = "3Q6ndEq2z5UJwF4SF24ySRj9guPoFWaSeXP"
       validateMatcherError(
-        dex1.rawApi.getTradableBalance(alice.toAddress.stringRepr, incorrectAsset, "WAVES"),
+        dex1.rawApi.getTradableBalance(alice.toAddress.stringRepr, incorrectAsset, "TN"),
         StatusCodes.NotFound,
         11534345,
         s"The asset $incorrectAsset not found"
@@ -92,20 +92,20 @@ class GetTradableBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
     "should return an error when price asset doesn't exist" in {
       val incorrectAsset = "3Q6ndEq2z5UJwF4SF24ySRj9guPoFWaSeXP"
       validateMatcherError(
-        dex1.rawApi.getTradableBalance(alice.toAddress.stringRepr, "WAVES", incorrectAsset),
+        dex1.rawApi.getTradableBalance(alice.toAddress.stringRepr, "TN", incorrectAsset),
         StatusCodes.NotFound,
         9440771,
-        s"The WAVES-$incorrectAsset asset pair should be reversed"
+        s"The TN-$incorrectAsset asset pair should be reversed"
       )
     }
 
     "should return redirect when amount and price assets is not in correct order" in {
-      validate301Redirect(dex1.rawApi.getTradableBalance(alice.toAddress.stringRepr, UsdId.toString, "WAVES"))
+      validate301Redirect(dex1.rawApi.getTradableBalance(alice.toAddress.stringRepr, UsdId.toString, "TN"))
     }
 
     "should return an error if address has a bad checksum" in {
       validateMatcherError(
-        dex1.rawApi.getTradableBalance("3Q6ndEq2z5UJwFaSF24ySRj9guPoFWaSeXX", "WAVES", UsdId.toString),
+        dex1.rawApi.getTradableBalance("3Q6ndEq2z5UJwFaSF24ySRj9guPoFWaSeXX", "TN", UsdId.toString),
         StatusCodes.BadRequest,
         4194304,
         "Provided address in not correct, reason: Bad address checksum"
@@ -114,7 +114,7 @@ class GetTradableBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
 
     "should return an error if address has an incorrect length" in {
       validateMatcherError(
-        dex1.rawApi.getTradableBalance("AAAAA", "WAVES", UsdId.toString),
+        dex1.rawApi.getTradableBalance("AAAAA", "TN", UsdId.toString),
         StatusCodes.BadRequest,
         4194304,
         "Provided address in not correct, reason: Wrong addressBytes length: expected: 26, actual: 4"
@@ -123,7 +123,7 @@ class GetTradableBalanceSpec extends MatcherSuiteBase with TableDrivenPropertyCh
 
     "should return an error if address is not correct base58 string" in {
       validateMatcherError(
-        dex1.rawApi.getTradableBalance("null", "WAVES", UsdId.toString),
+        dex1.rawApi.getTradableBalance("null", "TN", UsdId.toString),
         StatusCodes.BadRequest,
         4194304,
         "Provided address in not correct, reason: Unable to decode base58: requirement failed: Wrong char 'l' in Base58 string 'null'"

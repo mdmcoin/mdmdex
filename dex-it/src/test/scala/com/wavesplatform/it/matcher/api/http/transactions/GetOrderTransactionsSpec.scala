@@ -11,8 +11,8 @@ class GetOrderTransactionsSpec extends MatcherSuiteBase with TableDrivenProperty
 
   override protected def dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
-      s"""waves.dex {
-         |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
+      s"""TN.dex {
+         |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
          |}""".stripMargin
     )
 

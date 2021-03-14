@@ -158,7 +158,7 @@ class CombinedWavesBlockchainClientTestSuite extends IntegrationSuiteBase with H
 
   "broadcastTx" - {
     "returns true" - {
-      val pair = AssetPair.createAssetPair(UsdId.toString, "WAVES").get
+      val pair = AssetPair.createAssetPair(UsdId.toString, "TN").get
       def mkExchangeTx: ExchangeTransaction = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcher = matcher)
 
       "if the transaction passed the validation and was added to the UTX pool" in {
@@ -188,7 +188,7 @@ class CombinedWavesBlockchainClientTestSuite extends IntegrationSuiteBase with H
 
       val executedAmount = 1L
       val executedPrice = 2 * Order.PriceConstant
-      val pair = AssetPair.createAssetPair(UsdId.toString, "WAVES").get
+      val pair = AssetPair.createAssetPair(UsdId.toString, "TN").get
       val fakeBob = KeyPair("fake-bob".getBytes(StandardCharsets.UTF_8))
 
       val buy = mkOrder(alice, pair, OrderType.BUY, executedAmount, executedPrice, matcher = matcher)
@@ -258,7 +258,7 @@ class CombinedWavesBlockchainClientTestSuite extends IntegrationSuiteBase with H
       }
 
       withClue("run script") {
-        val pair = AssetPair.createAssetPair(issueTx.id().toString, "WAVES").get
+        val pair = AssetPair.createAssetPair(issueTx.id().toString, "TN").get
         val exchangeTx = mkDomainExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcherFee = 1.waves, matcher = matcher)
 
         wait(client.runScript(IssuedAsset(issueTx.id()), exchangeTx)) shouldBe RunScriptResult.Allowed
@@ -289,7 +289,7 @@ class CombinedWavesBlockchainClientTestSuite extends IntegrationSuiteBase with H
 
       withClue("run script") {
         val now = System.currentTimeMillis()
-        val pair = AssetPair.createAssetPair(UsdId.toString, "WAVES").get
+        val pair = AssetPair.createAssetPair(UsdId.toString, "TN").get
         val buy = Order.buy(bob, matcher, pair, 1L, 2 * Order.PriceConstant, now, now + 1.day.toMillis, 0)
 
         wait(client.runScript(receiver, buy)) shouldBe RunScriptResult.Allowed
@@ -438,7 +438,7 @@ class CombinedWavesBlockchainClientTestSuite extends IntegrationSuiteBase with H
     }
 
     "the order was in a forged ExchangeTransaction" in {
-      val pair = AssetPair.createAssetPair(UsdId.toString, "WAVES").get
+      val pair = AssetPair.createAssetPair(UsdId.toString, "TN").get
       val exchangeTx = mkExchange(bob, alice, pair, 1L, 2 * Order.PriceConstant, matcher = matcher)
 
       withClue(exchangeTx.id().base58) {

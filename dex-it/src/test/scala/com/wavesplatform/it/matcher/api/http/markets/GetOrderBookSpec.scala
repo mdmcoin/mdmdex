@@ -11,8 +11,8 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 class GetOrderBookSpec extends MatcherSuiteBase with TableDrivenPropertyChecks with RawHttpChecks {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
-       |  price-assets = [ "$BtcId", "$UsdId", "WAVES" ]
+    s"""TN.dex {
+       |  price-assets = [ "$BtcId", "$UsdId", "TN" ]
        |}""".stripMargin
   )
 
@@ -50,7 +50,7 @@ class GetOrderBookSpec extends MatcherSuiteBase with TableDrivenPropertyChecks w
 
     "should return exception when price is not a correct base58 string" in {
       validateMatcherError(
-        dex1.rawApi.getOrderBook("WAVES", "null"),
+        dex1.rawApi.getOrderBook("TN", "null"),
         StatusCodes.BadRequest,
         9437185,
         s"Provided value is not a correct base58 string, reason: requirement failed: Wrong char 'l' in Base58 string 'null'"
@@ -70,8 +70,8 @@ class GetOrderBookSpec extends MatcherSuiteBase with TableDrivenPropertyChecks w
 
     forAll(Table(
       ("Amount", "Price", "Http status", "Error code", "Message"),
-      ("incorrect", "WAVES", 404, 11534345, "The asset incorrect not found"),
-      ("WAVES", "incorrect", 404, 9440771, "The WAVES-incorrect asset pair should be reversed")
+      ("incorrect", "TN", 404, 11534345, "The asset incorrect not found"),
+      ("TN", "incorrect", 404, 9440771, "The TN-incorrect asset pair should be reversed")
     )) { (a: String, p: String, c: Int, e: Int, m: String) =>
       s"for $a/$p should return (HTTP-$c; [$e: $m]) " in {
         validateMatcherError(dex1.rawApi.getOrderBook(AssetPair.createAssetPair(a, p).get), c, e, m)

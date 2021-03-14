@@ -15,8 +15,8 @@ class GetOrderHistoryByPublicKeySpec extends MatcherSuiteBase with RawHttpChecks
 
   override protected def dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
-      s"""waves.dex {
-         |  price-assets = [ "$UsdId", "WAVES" ]
+      s"""TN.dex {
+         |  price-assets = [ "$UsdId", "TN" ]
          |}""".stripMargin
     )
 

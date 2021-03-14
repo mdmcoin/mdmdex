@@ -142,7 +142,7 @@ baz"""
       matcherRestApis = List(uri"https://127.0.0.1:1234"),
       tradableBalanceCheck = ComparisonTool.TradableBalanceCheck(
         accountPks = List(PublicKey.fromBase58String("DuzcrAJcA8B7dEdaGfutD8NKQHB1Vix9JUoNWiMK9PMH").explicitGet()),
-        assetPairs = List(AssetPair.extractAssetPair("WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get)
+        assetPairs = List(AssetPair.extractAssetPair("TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS").get)
       )
     ))
   }

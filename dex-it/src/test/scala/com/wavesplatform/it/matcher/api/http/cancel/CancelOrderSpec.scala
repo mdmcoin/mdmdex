@@ -13,8 +13,8 @@ class CancelOrderSpec extends MatcherSuiteBase with RawHttpChecks {
 
   override protected def dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
-      s"""waves.dex {
-         |  price-assets = [ "$UsdId", "WAVES" ]
+      s"""TN.dex {
+         |  price-assets = [ "$UsdId", "TN" ]
          |}""".stripMargin
     )
 
@@ -59,7 +59,7 @@ class CancelOrderSpec extends MatcherSuiteBase with RawHttpChecks {
       val ts = System.currentTimeMillis
       val sign = crypto.sign(alice, alice.publicKey ++ Longs.toByteArray(ts))
 
-      validateIncorrectSignature(dex1.rawApi.cancelOrder(bob, "WAVES", UsdId.toString, o.idStr(), ts, sign))
+      validateIncorrectSignature(dex1.rawApi.cancelOrder(bob, "TN", UsdId.toString, o.idStr(), ts, sign))
     }
 
     "should return an error if timestamp header has the different value of used in signature" in {
@@ -68,7 +68,7 @@ class CancelOrderSpec extends MatcherSuiteBase with RawHttpChecks {
       val ts = System.currentTimeMillis
       val sign = crypto.sign(alice, alice.publicKey ++ Longs.toByteArray(ts))
 
-      validateIncorrectSignature(dex1.rawApi.cancelOrder(bob, "WAVES", UsdId.toString, o.idStr(), ts + 1000, sign))
+      validateIncorrectSignature(dex1.rawApi.cancelOrder(bob, "TN", UsdId.toString, o.idStr(), ts + 1000, sign))
     }
   }
 

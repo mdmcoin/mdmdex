@@ -238,7 +238,7 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |
          |      tradable-balance-check {
          |        account-pks = ["DuzcrAJcA8B7dEdaGfutD8NKQHB1Vix9JUoNWiMK9PMH"]
-         |        asset-pairs = ["WAVES-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"]
+         |        asset-pairs = ["TN-8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"]
          |      }
          |    }
          |  }
