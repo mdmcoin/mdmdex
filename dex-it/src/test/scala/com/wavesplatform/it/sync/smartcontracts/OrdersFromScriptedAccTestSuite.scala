@@ -208,7 +208,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
       placeAndAwaitAtDex(o)
       broadcastAndAwait(mkInvokeScript(alice, dapp))
 
-      validateBalances(dapp, 89.997.waves, Map(Waves -> 10.003.waves))
+      validateBalances(dapp, 89.96.waves, Map(Waves -> 10.04.waves))
 
       cancelAndAwait(dapp, o)
 
