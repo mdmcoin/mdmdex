@@ -10,7 +10,7 @@ package object http {
   def toHttpOrderBookHistoryItem(
     order: Order,
     status: OrderStatus,
-    fee: Long = 0.003.waves,
+    fee: Long = 0.04.waves,
     acceptedOrderType: AcceptedOrderType = AcceptedOrderType.Limit,
     avgWeighedPrice: Long = 0,
     totalExecutedPriceAssets: Long = 0
