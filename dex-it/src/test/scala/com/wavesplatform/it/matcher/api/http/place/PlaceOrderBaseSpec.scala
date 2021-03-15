@@ -37,13 +37,13 @@ class PlaceOrderBaseSpec extends MatcherSuiteBase with TableDrivenPropertyChecks
     ),
     (
       1,
-      mkOrder(alice, wavesUsdPair, BUY, -10.waves, 1.usd, 0.003.waves, Waves, correctExpiration, 1.day, 1.toByte, matcher.publicKey),
+      mkOrder(alice, wavesUsdPair, BUY, -10.waves, 1.usd, 0.04.waves, Waves, correctExpiration, 1.day, 1.toByte, matcher.publicKey),
       StatusCodes.BadRequest,
       MatcherError(9437184, "The order is invalid: amount should be > 0", "OrderRejected", Some(Params(None, None, None)))
     ),
     (
       2,
-      mkOrder(alice, wavesUsdPair, BUY, 10.waves, -1.usd, 0.003.waves, Waves, correctExpiration, 1.day, 1.toByte, matcher.publicKey),
+      mkOrder(alice, wavesUsdPair, BUY, 10.waves, -1.usd, 0.04.waves, Waves, correctExpiration, 1.day, 1.toByte, matcher.publicKey),
       StatusCodes.BadRequest,
       MatcherError(9437184, "The order is invalid: price should be > 0", "OrderRejected", Some(Params(None, None, None)))
     ),
@@ -51,15 +51,15 @@ class PlaceOrderBaseSpec extends MatcherSuiteBase with TableDrivenPropertyChecks
       3,
       mkOrder(alice, wavesUsdPair, BUY, 10.waves, 1.usd, 0L, Waves, correctExpiration, 1.day, 1.toByte, matcher.publicKey),
       StatusCodes.BadRequest,
-      MatcherError(9441542, "Required 0.003 WAVES as fee for this order, but given 0 WAVES", "OrderRejected", Some(Params(None, None, None)))
+      MatcherError(9441542, "Required 0.04 TN as fee for this order, but given 0 TN", "OrderRejected", Some(Params(None, None, None)))
     ),
     (
       4,
-      mkOrder(alice, wavesUsdPair, BUY, 10.waves, 1.usd, 0.003.waves, usd, correctExpiration, 1.day, 1.toByte, matcher.publicKey),
+      mkOrder(alice, wavesUsdPair, BUY, 10.waves, 1.usd, 0.04.waves, usd, correctExpiration, 1.day, 1.toByte, matcher.publicKey),
       400,
       MatcherError(
         9441540,
-        s"Required one of the following fee asset: WAVES. But given ${UsdId.toString}",
+        s"Required one of the following fee asset: TN. But given ${UsdId.toString}",
         "OrderRejected",
         Some(Params(None, None, None))
       )
