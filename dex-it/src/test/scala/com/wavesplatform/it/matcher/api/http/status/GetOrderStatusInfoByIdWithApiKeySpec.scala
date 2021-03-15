@@ -48,7 +48,7 @@ class GetOrderStatusInfoByIdWithApiKeySpec extends MatcherSuiteBase with ApiKeyH
         validate200Json(dex1.rawApi.getOrderStatusInfoByIdWithApiKey(alice, o.id(), Some(alice.publicKey))) should matchTo(
           toHttpOrderBookHistoryItem(
             o,
-            OrderStatus.PartiallyFilled(5.waves, 0.0015.waves),
+            OrderStatus.PartiallyFilled(5.waves, 0.02.waves),
             avgWeighedPrice = 2.usd,
             totalExecutedPriceAssets = 10.usd
           )
@@ -61,7 +61,7 @@ class GetOrderStatusInfoByIdWithApiKeySpec extends MatcherSuiteBase with ApiKeyH
         validate200Json(dex1.rawApi.getOrderStatusInfoByIdWithApiKey(alice, o.id(), Some(alice.publicKey))) should matchTo(
           toHttpOrderBookHistoryItem(
             o,
-            OrderStatus.Filled(10.waves, 0.003.waves),
+            OrderStatus.Filled(10.waves, 0.04.waves),
             avgWeighedPrice = 2.usd,
             totalExecutedPriceAssets = 20.usd
           )
