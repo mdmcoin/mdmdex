@@ -123,7 +123,7 @@ inConfig(Universal)(
 // DEB package
 inConfig(Linux)(
   Seq(
-    name := "TN-dex", // A staging directory name
+    name := "tn-dex", // A staging directory name
     normalizedName := name.value, // An archive file name
     packageName := name.value // In a control file
   )
