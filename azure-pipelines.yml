@@ -50,7 +50,7 @@ jobs:
 - job: quickCheck
   timeoutInMinutes: 360
   pool:
-    name: Hosted Ubuntu 1604
+    name: Default
 
   steps:
   - script: 'sbt -J-Xms5G -J-Xmx5G quickCheck'
