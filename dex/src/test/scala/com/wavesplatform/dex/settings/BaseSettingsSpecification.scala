@@ -254,7 +254,7 @@ class BaseSettingsSpecification extends AnyFlatSpec {
 
   def loadCleanConfigSample(): Config = {
     val configStr =
-      s"""waves.dex {
+      s"""TN.dex {
          |  data-directory = "data"
          |  id = "default"
          |  address-scheme-character = "W"
@@ -428,7 +428,7 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |  }
          |}
          |
-         |waves.dex {
+         |TN.dex {
          |  actor-response-timeout = 30 seconds
          |  process-consumed-timeout = 10 seconds
          |  waves-blockchain-client.balance-stream-buffer-size = 100

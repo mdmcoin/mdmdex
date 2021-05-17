@@ -120,7 +120,7 @@ object ComparisonTool {
 
   def apply(confPath: String): ErrorOr[ComparisonTool] = Try {
     val matcherSettings = ConfigSource
-      .fromConfig(loadConfig(parseFile(new File(confPath)))).at("waves.dex")
+      .fromConfig(loadConfig(parseFile(new File(confPath)))).at("TN.dex")
       .loadOrThrow[MatcherSettings]
 
     AddressScheme.current = new AddressScheme { override val chainId: Byte = matcherSettings.addressSchemeCharacter.toByte }

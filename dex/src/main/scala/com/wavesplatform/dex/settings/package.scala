@@ -18,7 +18,7 @@ package object settings {
   def formatValue(value: BigDecimal): String = format.format(value.bigDecimal)
 
   def loadMatcherSettings(userConfig: Config): Try[MatcherSettings] = Try {
-    ConfigSource.fromConfig(loadConfig(userConfig)).at("waves.dex").loadOrThrow[MatcherSettings]
+    ConfigSource.fromConfig(loadConfig(userConfig)).at("TN.dex").loadOrThrow[MatcherSettings]
   }
 
   def loadConfig(userConfig: Config): Config = loadConfig(Some(userConfig))

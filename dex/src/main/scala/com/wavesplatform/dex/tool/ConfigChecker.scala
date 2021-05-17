@@ -40,7 +40,7 @@ object ConfigChecker extends ConfigWriters {
     Either.catchNonFatal {
       val skippedPaths = matcherSettings.cli.ignoreUnusedProperties
       val usingProperties: ConfigValue = ConfigWriter[MatcherSettings].to(matcherSettings)
-      val allProperties = rawCfg.getConfig("waves.dex").entrySet()
+      val allProperties = rawCfg.getConfig("TN.dex").entrySet()
       getConfigObject(usingProperties)
         .map { co =>
           allProperties.asScala.toSeq
