@@ -13,9 +13,9 @@ class ReBroadcastUntilConfirmedTestSuite extends MatcherSuiteBase with EitherVal
     createWavesNode("waves-2", suiteInitialConfig = ConfigFactory.parseString("waves.miner.enable = no") withFallback wavesNodeInitialSuiteConfig)
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory
-    .parseString(s"""waves.dex.exchange-transaction-broadcast.interval = 10s
-                    | waves.dex.waves-blockchain-client.blockchain-updates-grpc.target = "${wavesNode2.internalIp}:6887"
-                    | waves.dex.waves-blockchain-client.grpc.target = "${wavesNode2.internalIp}:6887"
+    .parseString(s"""TN.dex.exchange-transaction-broadcast.interval = 10s
+                    | TN.dex.waves-blockchain-client.blockchain-updates-grpc.target = "${wavesNode2.internalIp}:6887"
+                    | TN.dex.waves-blockchain-client.grpc.target = "${wavesNode2.internalIp}:6887"
     """)
 
   private val aliceOrder = mkOrder(alice, ethWavesPair, OrderType.SELL, 100000L, 80000L)

@@ -15,8 +15,8 @@ class ConfigCheckerCliSpec extends BaseSettingsSpecification with Matchers with 
     result.value shouldBe Seq.empty[String]
   }
 
-  it should "find unexpected value in path waves.dex.bla-bla-value" in {
-    val blablaValue = "waves.dex.bla-bla-value"
+  it should "find unexpected value in path TN.dex.bla-bla-value" in {
+    val blablaValue = "TN.dex.bla-bla-value"
     val cfg = loadCleanConfigSample().withValue(
       blablaValue,
       ConfigValueFactory.fromAnyRef("some-simple-value")
@@ -26,8 +26,8 @@ class ConfigCheckerCliSpec extends BaseSettingsSpecification with Matchers with 
     result.value shouldBe Seq(cutWavesDexSection(blablaValue))
   }
 
-  it should "find unexpected value in path waves.dex.order-fee.-1.dynamic.bla-bla-value" in {
-    val blablaValuePath = "waves.dex.order-fee.-1.dynamic.bla-bla-value"
+  it should "find unexpected value in path TN.dex.order-fee.-1.dynamic.bla-bla-value" in {
+    val blablaValuePath = "TN.dex.order-fee.-1.dynamic.bla-bla-value"
     val cfg = loadCleanConfigSample().withValue(
       blablaValuePath,
       ConfigValueFactory.fromAnyRef("some-simple-value")
@@ -39,9 +39,9 @@ class ConfigCheckerCliSpec extends BaseSettingsSpecification with Matchers with 
 
   it should "find more than one unexpected values" in {
     val blablaValuePathSeq = Seq(
-      "waves.dex.order-fee.-1.dynamic.bla-bla-value",
-      "waves.dex.bla-value",
-      "waves.dex.order-db.some-unexpected-path"
+      "TN.dex.order-fee.-1.dynamic.bla-bla-value",
+      "TN.dex.bla-value",
+      "TN.dex.order-db.some-unexpected-path"
     )
     val cfg = blablaValuePathSeq.foldLeft(loadCleanConfigSample()) {
       (cfg, path) =>
@@ -54,19 +54,19 @@ class ConfigCheckerCliSpec extends BaseSettingsSpecification with Matchers with 
   it should "ignore unknown values from skipped paths" in {
     val skippedProperties = Seq("events-queue.kafka.consumer.client", "events-queue.kafka.producer.client", "events-queue.kafka.servers")
     val blablaValuePathSeq = Seq(
-      "waves.dex.order-fee.-1.dynamic.bla-bla-value",
-      "waves.dex.bla-value",
-      "waves.dex.order-db.some-unexpected-path"
+      "TN.dex.order-fee.-1.dynamic.bla-bla-value",
+      "TN.dex.bla-value",
+      "TN.dex.order-db.some-unexpected-path"
     )
     val cfg = (blablaValuePathSeq ++ skippedProperties).foldLeft(
       loadCleanConfigSample()
     ) { (cfg, path) =>
       cfg.withValue(path, ConfigValueFactory.fromAnyRef("some-simple-value"))
-    }.withValue("waves.dex.cli.ignore-unused-properties", ConfigValueFactory.fromIterable(skippedProperties.asJava))
+    }.withValue("TN.dex.cli.ignore-unused-properties", ConfigValueFactory.fromIterable(skippedProperties.asJava))
     val result = ConfigChecker.checkConfig(cfg)
     result.value should contain theSameElementsAs blablaValuePathSeq.map(cutWavesDexSection)
   }
 
-  private def cutWavesDexSection(str: String): String = str.drop("waves.dex.".length)
+  private def cutWavesDexSection(str: String): String = str.drop("TN.dex.".length)
 
 }

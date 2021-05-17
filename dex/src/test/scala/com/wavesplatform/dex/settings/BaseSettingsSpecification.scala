@@ -414,7 +414,7 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |    }
          |  }
          |}
-         |waves.dex.comparison-tool {
+         |TN.dex.comparison-tool {
          |  checks {
          |    interval = 5s
          |    duration = 10m
