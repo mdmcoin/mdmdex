@@ -1,14 +1,12 @@
 package com.wavesplatform.dex.api.http.routes
 
-import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.actor.{ActorRef, Status}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.testkit.{TestActor, TestProbe}
+import cats.instances.future._
 import cats.syntax.either._
 import cats.syntax.option._
 import com.google.common.primitives.Longs
@@ -21,8 +19,7 @@ import com.wavesplatform.dex.actors.address.AddressActor.Command.{PlaceOrder, So
 import com.wavesplatform.dex.actors.address.AddressActor.Query.GetTradableBalance
 import com.wavesplatform.dex.actors.address.{AddressActor, AddressDirectoryActor}
 import com.wavesplatform.dex.actors.orderbook.AggregatedOrderBookActor
-import com.wavesplatform.dex.actors.orderbook.OrderBookActor.MarketStatus
-import com.wavesplatform.dex.actors.tx.WriteExchangeTransactionActor
+import com.wavesplatform.dex.actors.orderbook.AggregatedOrderBookActor.MarketStatus
 import com.wavesplatform.dex.api.RouteSpec
 import com.wavesplatform.dex.api.http.ApiMarshallers._
 import com.wavesplatform.dex.api.http.entities._
@@ -32,8 +29,7 @@ import com.wavesplatform.dex.api.http.{entities, OrderBookHttpInfo}
 import com.wavesplatform.dex.api.ws.actors.WsExternalClientDirectoryActor
 import com.wavesplatform.dex.app.MatcherStatus
 import com.wavesplatform.dex.caches.RateCache
-import com.wavesplatform.dex.db.leveldb.DBExt
-import com.wavesplatform.dex.db.{DbKeys, OrderDB, WithDB}
+import com.wavesplatform.dex.db._
 import com.wavesplatform.dex.domain.account.{Address, AddressScheme, KeyPair, PublicKey}
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
@@ -48,6 +44,7 @@ import com.wavesplatform.dex.domain.transaction.ExchangeTransactionV2
 import com.wavesplatform.dex.domain.utils.EitherExt2
 import com.wavesplatform.dex.effect._
 import com.wavesplatform.dex.gen.issuedAssetIdGen
+import com.wavesplatform.dex.grpc.integration.clients.combined.CombinedStream
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import com.wavesplatform.dex.model.MatcherModel.Denormalized
 import com.wavesplatform.dex.model.{LimitOrder, OrderInfo, OrderStatus, _}
@@ -59,11 +56,13 @@ import org.scalatest.concurrent.Eventually
 import play.api.libs.json.{JsArray, JsString, Json, JsonFacade => _}
 import pureconfig.ConfigSource
 
+import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
-class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase with PathMockFactory with Eventually with WithDB {
+class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase with PathMockFactory with Eventually with WithDb {
 
   private val apiKey = "apiKey"
   private val apiKeyHeader = RawHeader(`X-Api-Key`.headerName, apiKey)
@@ -917,7 +916,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
   // upsertRate, deleteRate
   routePath("/settings/rates/{assetId}") - {
 
-    val rateCache = RateCache.inMem
+    val rateCache = awaitResult(RateCache(TestRateDb()))
 
     val rate = 0.0055
     val updatedRate = 0.0067
@@ -930,7 +929,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
           rateCache.getAllRates(smartAsset) shouldBe rate
         },
       apiKey,
-      rateCache
+      Some(rateCache)
     )
 
     "update rate" in test(
@@ -943,7 +942,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
           rateCache.getAllRates(smartAsset) shouldBe updatedRate
         },
       apiKey,
-      rateCache
+      Some(rateCache)
     )
 
     "update rate incorrectly (incorrect body)" in test(
@@ -956,7 +955,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
           responseAs[HttpMessage] should matchTo(HttpMessage("The provided JSON is invalid. Check the documentation"))
         },
       apiKey,
-      rateCache
+      Some(rateCache)
     )
 
     "update rate incorrectly (incorrect value)" in test(
@@ -966,7 +965,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
           responseAs[HttpMessage] should matchTo(HttpMessage("Asset rate should be positive"))
         },
       apiKey,
-      rateCache
+      Some(rateCache)
     )
 
     "update rate incorrectly (incorrect content type)" in test(
@@ -977,7 +976,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
           responseAs[HttpMessage] should matchTo(HttpMessage("The provided Content-Type is not supported, please provide JSON"))
         },
       apiKey,
-      rateCache
+      Some(rateCache)
     )
 
     "delete rate" in test(
@@ -988,7 +987,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
           rateCache.getAllRates.keySet should not contain smartAsset
         },
       apiKey,
-      rateCache
+      Some(rateCache)
     )
 
     "changing waves rate" in test(
@@ -1054,7 +1053,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
         }
       },
       apiKey,
-      rateCache
+      Some(rateCache)
     )
   }
 
@@ -1121,8 +1120,8 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
     db.put(orderKey.keyBytes, orderKey.encode(Some(okOrder)))
   }
 
-  private def test[U](f: Route => U, apiKey: String = "", rateCache: RateCache = RateCache.inMem): U = {
-
+  private def test[U](f: Route => U, apiKey: String = "", maybeRateCache: Option[RateCache] = None): U = {
+    val rateCache = maybeRateCache.getOrElse(awaitResult(RateCache(TestRateDb())))
     val addressActor = TestProbe("address")
     addressActor.setAutoPilot { (sender: ActorRef, msg: Any) =>
       val response = msg match {
@@ -1239,32 +1238,25 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
       TestActor.KeepRunning
     }
 
-    db.readWrite { rw =>
-      val tx =
-        ExchangeTransactionV2
-          .create(
-            matcherKeyPair.privateKey,
-            okOrder.updateType(BUY),
-            okOrder.updateType(SELL),
-            okOrder.amount,
-            okOrder.price,
-            okOrder.matcherFee,
-            okOrder.matcherFee,
-            0.04.waves,
-            System.currentTimeMillis
-          )
-          .explicitGet()
+    val exchangeTxStorage = ExchangeTxStorage.levelDB(asyncLevelDb)
+    exchangeTxStorage.put(
+      ExchangeTransactionV2
+        .create(
+          matcherKeyPair.privateKey,
+          okOrder.updateType(BUY),
+          okOrder.updateType(SELL),
+          okOrder.amount,
+          okOrder.price,
+          okOrder.matcherFee,
+          okOrder.matcherFee,
+          0.04.waves,
+          System.currentTimeMillis
+        )
+        .explicitGet()
+    )
 
-      val txKey = DbKeys.exchangeTransaction(tx.id())
-      if (!rw.has(txKey)) {
-        rw.put(txKey, Some(tx))
-        WriteExchangeTransactionActor.appendTxId(rw, tx.buyOrder.id(), tx.id())
-        WriteExchangeTransactionActor.appendTxId(rw, tx.sellOrder.id(), tx.id())
-      }
-    }
-
-    val odb = OrderDB(settings.orderDb, db)
-    odb.saveOrder(orderToCancel)
+    val odb = OrderDb.levelDb(settings.orderDb, asyncLevelDb)
+    awaitResult(odb.saveOrder(orderToCancel))
 
     val orderBooks = new AtomicReference(Map(smartWavesPair -> orderBookActor.ref.asRight[Unit]))
     val orderBookAskAdapter = new OrderBookAskAdapter(orderBooks, 5.seconds)
@@ -1274,8 +1266,9 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
         settings = settings.orderBookHttp,
         askAdapter = orderBookAskAdapter,
         time = time,
-        assetDecimals =
-          x => if (x == smartAsset) Some(smartAssetDesc.decimals) else throw new IllegalArgumentException(s"No information about $x")
+        assetDecimals = x =>
+          if (x == smartAsset) liftValueAsync(smartAssetDesc.decimals)
+          else liftFutureAsync(Future.failed(new IllegalArgumentException(s"No information about $x")))
       )
 
     val testKit = ActorTestKit()
@@ -1298,6 +1291,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
         config = ConfigFactory.load().atKey("TN.dex"),
         matcher = matcherActor.ref,
         addressActor = addressActor.ref,
+        CombinedStream.Status.Working,
         storeCommand = {
           case ValidatedCommand.DeleteOrderBook(pair) if pair == okOrder.assetPair =>
             Future.successful(ValidatedCommandWithMeta(1L, System.currentTimeMillis, ValidatedCommand.DeleteOrderBook(pair)).some)
@@ -1308,7 +1302,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
           case _ => None
         },
         orderBookHttpInfo = orderBookHttpInfo,
-        getActualTickSize = _ => 0.1,
+        getActualTickSize = _ => liftValueAsync(BigDecimal(0.1)),
         orderValidator = {
           case x if x == okOrder || x == badOrder => liftValueAsync(x)
           case _ => liftErrorAsync(error.FeatureNotImplemented)
@@ -1323,7 +1317,8 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
         rateCache = rateCache,
         validatedAllowedOrderVersions = () => Future.successful(Set(1, 2, 3)),
         () => DynamicSettings.symmetric(matcherFee),
-        externalClientDirectoryRef = testKit.spawn(WsExternalClientDirectoryActor(), s"ws-external-cd-${Random.nextInt(Int.MaxValue)}")
+        externalClientDirectoryRef = testKit.spawn(WsExternalClientDirectoryActor(), s"ws-external-cd-${Random.nextInt(Int.MaxValue)}"),
+        getAssetDescription = _ => liftValueAsync(BriefAssetDescription("test", 8, hasScript = false))
       )
 
     f(route.route)

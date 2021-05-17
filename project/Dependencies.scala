@@ -35,8 +35,8 @@ object Dependencies {
 
     val silencer = "1.7.2"
 
-    val kamonCore = "2.1.10"
-    val kamonInfluxDb = "2.1.10"
+    val kanela = "1.0.7" // instrumentation
+    val kamon = "2.1.11" // metrics
 
     val wavesProtobufSchemas = "1.2.8"
     val wavesJ = "1.0.1"
@@ -44,13 +44,12 @@ object Dependencies {
     val postgresql = "42.2.18"
     val quillJdbc = "3.6.0"
 
-    val sttp = "1.7.2"
-    val sttpClient = "2.2.9"
+    val sttpClient = "3.2.3"
 
-    val testContainers = "0.38.8"
-    val testContainersPostgres = "1.15.1"
-    val testContainersKafka = "1.15.1"
-    val testContainersToxiProxy = "1.15.1"
+    val testContainers = "0.39.3"
+    val testContainersPostgres = "1.15.2"
+    val testContainersKafka = "1.15.2"
+    val testContainersToxiProxy = "1.15.2"
 
     val jackson = "2.10.0"
     val playJson = "2.9.2"
@@ -87,11 +86,10 @@ object Dependencies {
   private def akkaModule(module: String, version: String): ModuleID = "com.typesafe.akka" %% module % version
   private def scalaModule(module: String, version: String): ModuleID = "org.scala-lang" % module % version
   private def catsModule(module: String): ModuleID = "org.typelevel" %% s"cats-$module" % Version.cats
-  private def sttpModule(module: String): ModuleID = "com.softwaremill.sttp" %% module % Version.sttp
-  private def sttpClientModule(module: String): ModuleID = "com.softwaremill.sttp.client" %% module % Version.sttpClient
+  private def sttpClientModule(module: String): ModuleID = "com.softwaremill.sttp.client3" %% module % Version.sttpClient
   private def jacksonModule(group: String, module: String): ModuleID = s"com.fasterxml.jackson.$group" % s"jackson-$module" % Version.jackson
   private def monixModule(module: String): ModuleID = "io.monix" %% s"monix-$module" % Version.monix
-  private def kamonModule(module: String, version: String): ModuleID = "io.kamon" %% s"kamon-$module" % version
+  private def kamonModule(module: String, version: String = Version.kamon): ModuleID = "io.kamon" %% s"kamon-$module" % version
   private def jwtModule(module: String): ModuleID = "com.pauldijou" %% s"jwt-$module" % Version.jwt
 
   private val alleyCatsCore = "org.typelevel" %% "alleycats-core" % Version.cats
@@ -118,7 +116,7 @@ object Dependencies {
   private val slf4j = "org.slf4j" %% "slf4j-api" % Version.slf4j
   private val julToSlf4j = "org.slf4j" % "jul-to-slf4j" % Version.slf4j
   private val janino = "org.codehaus.janino" % "janino" % Version.janino
-  private val kamonCore = kamonModule("core", Version.kamonCore)
+  private val kamonCore = kamonModule("core", Version.kamon)
 
   private val wavesProtobufSchemas =
     ("com.wavesplatform" % "protobuf-schemas" % Version.wavesProtobufSchemas classifier "proto") % "protobuf" // for teamcity
@@ -146,6 +144,7 @@ object Dependencies {
   private val influxDb = "org.influxdb" % "influxdb-java" % Version.influxDb
   private val commonsNet = "commons-net" % "commons-net" % Version.commonsNet
   private val sttpClient = sttpClientModule("core")
+  private val sttpPlayJson = sttpClientModule("play-json")
   private val sttpAsyncHttpClient = sttpClientModule("async-http-client-backend-future")
   private val allureScalaTest = "io.qameta.allure" %% "allure-scalatest" % Version.allureScalaTest
   private val jaxbApi = "javax.xml.bind" % "jaxb-api" % Version.jaxbApi
@@ -199,6 +198,8 @@ object Dependencies {
 
   private val integrationTestKit: Seq[ModuleID] = Seq(wavesJ, logback % Test) ++ testKit
 
+  val kanela = "io.kamon" % "kanela-agent" % Version.kanela
+
   val globalEnforcedVersions = Def.setting(
     Seq(
       akkaActor,
@@ -249,7 +250,8 @@ object Dependencies {
       janino,
       jniLevelDb,
       kamonCore,
-      kamonModule("influxdb", Version.kamonInfluxDb),
+      kamonModule("influxdb"),
+      kamonModule("system-metrics"),
       influxDb,
       commonsNet,
       swaggerUi,
@@ -257,6 +259,7 @@ object Dependencies {
       jwtModule("core"),
       jwtModule("play-json"),
       sttpClient,
+      sttpPlayJson,
       sttpAsyncHttpClient,
       wavesJ,
       betterMonadicFor
@@ -268,9 +271,6 @@ object Dependencies {
 
     lazy val dexItCommon: Seq[ModuleID] = Seq(
       kindProjector,
-      sttpModule("core"),
-      sttpModule("play-json"),
-      sttpModule("async-http-client-backend-future"),
       catsCore,
       alleyCatsCore,
       catsTaglessMacros,
@@ -278,7 +278,9 @@ object Dependencies {
       mouse,
       scalaTest,
       toxiProxy,
-      wavesJ
+      wavesJ,
+      sttpClient,
+      sttpPlayJson
     ) ++ testContainers
 
     lazy val dexTestCommon: Seq[ModuleID] = Seq(diffx, scalaTest, scalaCheck, scalaTestPlusCheck, allureScalaTest)

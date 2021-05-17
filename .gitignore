@@ -13,6 +13,7 @@ project/project/
 # scala build folders and files
 target
 *.tgz
+*.gz
 *.jar
 !third-party/yourkit/yjp-controller-api-redist.jar
 

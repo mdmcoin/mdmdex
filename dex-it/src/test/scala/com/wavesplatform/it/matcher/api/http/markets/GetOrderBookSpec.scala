@@ -1,6 +1,6 @@
 package com.wavesplatform.it.matcher.api.http.markets
 
-import com.softwaremill.sttp.StatusCodes
+import sttp.model.StatusCode
 import com.typesafe.config.{Config, ConfigFactory}
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
@@ -51,28 +51,34 @@ class GetOrderBookSpec extends MatcherSuiteBase with TableDrivenPropertyChecks w
     "should return exception when price is not a correct base58 string" in {
       validateMatcherError(
         dex1.rawApi.getOrderBook("TN", "null"),
-        StatusCodes.BadRequest,
+        StatusCode.BadRequest,
         9437185,
         s"Provided value is not a correct base58 string, reason: requirement failed: Wrong char 'l' in Base58 string 'null'"
       )
     }
 
     forAll(Table(
-      ("Value", "Title"),
-      ("2147483648", "More than Int.Max"),
-      ("100.0", "Double"),
-      ("incorrect", "Alphabetical")
-    )) { (v: String, t: String) =>
-      s"for depth = $v ($t) should return exception" in { // TODO fix, endpoint should return something like 400/Bad Request
-        validate404Exception(dex1.rawApi.getOrderBook(wavesUsdPair, v))
+      ("Value", "Title", "Error message"),
+      ("2147483648", "More than Int.Max", "Provided depth in not correct, reason: Depth value '2147483648' must be an Integer"),
+      ("100.0", "Double", "Provided depth in not correct, reason: Depth value '100.0' must be an Integer"),
+      ("incorrect", "Alphabetical", "Provided depth in not correct, reason: Depth value 'incorrect' must be an Integer"),
+      ("-1", "Less than zero", "Provided depth in not correct, reason: Depth value '-1' must be non-negative")
+    )) { (v: String, t: String, m: String) =>
+      s"for depth = $v ($t) should return exception" in {
+        validateMatcherError(
+          dex1.rawApi.getOrderBook(wavesUsdPair, v),
+          StatusCode.BadRequest,
+          1076224,
+          m
+        )
       }
     }
 
     forAll(Table(
       ("Amount", "Price", "Http status", "Error code", "Message"),
-      ("incorrect", "TN", 404, 11534345, "The asset incorrect not found"),
-      ("TN", "incorrect", 404, 9440771, "The TN-incorrect asset pair should be reversed")
-    )) { (a: String, p: String, c: Int, e: Int, m: String) =>
+      ("incorrect", "TN", StatusCode.NotFound, 11534345, "The asset incorrect not found"),
+      ("TN", "incorrect", StatusCode.NotFound, 9440771, "The TN-incorrect asset pair should be reversed")
+    )) { (a: String, p: String, c: StatusCode, e: Int, m: String) =>
       s"for $a/$p should return (HTTP-$c; [$e: $m]) " in {
         validateMatcherError(dex1.rawApi.getOrderBook(AssetPair.createAssetPair(a, p).get), c, e, m)
       }

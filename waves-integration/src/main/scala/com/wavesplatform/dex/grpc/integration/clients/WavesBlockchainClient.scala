@@ -6,6 +6,7 @@ import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
 import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
+import com.wavesplatform.dex.grpc.integration.clients.combined.CombinedStream
 import com.wavesplatform.dex.grpc.integration.clients.domain.{AddressBalanceUpdates, WavesNodeUpdates}
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import monix.reactive.Observable
@@ -14,6 +15,7 @@ import scala.concurrent.Future
 
 // TODO DEX-998
 trait WavesBlockchainClient {
+
   /**
    * @return (update, ready) ready == the last processed height >= the last height in blockchain
    */
@@ -45,4 +47,6 @@ trait WavesBlockchainClient {
   def isOrderConfirmed(orderId: ByteStr): Future[Boolean]
 
   def close(): Future[Unit]
+
+  def status(): CombinedStream.Status
 }

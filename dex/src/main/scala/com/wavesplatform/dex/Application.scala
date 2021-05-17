@@ -2,16 +2,20 @@ package com.wavesplatform.dex
 
 import akka.Done
 import akka.actor.typed.scaladsl.adapter._
-import akka.actor.{typed, ActorRef, ActorSystem, CoordinatedShutdown, Props}
+import akka.actor.{ActorRef, ActorSystem, CoordinatedShutdown, Props, typed}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives.respondWithHeader
-import akka.pattern.{ask, gracefulStop, CircuitBreaker}
+import akka.pattern.{CircuitBreaker, ask, gracefulStop}
 import akka.stream.Materializer
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.instances.future.catsStdInstancesForFuture
+import cats.instances.list._
+import cats.syntax.either._
 import cats.syntax.functor._
 import cats.syntax.option._
+import cats.syntax.semigroupal._
+import cats.syntax.traverse._
 import ch.qos.logback.classic.LoggerContext
 import com.typesafe.config._
 import com.wavesplatform.dex.actors.ActorSystemOps.ImplicitOps
@@ -29,17 +33,16 @@ import com.wavesplatform.dex.api.ws.routes.MatcherWebSocketRoute
 import com.wavesplatform.dex.app._
 import com.wavesplatform.dex.caches.{MatchingRulesCache, OrderFeeSettingsCache, RateCache}
 import com.wavesplatform.dex.db._
-import com.wavesplatform.dex.db.leveldb.openDB
+import com.wavesplatform.dex.db.leveldb.{LevelDb, openDb}
 import com.wavesplatform.dex.domain.account.{Address, AddressScheme, PublicKey}
-import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.bytes.codec.Base58
 import com.wavesplatform.dex.domain.utils.{EitherExt2, LoggerFacade, ScorexLogging}
-import com.wavesplatform.dex.effect.{liftValueAsync, FutureResult}
-import com.wavesplatform.dex.error.{ErrorFormatterContext, MatcherError}
+import com.wavesplatform.dex.effect.{FutureResult, liftValueAsync}
+import com.wavesplatform.dex.error.ErrorFormatterContext
+import com.wavesplatform.dex.grpc.integration.clients.MatcherExtensionAssetsWatchingClient
 import com.wavesplatform.dex.grpc.integration.clients.combined.CombinedWavesBlockchainClient
 import com.wavesplatform.dex.grpc.integration.clients.domain.AddressBalanceUpdates
-import com.wavesplatform.dex.grpc.integration.clients.{MatcherExtensionAssetsWatchingClient, WavesBlockchainClient}
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import com.wavesplatform.dex.history.HistoryRouterActor
 import com.wavesplatform.dex.logs.SystemInformationReporter
@@ -48,7 +51,6 @@ import com.wavesplatform.dex.queue._
 import com.wavesplatform.dex.settings.MatcherSettings
 import com.wavesplatform.dex.time.NTP
 import kamon.Kamon
-import kamon.influxdb.InfluxDBReporter
 import monix.execution.ExecutionModel
 import mouse.any.anySyntaxMouse
 import org.slf4j.LoggerFactory
@@ -60,14 +62,16 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.{ThreadLocalRandom, TimeoutException}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, Future, Promise}
+import scala.concurrent.{Await, Future, Promise, blocking}
+import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 class Application(settings: MatcherSettings, config: Config)(implicit val actorSystem: ActorSystem) extends ScorexLogging {
 
   private val monixScheduler = monix.execution.Scheduler.Implicits.global.withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
-  private val grpcExecutionContext = actorSystem.dispatchers.lookup("akka.actor.grpc-dispatcher")
+  private val grpcEc = actorSystem.dispatchers.lookup("akka.actor.grpc-dispatcher")
+  private val levelDbEc = actorSystem.dispatchers.lookup("akka.actor.leveldb-dispatcher")
 
   private val cs = CoordinatedShutdown(actorSystem)
 
@@ -105,23 +109,28 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     Future { blocking(time.close()); Done }
   }
 
-  private val db = openDB(settings.dataDirectory)
+  private val db = openDb(settings.dataDirectory)
+  private val asyncLevelDb = LevelDb.async(db)(levelDbEc)
+
   cs.addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "DB") { () =>
     Future { blocking(db.close()); Done }
   }
 
-  private val assetPairsDB = AssetPairsDB(db)
-  private val orderBookSnapshotDB = OrderBookSnapshotDB(db)
-  private val orderDB = OrderDB(settings.orderDb, db)
-  private val assetsCache = AssetsStorage.cache(AssetsStorage.levelDB(db))
-  private val rateCache = RateCache(db)
+  private val assetPairsDb = AssetPairsDb.levelDb(asyncLevelDb)
+  private val orderBookSnapshotDb = OrderBookSnapshotDb.levelDb(asyncLevelDb)
+  private val orderDb = OrderDb.levelDb(settings.orderDb, asyncLevelDb)
 
-  implicit private val errorContext: ErrorFormatterContext = ErrorFormatterContext.fromOptional(assetsCache.get(_: Asset).map(_.decimals))
+  private val assetsCache = AssetsCache.from(AssetsDb.levelDb(asyncLevelDb))
+
+  private val rateCache = Await.result(RateCache(asyncLevelDb), 5.minutes)
+
+  implicit private val errorContext: ErrorFormatterContext =
+    ErrorFormatterContext.fromOptional(assetsCache.cached.get(_: Asset).map(_.decimals))
 
   private val matcherQueue: MatcherQueue = settings.eventsQueue.`type` match {
     case "local" =>
       log.info("Commands will be stored locally")
-      new LocalMatcherQueue(settings.eventsQueue.local, new LocalQueueStore(db), time)
+      new LocalMatcherQueue(settings.eventsQueue.local, LocalQueueStore.levelDb(asyncLevelDb), time)
 
     case "kafka" =>
       log.info("Commands will be stored in Kafka")
@@ -136,14 +145,13 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
 
   private val orderBookAskAdapter = new OrderBookAskAdapter(orderBooks, settings.actorResponseTimeout)
 
-  private val orderBookHttpInfo =
-    new OrderBookHttpInfo(settings.orderBookHttp, orderBookAskAdapter, time, assetsCache.get(_).map(_.decimals))
+  private val orderBookHttpInfo = new OrderBookHttpInfo(settings.orderBookHttp, orderBookAskAdapter, time, getAndCacheDecimals)
 
   private val transactionCreator = new ExchangeTransactionCreator(
     matcherKeyPair,
     settings.exchangeTxBaseFee,
     hasMatcherAccountScript,
-    assetsCache.unsafeGetHasScript
+    assetsCache.cached.unsafeGetHasScript // Should be in the cache, because assets decimals are required during an order book creation
   )
 
   private val wavesBlockchainAsyncClient = new MatcherExtensionAssetsWatchingClient(
@@ -151,19 +159,19 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       settings.wavesBlockchainClient,
       matcherPublicKey,
       monixScheduler = monixScheduler,
-      grpcExecutionContext = grpcExecutionContext
+      grpcExecutionContext = grpcEc
     ),
-    assetsStorage = assetsCache
+    assetsCache = assetsCache
   )
 
   cs.addTask(CoordinatedShutdown.PhaseServiceStop, "Blockchain client") { () =>
     wavesBlockchainAsyncClient.close().map(_ => Done)
   }
 
-  private val pairBuilder =
-    new AssetPairBuilder(settings, getAndCacheDescription(assetsCache, wavesBlockchainAsyncClient, _), settings.blacklistedAssets)
+  private val pairBuilder = new AssetPairBuilder(settings, getAndCacheDescription, settings.blacklistedAssets)
 
-  private val txWriterRef = actorSystem.actorOf(WriteExchangeTransactionActor.props(db), WriteExchangeTransactionActor.name)
+  private val txWriterRef =
+    actorSystem.actorOf(WriteExchangeTransactionActor.props(ExchangeTxStorage.levelDB(asyncLevelDb)), WriteExchangeTransactionActor.name)
 
   private val wavesNetTxBroadcasterRef = actorSystem.spawn(
     ExchangeTransactionBroadcastActor(
@@ -186,13 +194,14 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     actorSystem.spawn(WsExternalClientDirectoryActor(), s"ws-external-cd-${ThreadLocalRandom.current().nextInt(Int.MaxValue)}")
 
   private val orderBookSnapshotStoreRef: ActorRef = actorSystem.actorOf(
-    OrderBookSnapshotStoreActor.props(orderBookSnapshotDB),
+    OrderBookSnapshotStoreActor.props(orderBookSnapshotDb),
     "order-book-snapshot-store"
   )
 
   private val historyRouterRef =
     if (settings.orderHistory.enable) actorSystem.actorOf(
-      HistoryRouterActor.props(assetsCache.unsafeGetDecimals, settings.postgres, settings.orderHistory),
+      // Safe here, retrieve during MatcherActor starting, consuming or placing
+      HistoryRouterActor.props(assetsCache.cached.unsafeGetDecimals, settings.postgres, settings.orderHistory),
       "history-router"
     ).some
     else none
@@ -205,7 +214,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
   }
 
   private val addressDirectoryRef =
-    actorSystem.actorOf(AddressDirectoryActor.props(orderDB, mkAddressActorProps, historyRouterRef), AddressDirectoryActor.name)
+    actorSystem.actorOf(AddressDirectoryActor.props(orderDb, mkAddressActorProps, historyRouterRef), AddressDirectoryActor.name)
 
   private val storeBreaker = new CircuitBreaker(
     actorSystem.scheduler,
@@ -220,7 +229,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
   private def mkAddressActorProps(address: Address, recovered: Boolean): Props = AddressActor.props(
     address,
     time,
-    orderDB,
+    orderDb,
     ValidationStages.mkSecond(wavesBlockchainAsyncClient, orderBookAskAdapter),
     storeCommand,
     recovered,
@@ -230,6 +239,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
 
   private val orderEventsCoordinatorRef = actorSystem.spawn(
     behavior = OrderEventsCoordinatorActor.apply(
+      settings = settings.orderEventsCoordinatorActor,
       addressDirectoryRef = addressDirectoryRef,
       dbWriterRef = txWriterRef,
       broadcasterRef = wavesNetTxBroadcasterRef,
@@ -240,7 +250,10 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
 
   private val matcherActorRef: ActorRef = {
     def mkOrderBookProps(assetPair: AssetPair, matcherActor: ActorRef): Props = {
-      matchingRulesCache.setCurrentMatchingRuleForNewOrderBook(assetPair, lastProcessedOffset, errorContext.unsafeAssetDecimals)
+      // Safe here, because we receive this information during MatcherActor starting, placing or consuming
+      val amountAssetDecimals = errorContext.unsafeAssetDecimals(assetPair.amountAsset)
+      val priceAssetDecimals = errorContext.unsafeAssetDecimals(assetPair.priceAsset)
+      matchingRulesCache.setCurrentMatchingRuleForNewOrderBook(assetPair, lastProcessedOffset, amountAssetDecimals, priceAssetDecimals)
       OrderBookActor.props(
         OrderBookActor.Settings(AggregatedOrderBookActor.Settings(settings.webSockets.externalClientHandler.messagesInterval)),
         matcherActor,
@@ -249,9 +262,9 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
         wsInternalBroadcastRef,
         assetPair,
         time,
-        matchingRules = matchingRulesCache.getMatchingRules(assetPair, errorContext.unsafeAssetDecimals),
+        matchingRules = matchingRulesCache.getMatchingRules(assetPair, amountAssetDecimals, priceAssetDecimals),
         updateCurrentMatchingRules = actualMatchingRule => matchingRulesCache.updateCurrentMatchingRule(assetPair, actualMatchingRule),
-        normalizeMatchingRule = denormalizedMatchingRule => denormalizedMatchingRule.normalize(assetPair, errorContext.unsafeAssetDecimals),
+        normalizeMatchingRule = denormalizedMatchingRule => denormalizedMatchingRule.normalize(amountAssetDecimals, priceAssetDecimals),
         getMakerTakerFeeByOffset = Fee.getMakerTakerFeeByOffset(orderFeeSettingsCache),
         restrictions = settings.orderRestrictions.get(assetPair) // TODO Move this and webSocketSettings to OrderBook's settings
       )
@@ -260,14 +273,14 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     actorSystem.actorOf(
       MatcherActor.props(
         settings,
-        assetPairsDB,
+        assetPairsDb,
         {
           case Right(startOffset) => snapshotsRestored.success(startOffset)
           case Left(msg) => snapshotsRestored.failure(RecoveryError(msg))
         },
         orderBooks,
         mkOrderBookProps,
-        assetsCache.get(_),
+        assetsCache,
         pairBuilder.quickValidateAssetPair
       ),
       MatcherActor.name
@@ -279,13 +292,14 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
   }
 
   private val httpApiRouteV0: MatcherApiRoute = {
+
     val orderValidation = ValidationStages.mkFirst(
       settings,
       matcherPublicKey,
       orderFeeSettingsCache,
       matchingRulesCache,
       rateCache,
-      assetsCache,
+      getAndCacheDescription,
       wavesBlockchainAsyncClient,
       transactionCreator,
       time,
@@ -301,16 +315,21 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       config,
       matcherActorRef,
       addressDirectoryRef,
+      wavesBlockchainAsyncClient.status(),
       matcherQueue.store,
       p => Option(orderBooks.get()) flatMap (_ get p),
       orderBookHttpInfo,
-      getActualTickSize = assetPair => {
-        matchingRulesCache.getDenormalizedRuleForNextOrder(assetPair, lastProcessedOffset, assetsCache.unsafeGetDecimals).tickSize
+      getActualTickSize = { assetPair =>
+        getAndCacheDecimals(assetPair.amountAsset)
+          .product(getAndCacheDecimals(assetPair.priceAsset))
+          .map { case (amountAssetDecimals, priceAssetDecimals) =>
+            matchingRulesCache.getDenormalizedRuleForNextOrder(assetPair, lastProcessedOffset, amountAssetDecimals, priceAssetDecimals).tickSize
+          }
       },
       orderValidation,
       settings,
       () => status,
-      orderDB,
+      orderDb,
       () => lastProcessedOffset,
       () => matcherQueue.lastOffset,
       ExchangeTransactionCreator.getAdditionalFeeForScript(hasMatcherAccountScript),
@@ -324,7 +343,8 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
           .map(_.collect { case Right(version) => version })
       },
       () => orderFeeSettingsCache.getSettingsForOffset(lastProcessedOffset + 1),
-      externalClientDirectoryRef
+      externalClientDirectoryRef,
+      getAndCacheDescription
     )
   }
 
@@ -410,10 +430,17 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     _ <- {
       log.info(s"Offsets: earliest snapshot = $earliestSnapshotOffset, first = $firstQueueOffset, last = $lastOffsetQueue")
       if (lastOffsetQueue < earliestSnapshotOffset)
-        Future.failed(RecoveryError("The queue doesn't have messages to recover all orders and continue work. Did you clear the queue?"))
+        Future.failed(RecoveryError("The queue doesn't have messages to recover all orders and continue work. Did you change the queue?"))
       else if (earliestSnapshotOffset < firstQueueOffset) {
+        /*
+         If Kafka has the wrong retention config, there are only two possible outcomes:
+         1. Throw an error - then the state of the Matcher should be reset, otherwise, we couldn't start it.
+            So we lost all orders including order books
+         2. Ignore and warn - then we could have probably unexpected matches, but orders will be preserved and we don't need to reset
+            the state of the Matcher in order to start it. We chose the second.
+         */
         log.warn(s"The queue doesn't contain required offsets to recover all orders. Check retention settings of the queue. Continue...")
-        Future.unit // Otherwise it would be hard to start the matcher
+        Future.unit
       } else Future.unit
     }
 
@@ -438,9 +465,9 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
   }
 
   private def loadAllKnownAssets(): Future[Unit] =
-    Future(blocking(assetPairsDB.all()).flatMap(_.assets) ++ settings.mentionedAssets).flatMap { assetsToLoad =>
+    assetPairsDb.all().map(_.flatMap(_.assets) ++ settings.mentionedAssets).flatMap { assetsToLoad =>
       Future
-        .traverse(assetsToLoad)(asset => getDecimalsFromCache(asset).value tupleLeft asset)
+        .traverse(assetsToLoad)(asset => getAndCacheDecimals(asset).value tupleLeft asset)
         .map { xs =>
           val notFoundAssets = xs.collect { case (id, Left(_)) => id }
           if (notFoundAssets.nonEmpty) {
@@ -450,11 +477,11 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
         }
     }
 
-  private def consumeMessages(xs: Iterable[ValidatedCommandWithMeta]): Future[Unit] =
+  private def consumeMessages(xs: List[ValidatedCommandWithMeta]): Future[Unit] =
     if (xs.isEmpty) Future.unit
     else {
       val eventAssets = xs.flatMap(_.command.assets)
-      val loadAssets = Future.traverse(eventAssets)(getAndCacheDescription(assetsCache, wavesBlockchainAsyncClient, _).value)
+      val loadAssets = eventAssets.traverse(getAndCacheDescription).value
 
       loadAssets.flatMap { _ =>
         val assetPairs: Set[AssetPair] = xs
@@ -477,8 +504,6 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
         case _ =>
       }
     }
-
-  private def getDecimalsFromCache(asset: Asset): FutureResult[Int] = getAndCacheDecimals(assetsCache, wavesBlockchainAsyncClient, asset)
 
   private def setStatus(newStatus: MatcherStatus): Unit = {
     status = newStatus
@@ -506,31 +531,16 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     p.future
   }
 
-  private def getAndCacheDecimals(assetsCache: AssetsStorage, blockchain: WavesBlockchainClient, asset: Asset): FutureResult[Int] =
-    getAndCacheDescription(assetsCache, blockchain, asset).map(_.decimals)(catsStdInstancesForFuture)
+  private def getAndCacheDecimals(asset: Asset): FutureResult[Int] = getAndCacheDescription(asset).map(_.decimals)
 
-  private def getAndCacheDescription(
-    assetsCache: AssetsStorage,
-    blockchain: WavesBlockchainClient,
-    asset: Asset
-  ): FutureResult[BriefAssetDescription] =
+  private def getAndCacheDescription(asset: Asset): FutureResult[BriefAssetDescription] =
     asset match {
-      case Waves => wavesLifted
-      case asset: IssuedAsset =>
-        assetsCache.get(asset) match {
-          case Some(x) => liftValueAsync[BriefAssetDescription](x)
-          case None =>
-            EitherT {
-              blockchain
-                .assetDescription(asset)
-                .map {
-                  _.toRight[MatcherError](error.AssetNotFound(asset))
-                    .map { desc =>
-                      BriefAssetDescription(desc.name, desc.decimals, desc.hasScript).unsafeTap(assetsCache.put(asset, _))
-                    }
-                }
-            }
-        }
+      case Asset.Waves => wavesLifted
+      case asset: Asset.IssuedAsset =>
+        EitherT(wavesBlockchainAsyncClient.assetDescription(asset).map {
+          case Some(x) => x.asRight
+          case None => error.AssetNotFound(asset).asLeft
+        })
     }
 
 }
@@ -558,6 +568,14 @@ object Application {
       System.setProperty("TN.dex.root-directory", config.getString("TN.dex.root-directory"))
 
     val log = LoggerFacade(LoggerFactory getLogger getClass)
+
+    if (config.getBoolean("kamon.enable")) {
+      // IMPORTANT: to make use of default settings for histograms and timers, it's crucial to reconfigure Kamon with
+      //            our merged config BEFORE initializing any metrics, including in settings-related companion objects
+      Kamon.init(config)
+      log.info("Enabled kamon metrics")
+    }
+
     log.info("Starting...")
 
     RootActorSystem.start("wavesplatform", config) { implicit actorSystem =>
@@ -587,8 +605,6 @@ object Application {
     import com.wavesplatform.dex.settings.loadConfig
     import com.wavesplatform.dex.settings.utils.ConfigOps.ConfigOps
 
-    import scala.jdk.CollectionConverters._
-
     val config = loadConfig(external map ConfigFactory.parseFile)
     val scalaContextPath = "scala.concurrent.context"
 
@@ -598,12 +614,6 @@ object Application {
 
     // Initialize global var with actual address scheme
     AddressScheme.current = new AddressScheme { override val chainId: Byte = settings.addressSchemeCharacter.toByte }
-
-    // IMPORTANT: to make use of default settings for histograms and timers, it's crucial to reconfigure Kamon with
-    //            our merged config BEFORE initializing any metrics, including in settings-related companion objects
-    Kamon.reconfigure(config)
-
-    if (config.getBoolean("kamon.enable")) Kamon.registerModule("InfluxDB", new InfluxDBReporter())
 
     (config, settings)
   }

@@ -13,19 +13,19 @@ import com.softwaremill.diffx._
 import com.wavesplatform.dex.api.ws.protocol.{WsAddressChanges, WsOrderBookChanges}
 import com.wavesplatform.dex.cli.ScoptImplicits
 import com.wavesplatform.dex.domain.account.AddressScheme
-import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.error.Implicits.ThrowableOps
 import com.wavesplatform.dex.it.time.GlobalTimer
 import com.wavesplatform.dex.it.time.GlobalTimer.TimerOpsImplicits
 import com.wavesplatform.dex.load.WavesDexLoadCli.WsCheckType.{CheckLeaps, CheckUpdates}
 import com.wavesplatform.dex.load.ws.WsCollectChangesClient
+import com.wavesplatform.dex.test.matchers.DiffMatcherWithImplicits
 import com.wavesplatform.dex.{cli, Version}
 import scopt.{OParser, RenderingMode}
 
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-object WavesDexLoadCli extends ScoptImplicits {
+object WavesDexLoadCli extends ScoptImplicits with DiffMatcherWithImplicits {
 
   def main(rawArgs: Array[String]): Unit = {
     val executor = Executors.newCachedThreadPool()
@@ -431,17 +431,15 @@ object WavesDexLoadCli extends ScoptImplicits {
     case (r, x) => x.foldLeft(r) { case (r, (k, v)) => r.updated(k, v :: r.getOrElse(k, List.empty)) }
   }
 
-  // The compiler is lie! This is used in WsOrder.id
-  implicit private val derivedByteStrDiff: Derived[Diff[ByteStr]] = Derived(getDiff[ByteStr](_.toString == _.toString))
-
   implicit private val wsAddressChangesDiff: Derived[Diff[WsAddressChanges]] =
     Derived(Diff.gen[WsAddressChanges].value.ignore[WsAddressChanges, Long](_.timestamp).ignore[WsAddressChanges, Long](_.updateId))
 
   implicit private val wsOrderBookChangesDiff: Derived[Diff[WsOrderBookChanges]] =
     Derived(Diff.gen[WsOrderBookChanges].value.ignore[WsOrderBookChanges, Long](_.timestamp).ignore[WsOrderBookChanges, Long](_.updateId))
 
-  private def getDiff[T](comparison: (T, T) => Boolean): Diff[T] = { (left: T, right: T, _: List[FieldPath]) =>
-    if (comparison(left, right)) Identical(left) else DiffResultValue(left, right)
-  }
+// [error]  private method getDiff in object WavesDexLoadCli is never used
+//  private def getDiff[T](comparison: (T, T) => Boolean): Diff[T] = { (left: T, right: T, _: List[FieldPath]) =>
+//    if (comparison(left, right)) Identical(left) else DiffResultValue(left, right)
+//  }
 
 }

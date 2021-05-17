@@ -8,10 +8,10 @@ import cats.kernel.Monoid
 import com.wavesplatform.dex.MatcherSpecBase
 import com.wavesplatform.dex.actors.address.AddressActor.BlockchainInteraction
 import com.wavesplatform.dex.actors.address.AddressActor.Command.Source
-import com.wavesplatform.dex.actors.address.AddressActor.Query.{GetReservedBalance, GetTradableBalance}
-import com.wavesplatform.dex.actors.address.AddressActor.Reply.GetBalance
+import com.wavesplatform.dex.actors.address.AddressActor.Query.{GetCurrentState, GetReservedBalance, GetTradableBalance}
+import com.wavesplatform.dex.actors.address.AddressActor.Reply.{GetBalance, GetState}
 import com.wavesplatform.dex.api.ws.protocol.WsAddressChanges
-import com.wavesplatform.dex.db.EmptyOrderDB
+import com.wavesplatform.dex.db.EmptyOrderDb
 import com.wavesplatform.dex.domain.account.{Address, KeyPair, PublicKey}
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
@@ -105,7 +105,7 @@ class AddressActorSpecification
           new AddressActor(
             address,
             time,
-            EmptyOrderDB,
+            EmptyOrderDb(),
             (_, _) => Future.successful(Right(())),
             _ => failed,
             recovered,
@@ -116,7 +116,7 @@ class AddressActorSpecification
           )
         )
 
-      val addressDir = system.actorOf(Props(new AddressDirectoryActor(EmptyOrderDB, createAddressActor, None, recovered = false)))
+      val addressDir = system.actorOf(Props(new AddressDirectoryActor(EmptyOrderDb(), createAddressActor, None, recovered = false)))
       addressDir ! AddressDirectoryActor.Command.ForwardMessage(kp, AddressActor.Query.GetReservedBalance) // Creating an actor with kp's address
       eventually {
         requested shouldBe true
@@ -289,6 +289,20 @@ class AddressActorSpecification
       updatePortfolio(initPortfolio.copy(balance = initPortfolio.balance + 1))
       subscription2.receiveMessage()
     }
+
+    "return state" in test { (ref, _, addOrder, updatePortfolio) =>
+      updatePortfolio(sellToken1Portfolio.copy(balance = sellToken1Portfolio.balance + 1L))
+
+      addOrder(LimitOrder(sellTokenOrder1))
+
+      ref ! AddressDirectoryActor.Command.ForwardMessage(sellTokenOrder1.sender, GetCurrentState)
+      val res = fishForSpecificMessage[GetState](hint = "State") {
+        case x: GetState => x
+      }
+
+      res.balances.reserved.xs shouldBe Map(Waves -> 30000L, IssuedAsset(assetId) -> 100)
+      res.placementQueue should have size 0
+    }
   }
 
   /**
@@ -316,7 +330,7 @@ class AddressActorSpecification
         new AddressActor(
           address,
           time,
-          EmptyOrderDB,
+          EmptyOrderDb(),
           (_, _) => Future.successful(Right(())),
           command => {
             commandsProbe.ref ! command
@@ -327,7 +341,7 @@ class AddressActorSpecification
         )
       )
 
-    lazy val addressDir = system.actorOf(Props(new AddressDirectoryActor(EmptyOrderDB, createAddressActor, None, recovered = true)))
+    lazy val addressDir = system.actorOf(Props(new AddressDirectoryActor(EmptyOrderDb(), createAddressActor, None, recovered = true)))
 
     def addOrder(ao: AcceptedOrder): Unit = {
       addressDir ! AddressDirectoryActor.Command.ForwardMessage(address, AddressActor.Command.PlaceOrder(ao.order, ao.isMarket))
@@ -375,9 +389,6 @@ class AddressActorSpecification
     val b = LimitOrder(order).requiredBalance
     Portfolio(b.getOrElse(Waves, 0L), LeaseBalance.empty, b.collect { case (id @ IssuedAsset(_), v) => id -> v })
   }
-
-  private def addr(seed: String): Address = privateKey(seed).toAddress
-  private def privateKey(seed: String): KeyPair = KeyPair(seed.getBytes("utf-8"))
 
   override protected def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)

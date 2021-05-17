@@ -4,8 +4,9 @@ pipeline {
     }
     options {
         ansiColor('xterm')
-        timeout(time: 45, unit: 'MINUTES')
+        timeout(time: 70, unit: 'MINUTES')
         timestamps()
+        disableConcurrentBuilds()
     }
     environment {
         SBT_HOME = tool name: 'sbt-1.2.6', type: 'org.jvnet.hudson.plugins.SbtPluginBuilder$SbtInstallation'
@@ -18,7 +19,7 @@ pipeline {
         stage('Cleanup') {
             steps {
                 script {
-                    if (!(BRANCH_NAME ==~ /(origin\/)?(DEX\-.*|master|version\-.*|v?\d+\.\d+\.\d+(\.\d+)?)/)) {
+                    if (!(BRANCH_NAME ==~ /(origin\/)?(DEX\-.*|master|merge\-.*|version\-.*|v?\d+\.\d+\.\d+(\.\d+)?)/)) {
                         currentBuild.result = 'ABORTED'
                         error("The branch '${BRANCH_NAME}' have an incorrect name. Allowed names: master, version-, DEX-")
                     }

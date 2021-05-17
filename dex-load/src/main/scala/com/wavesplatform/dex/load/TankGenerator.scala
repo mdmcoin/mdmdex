@@ -1,6 +1,5 @@
 package com.wavesplatform.dex.load
 
-import com.softwaremill.sttp.{MonadError => _}
 import com.wavesplatform.dex.api.http.protocol.HttpCancelOrder
 import com.wavesplatform.dex.domain.account.{AddressScheme, KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.dex.domain.bytes.ByteStr
@@ -71,28 +70,43 @@ object TankGenerator {
   private def mkAssets(count: Int = settings.assets.count): List[String] = {
     println(s"Generating $count assets... ")
 
-    val assets = (1 to count).map(_ => mkAsset()).toList
+    val assetsTxs = for (_ <- 1 to count) yield mkAsset()
+    val assets = assetsTxs.map(_.assetId())
+
+    val futures = assetsTxs.map { tx =>
+      Future {
+        node.broadcast(tx)
+        println(s"Broadcast $tx")
+      }
+    }
+
+    val requestsAwaitingTime = (count / threadCount).seconds
+    print(
+      s"Awaiting creating assets, requests count = $count, treads count = $threadCount, waiting at most $requestsAwaitingTime... "
+    )
+    Await.result(Future.sequence(futures), requestsAwaitingTime)
+
     val asset = assets(new Random().nextInt(assets.length))
 
     do waitForHeightArise() while (node.getAssetBalance(issuer.address(), asset) <= 0)
 
     println("Assets have been successfully issued")
-    assets.map(_.toString)
+    assets.map(_.toString).toList
   }
 
   private def mkAssetPairs(assets: List[String], count: Int = settings.assets.pairsCount): List[AssetPair] = {
     println(s"Creating $count asset pairs... ")
 
     val randomAssetPairs = Random
-      .shuffle(
+      .shuffle {
         assets
           .combinations(2)
           .map {
-            case List(aa, pa) => if (aa >= pa) (aa, pa) else (pa, aa)
+            case List(aa, pa) => if (pa < aa) (aa, pa) else (pa, aa)
             case _ => throw new RuntimeException("Can't create asset-pair")
           }
           .map(Function.tupled((a, p) => new AssetPair(AssetId.as(a), AssetId.as(p))))
-      )
+      }
       .take(count)
       .toList
 
@@ -119,14 +133,18 @@ object TankGenerator {
 
     assets.foreach { asset =>
       println(s"\t -- $asset")
-      accounts
+      val futures = accounts
         .map(account => new Transfer(account.address(), minimumNeededAssetBalance))
         .grouped(100)
         .zipWithIndex
-        .foreach { case (group, index) =>
-          try node.broadcast(mkMassTransfer(transfers = group, asset = AssetId.as(asset), ts = now + index))
-          catch { case e: Exception => println(e) }
+        .map { case (group, index) =>
+          Future {
+            node.broadcast(mkMassTransfer(transfers = group, asset = AssetId.as(asset), ts = now + index))
+          }
         }
+      val requestsAwaitingTime = (futures.size / threadCount).seconds
+      Await.result(Future.sequence(futures), requestsAwaitingTime)
+
     }
 
     println(s"\t -- WAVES")

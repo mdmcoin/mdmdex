@@ -15,6 +15,8 @@ import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.domain.transaction.ExchangeTransaction
 import com.wavesplatform.dex.domain.utils.ScorexLogging
 import com.wavesplatform.dex.grpc.integration.clients.blockchainupdates.{BlockchainUpdatesClient, DefaultBlockchainUpdatesClient}
+import com.wavesplatform.dex.grpc.integration.clients.combined.CombinedStream.Status
+import com.wavesplatform.dex.grpc.integration.clients.combined.CombinedStream.Status.Starting
 import com.wavesplatform.dex.grpc.integration.clients.combined.CombinedWavesBlockchainClient.Settings
 import com.wavesplatform.dex.grpc.integration.clients.domain.StatusUpdate.LastBlockHeight
 import com.wavesplatform.dex.grpc.integration.clients.domain._
@@ -26,8 +28,8 @@ import com.wavesplatform.dex.grpc.integration.protobuf.DexToPbConversions._
 import com.wavesplatform.dex.grpc.integration.protobuf.PbToDexConversions._
 import com.wavesplatform.dex.grpc.integration.services.UtxTransaction
 import com.wavesplatform.dex.grpc.integration.settings.WavesBlockchainClientSettings
+import com.wavesplatform.dex.grpc.integration.tool.RestartableManagedChannel
 import com.wavesplatform.protobuf.transaction.SignedTransaction
-import io.grpc.ManagedChannel
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioSocketChannel
 import monix.eval.Task
@@ -51,6 +53,10 @@ class CombinedWavesBlockchainClient(
   type Balances = Map[Address, Map[Asset, Long]]
   type Leases = Map[Address, Long]
 
+  @volatile private var blockchainStatus: Status = Starting()
+
+  override def status(): Status = blockchainStatus
+
   private val pbMatcherPublicKey = matcherPublicKey.toPB
 
   private val pessimisticPortfolios = new SynchronizedPessimisticPortfolios(settings.pessimisticPortfolios)
@@ -69,6 +75,7 @@ class CombinedWavesBlockchainClient(
       val init: BlockchainStatus = BlockchainStatus.Normal(WavesChain(Vector.empty, startHeight - 1, settings.maxRollbackHeight + 1))
 
       val combinedStream = new CombinedStream(settings.combinedStream, bClient.blockchainEvents, meClient.utxEvents)
+
       Observable(dataUpdates, combinedStream.stream)
         .merge
         .mapAccumulate(init) { case (origStatus, event) =>
@@ -124,11 +131,14 @@ class CombinedWavesBlockchainClient(
             changes <- tx.diff.flatMap(_.stateUpdate)
           } yield tx.id.toVanilla -> TransactionWithChanges(tx.id, signedTx, changes)
 
+          blockchainStatus = combinedStream.status()
+
           val updates = WavesNodeUpdates(updatedFinalBalances, (unconfirmedTxs ++ confirmedTxs ++ failedTxs).toMap)
           (x.newStatus, (updates, combinedStream.currentProcessedHeight >= startBlockInfo.height))
         }
         .filterNot(_._1.isEmpty)
         .tap(_ => combinedStream.startFrom(startHeight))
+
     }
     .doOnError(e => Task(log.error("Got an error in the combined stream", e)))
 
@@ -255,7 +265,7 @@ object CombinedWavesBlockchainClient extends ScorexLogging {
     val eventLoopGroup = new NioEventLoopGroup
 
     log.info(s"Building Matcher Extension gRPC client for server: ${wavesBlockchainClientSettings.grpc.target}")
-    val matcherExtensionChannel: ManagedChannel =
+    val matcherExtensionChannel =
       wavesBlockchainClientSettings.grpc.toNettyChannelBuilder
         .executor((command: Runnable) => grpcExecutionContext.execute(command))
         .eventLoopGroup(eventLoopGroup)
@@ -264,13 +274,15 @@ object CombinedWavesBlockchainClient extends ScorexLogging {
         .build
 
     log.info(s"Building Blockchain Updates Extension gRPC client for server: ${wavesBlockchainClientSettings.blockchainUpdatesGrpc.target}")
-    val blockchainUpdatesChannel: ManagedChannel =
-      wavesBlockchainClientSettings.blockchainUpdatesGrpc.toNettyChannelBuilder
-        .executor((command: Runnable) => grpcExecutionContext.execute(command))
-        .eventLoopGroup(eventLoopGroup)
-        .channelType(classOf[NioSocketChannel])
-        .usePlaintext()
-        .build
+    val blockchainUpdatesChannel =
+      new RestartableManagedChannel(() =>
+        wavesBlockchainClientSettings.blockchainUpdatesGrpc.toNettyChannelBuilder
+          .executor((command: Runnable) => grpcExecutionContext.execute(command))
+          .eventLoopGroup(eventLoopGroup)
+          .channelType(classOf[NioSocketChannel])
+          .usePlaintext()
+          .build
+      )
 
     new CombinedWavesBlockchainClient(
       wavesBlockchainClientSettings.combinedClientSettings,
@@ -279,7 +291,12 @@ object CombinedWavesBlockchainClient extends ScorexLogging {
         new MatcherExtensionGrpcAsyncClient(eventLoopGroup, matcherExtensionChannel, monixScheduler)(grpcExecutionContext),
         wavesBlockchainClientSettings.defaultCachesExpiration
       )(grpcExecutionContext),
-      bClient = new DefaultBlockchainUpdatesClient(eventLoopGroup, blockchainUpdatesChannel, monixScheduler)(grpcExecutionContext)
+      bClient = new DefaultBlockchainUpdatesClient(
+        eventLoopGroup,
+        blockchainUpdatesChannel,
+        monixScheduler,
+        wavesBlockchainClientSettings.blockchainUpdatesGrpc.noDataTimeout
+      )(grpcExecutionContext)
     )(grpcExecutionContext, monixScheduler)
   }
 

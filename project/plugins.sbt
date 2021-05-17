@@ -16,6 +16,7 @@ Seq(
   "com.typesafe.sbt" % "sbt-git" % "1.0.0",
   "org.scalameta" % "sbt-scalafmt" % "2.0.1",
   "ch.epfl.scala" % "sbt-scalafix" % "0.9.25",
+  "com.github.tkawachi" % "sbt-repeat" % "0.1.0",
   /*
   undeclaredCompileDependencies{test}
   unusedCompileDependencies{test}
@@ -24,7 +25,10 @@ Seq(
   // dependencyCheck to check against OWASP
   "net.vonbuchholtz" % "sbt-dependency-check" % "1.3.3",
   // dependencyUpdates
-  "com.timushev.sbt" % "sbt-updates" % "0.5.0"
+  "com.timushev.sbt" % "sbt-updates" % "0.5.0",
+  // metrics
+  // "io.kamon" % "sbt-kanela-runner" % "2.0.7", // To run locally https://github.com/kamon-io/sbt-kanela-runner
+  "com.lightbend.sbt" % "sbt-javaagent" % "0.1.6" // For release artifacts
 ).map(addSbtPlugin)
 
 libraryDependencies ++= Seq(

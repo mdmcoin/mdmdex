@@ -11,7 +11,7 @@ import com.wavesplatform.dex.actors.MatcherActor.{ForceStartOrderBook, OrderBook
 import com.wavesplatform.dex.actors.address.AddressActor
 import com.wavesplatform.dex.actors.events.OrderEventsCoordinatorActor
 import com.wavesplatform.dex.actors.orderbook.OrderBookActor._
-import com.wavesplatform.dex.actors.{MatcherActor, WorkingStash, orderbook}
+import com.wavesplatform.dex.actors.{orderbook, MatcherActor, WorkingStash}
 import com.wavesplatform.dex.api.ws.actors.WsInternalBroadcastActor
 import com.wavesplatform.dex.api.ws.protocol.WsOrdersUpdate
 import com.wavesplatform.dex.domain.asset.AssetPair
@@ -21,7 +21,7 @@ import com.wavesplatform.dex.error.ErrorFormatterContext
 import com.wavesplatform.dex.metrics.TimerExt
 import com.wavesplatform.dex.model.Events._
 import com.wavesplatform.dex.model.OrderBook.OrderBookUpdates
-import com.wavesplatform.dex.model.{LastTrade, _}
+import com.wavesplatform.dex.model._
 import com.wavesplatform.dex.queue.{ValidatedCommand, ValidatedCommandWithMeta}
 import com.wavesplatform.dex.settings.{DenormalizedMatchingRule, MatchingRule, OrderRestrictionsSettings}
 import com.wavesplatform.dex.time.Time
@@ -50,7 +50,7 @@ class OrderBookActor(
 
   override protected lazy val log = LoggerFacade(LoggerFactory.getLogger(s"OrderBookActor[$assetPair]"))
 
-  private var aggregatedRef: typed.ActorRef[AggregatedOrderBookActor.Message] = _
+  private var aggregatedRef: typed.ActorRef[AggregatedOrderBookActor.InputMessage] = _
 
   private var savingSnapshot = Option.empty[ValidatedCommandWithMeta.Offset]
   private var lastSavedSnapshotOffset = Option.empty[ValidatedCommandWithMeta.Offset]
@@ -138,10 +138,11 @@ class OrderBookActor(
               process(request.timestamp, orderBook.cancelAll(request.timestamp, OrderCanceledReason.OrderBookDeleted))
               // We don't delete the snapshot, because it could be required after restart
               // snapshotStore ! OrderBookSnapshotStoreActor.Message.Delete(assetPair)
-              aggregatedRef ! AggregatedOrderBookActor.Event.OrderBookRemoved
-              context.stop(self)
+              aggregatedRef ! AggregatedOrderBookActor.Command.Stop(self, error.OrderBookStopped(assetPair))
           }
       }
+
+    case AggregatedOrderBookActor.Event.Stopped => context.stop(self)
 
     case MatcherActor.Ping => sender() ! MatcherActor.Pong
 
@@ -159,7 +160,7 @@ class OrderBookActor(
         savingSnapshot = Some(globalEventNr)
       }
 
-    case x: AggregatedOrderBookActor.Message => aggregatedRef.tell(x)
+    case x: AggregatedOrderBookActor.InputMessage => aggregatedRef.tell(x)
 
     case classic.Terminated(ref) =>
       log.error(s"Terminated actor: $ref")
@@ -199,6 +200,7 @@ class OrderBookActor(
   private def onCancelOrder(command: ValidatedCommandWithMeta, cancelCommand: ValidatedCommand.CancelOrder): Unit = cancelTimer.measure {
     orderBook.cancel(cancelCommand.orderId, toReason(cancelCommand.source), command.timestamp) match {
       case (updatedOrderBook, Some(cancelEvent), levelChanges) =>
+        log.trace(s"Applied $command")
         // TODO replace by process() in Scala 2.13
         orderBook = updatedOrderBook
         aggregatedRef ! AggregatedOrderBookActor.Command.ApplyChanges(levelChanges, None, None, cancelEvent.timestamp)
@@ -289,20 +291,9 @@ object OrderBookActor {
 
   def name(assetPair: AssetPair): String = assetPair.toString
 
-  case class MarketStatus(
-    lastTrade: Option[LastTrade],
-    bestBid: Option[LevelAgg],
-    bestAsk: Option[LevelAgg]
-  )
-
-  object MarketStatus {
-    def apply(ob: OrderBook): MarketStatus = MarketStatus(ob.lastTrade, ob.bestBid, ob.bestAsk)
-  }
-
   case class Snapshot(eventNr: Option[Long], orderBook: OrderBookSnapshot)
 
   // Internal messages
   case class OrderBookRecovered(assetPair: AssetPair, eventNr: Option[Long])
   case class OrderBookSnapshotUpdateCompleted(assetPair: AssetPair, currentOffset: Option[Long])
-  case object SendWsUpdates
 }

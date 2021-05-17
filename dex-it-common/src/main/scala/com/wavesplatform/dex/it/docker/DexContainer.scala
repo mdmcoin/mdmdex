@@ -1,13 +1,11 @@
 package com.wavesplatform.dex.it.docker
 
-import java.net.InetSocketAddress
-import java.nio.file.{Path, Paths}
-
 import cats.tagless.FunctorK
 import com.dimafeng.testcontainers.GenericContainer
-import com.softwaremill.sttp.StatusCodes
 import com.typesafe.config.Config
+import com.wavesplatform.dex.app.MatcherStatus.Working
 import com.wavesplatform.dex.domain.utils.ScorexLogging
+import com.wavesplatform.dex.grpc.integration.clients.combined.CombinedStream.Status
 import com.wavesplatform.dex.it.api._
 import com.wavesplatform.dex.it.api.dex.{AsyncEnrichedDexApi, DexApi}
 import com.wavesplatform.dex.it.api.responses.dex.MatcherError
@@ -19,13 +17,15 @@ import com.wavesplatform.dex.settings.utils.ConfigOps.ConfigOps
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.Network.NetworkImpl
 
+import java.net.InetSocketAddress
+import java.nio.file.{Path, Paths}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 final case class DexContainer private (override val internalIp: String, underlying: GenericContainer)(
   implicit
-  tryHttpBackend: LoggingSttpBackend[Try, Nothing],
-  futureHttpBackend: LoggingSttpBackend[Future, Nothing],
+  tryHttpBackend: LoggingSttpBackend[Try, Any],
+  futureHttpBackend: LoggingSttpBackend[Future, Any],
   ec: ExecutionContext
 ) extends BaseContainer(DexContainer.baseContainerPath, underlying) {
 
@@ -59,8 +59,10 @@ final case class DexContainer private (override val internalIp: String, underlyi
     val r = Iterator
       .continually {
         Thread.sleep(1000)
-        try httpApi.getOrderBooks.code == StatusCodes.Ok
-        catch {
+        try {
+          val s = api.getSystemStatus
+          s.blockchain == Status.Working && s.service == Working
+        } catch {
           case _: Throwable => false
         }
       }
@@ -91,8 +93,8 @@ object DexContainer extends ScorexLogging {
     localLogsDir: Path,
     image: String
   )(implicit
-    tryHttpBackend: LoggingSttpBackend[Try, Nothing],
-    futureHttpBackend: LoggingSttpBackend[Future, Nothing],
+    tryHttpBackend: LoggingSttpBackend[Try, Any],
+    futureHttpBackend: LoggingSttpBackend[Future, Any],
     ec: ExecutionContext
   ): DexContainer = {
 

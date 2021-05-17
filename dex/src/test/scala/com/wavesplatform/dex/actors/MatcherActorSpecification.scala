@@ -1,10 +1,9 @@
 package com.wavesplatform.dex.actors
 
-import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.{Actor, ActorRef, ActorSystem, Kill, Props, Terminated}
 import akka.testkit.{ImplicitSender, TestActor, TestActorRef, TestProbe}
+import cats.Id
 import cats.data.NonEmptyList
 import cats.implicits.catsSyntaxEitherId
 import com.wavesplatform.dex.MatcherSpecBase
@@ -13,7 +12,7 @@ import com.wavesplatform.dex.actors.MatcherActorSpecification.{DeletingActor, Fa
 import com.wavesplatform.dex.actors.orderbook.OrderBookActor.{OrderBookRecovered, OrderBookSnapshotUpdateCompleted}
 import com.wavesplatform.dex.actors.orderbook.OrderBookSnapshotStoreActor.{Message, Response}
 import com.wavesplatform.dex.actors.orderbook.{AggregatedOrderBookActor, OrderBookActor, OrderBookSnapshotStoreActor}
-import com.wavesplatform.dex.db.{AssetPairsDB, OrderBookSnapshotDB, WithDB}
+import com.wavesplatform.dex.db._
 import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.bytes.ByteStr
@@ -27,13 +26,14 @@ import org.scalamock.scalatest.PathMockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future}
 
 class MatcherActorSpecification
     extends MatcherSpec("MatcherActor")
     with MatcherSpecBase
-    with WithDB
     with HasOecInteraction
     with BeforeAndAfterEach
     with PathMockFactory
@@ -41,8 +41,14 @@ class MatcherActorSpecification
     with Eventually
     with SystemTime {
 
-  private def assetDescription(assetId: Asset): Option[BriefAssetDescription] =
-    Some(BriefAssetDescription(name = "Unknown", decimals = 8, hasScript = false))
+  private val assetsCache = new AssetsCache() {
+
+    override val cached: AssetsReadOnlyDb[Id] =
+      (asset: IssuedAsset) => Some(BriefAssetDescription(name = "Unknown", decimals = 8, hasScript = false))
+
+    override def get(asset: Asset): Future[Option[BriefAssetDescription]] = Future.successful(cached.get(asset))
+    override def put(asset: Asset, item: BriefAssetDescription): Future[Unit] = Future.unit
+  }
 
   "MatcherActor" should {
     "return all open markets" in {
@@ -83,7 +89,7 @@ class MatcherActorSpecification
             doNothingOnRecovery,
             ob,
             (_, _) => Props(new FailAtStartActor),
-            assetDescription,
+            assetsCache,
             _.asRight
           )
         )
@@ -137,7 +143,7 @@ class MatcherActorSpecification
             startResult => working = startResult.isRight,
             ob,
             (_, _) => Props(new FailAtStartActor()),
-            assetDescription,
+            assetsCache,
             _.asRight
           )
         )
@@ -153,7 +159,7 @@ class MatcherActorSpecification
     "stop the work" when {
       "an order book as failed during recovery" in {
         val apdb = mkAssetPairsDB
-        val obsdb = mkOrderBookSnapshotDB
+        val obsdb = mkOrderBookSnapshotDb
         val pair = AssetPair(randomAssetId, randomAssetId)
         val ob = emptyOrderBookRefs
         var stopped = false
@@ -169,7 +175,7 @@ class MatcherActorSpecification
                 startResult => stopped = startResult.isLeft,
                 ob,
                 (_, _) => Props(new FailAtStartActor),
-                assetDescription,
+                assetsCache,
                 _.asRight
               )
             )
@@ -182,7 +188,7 @@ class MatcherActorSpecification
 
       "received Shutdown during start" in {
         val apdb = mkAssetPairsDB
-        val obsdb = mkOrderBookSnapshotDB
+        val obsdb = mkOrderBookSnapshotDb
         val pair = AssetPair(randomAssetId, randomAssetId)
         val ob = emptyOrderBookRefs
         var stopped = false
@@ -198,7 +204,7 @@ class MatcherActorSpecification
                 startResult => stopped = startResult.isLeft,
                 ob,
                 (_, _) => Props(new NothingDoActor),
-                assetDescription,
+                assetsCache,
                 _.asRight
               )
             )
@@ -276,7 +282,7 @@ class MatcherActorSpecification
     "create an order book" when {
       "place order - new order book" in {
         val apdb = mkAssetPairsDB
-        val obsdb = mkOrderBookSnapshotDB
+        val obsdb = mkOrderBookSnapshotDb
         val pair1 = AssetPair(randomAssetId, randomAssetId)
         val pair2 = AssetPair(randomAssetId, randomAssetId)
 
@@ -308,7 +314,7 @@ class MatcherActorSpecification
               _ => {},
               ob,
               (pair, matcherActor) => Props(new RecoveringActor(matcherActor, pair)),
-              assetDescription,
+              assetsCache,
               _.asRight
             )
           )
@@ -320,7 +326,7 @@ class MatcherActorSpecification
 
       "after delete" in {
         val apdb = mkAssetPairsDB
-        val obsdb = OrderBookSnapshotDB.inMem
+        val obsdb = mkOrderBookSnapshotDb
         val pair = AssetPair(randomAssetId, randomAssetId)
 
         matcherHadOrderBooksBefore(apdb, obsdb, pair -> 9L)
@@ -332,7 +338,7 @@ class MatcherActorSpecification
             doNothingOnRecovery,
             ob,
             (assetPair, matcher) => Props(new DeletingActor(matcher, assetPair, Some(9L))),
-            assetDescription,
+            assetsCache,
             _.asRight
           )
         )
@@ -393,7 +399,7 @@ class MatcherActorSpecification
           if (idx < 0) throw new RuntimeException(s"Can't find $assetPair in $assetPairs")
           r(idx)._1
         },
-        assetDescription,
+        assetsCache,
         _.asRight
       )
     )
@@ -423,7 +429,7 @@ class MatcherActorSpecification
 
   private def defaultActor(
     ob: AtomicReference[Map[AssetPair, Either[Unit, ActorRef]]] = emptyOrderBookRefs,
-    apdb: AssetPairsDB = mkAssetPairsDB,
+    apdb: AssetPairsDb[Future] = mkAssetPairsDB,
     addressActor: ActorRef = TestProbe().ref,
     snapshotStoreActor: ActorRef = emptySnapshotStoreActor
   ): TestActorRef[MatcherActor] = {
@@ -450,18 +456,21 @@ class MatcherActorSpecification
             _ => makerTakerPartialFee,
             None
           ),
-        assetDescription,
+        assetsCache,
         _.asRight
       )
     )
   }
 
-  private def mkAssetPairsDB: AssetPairsDB = AssetPairsDB(db)
-  private def mkOrderBookSnapshotDB: OrderBookSnapshotDB = OrderBookSnapshotDB(db)
+  private def mkAssetPairsDB: AssetPairsDb[Future] = TestAssetPairDb()
+  private def mkOrderBookSnapshotDb: OrderBookSnapshotDb[Future] = TestOrderBookSnapshotDb()
 
-  private def matcherHadOrderBooksBefore(apdb: AssetPairsDB, obsdb: OrderBookSnapshotDB, pairs: (AssetPair, Long)*): Unit = {
-    pairs.map(_._1).foreach(apdb.add)
-    pairs.foreach { case (pair, offset) => obsdb.update(pair, offset, Some(OrderBookSnapshot.empty)) }
+  private def matcherHadOrderBooksBefore(apdb: AssetPairsDb[Future], obsdb: OrderBookSnapshotDb[Future], pairs: (AssetPair, Long)*): Unit = {
+    val future = for {
+      _ <- Future.sequence(pairs.map(_._1).map(apdb.add))
+      _ <- Future.sequence(pairs.map { case (pair, offset) => obsdb.update(pair, offset, Some(OrderBookSnapshot.empty)) })
+    } yield ()
+    Await.ready(future, 5.seconds)
   }
 
   private def doNothingOnRecovery(x: Either[String, ValidatedCommandWithMeta.Offset]): Unit = {}
@@ -471,6 +480,7 @@ class MatcherActorSpecification
 }
 
 object MatcherActorSpecification {
+
   private class NothingDoActor extends Actor { override def receive: Receive = Actor.ignoringBehavior }
 
   private class RecoveringActor(owner: ActorRef, assetPair: AssetPair, startOffset: Option[Long] = None) extends Actor {

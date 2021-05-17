@@ -11,11 +11,11 @@ import com.wavesplatform.dex.grpc.integration.clients.domain.portfolio.Implicits
 import com.wavesplatform.dex.grpc.integration.clients.domain.{TransactionWithChanges, WavesNodeEvent}
 import com.wavesplatform.dex.grpc.integration.protobuf.PbToDexConversions._
 import com.wavesplatform.dex.grpc.integration.settings.GrpcClientSettings
+import com.wavesplatform.dex.grpc.integration.tool.RestartableManagedChannel
 import com.wavesplatform.dex.it.api.HasToxiProxy
 import com.wavesplatform.dex.it.docker.WavesNodeContainer
 import com.wavesplatform.dex.it.test.NoStackTraceCancelAfterFailure
 import im.mak.waves.transactions.Transaction
-import io.grpc.ManagedChannel
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioSocketChannel
 import monix.eval.Task
@@ -51,25 +51,32 @@ class BlockchainUpdatesClientTestSuite extends IntegrationSuiteBase with HasToxi
   private val keepAliveTime = 2.seconds
   private val keepAliveTimeout = 5.seconds
 
-  private lazy val blockchainUpdatesChannel: ManagedChannel =
-    GrpcClientSettings(
-      target = s"127.0.0.1:${blockchainUpdatesProxy.getProxyPort}",
-      maxHedgedAttempts = 5,
-      maxRetryAttempts = 5,
-      keepAliveWithoutCalls = true,
-      keepAliveTime = keepAliveTime,
-      keepAliveTimeout = keepAliveTimeout,
-      idleTimeout = 1.day,
-      channelOptions = GrpcClientSettings.ChannelOptionsSettings(connectTimeout = 5.seconds)
-    ).toNettyChannelBuilder
-      .executor((command: Runnable) => grpcExecutor.execute(command))
-      .eventLoopGroup(eventLoopGroup)
-      .channelType(classOf[NioSocketChannel])
-      .usePlaintext()
-      .build
+  private val grpcSettings = GrpcClientSettings(
+    target = s"127.0.0.1:${blockchainUpdatesProxy.getProxyPort}",
+    maxHedgedAttempts = 5,
+    maxRetryAttempts = 5,
+    keepAliveWithoutCalls = true,
+    keepAliveTime = keepAliveTime,
+    keepAliveTimeout = keepAliveTimeout,
+    idleTimeout = 1.day,
+    channelOptions = GrpcClientSettings.ChannelOptionsSettings(connectTimeout = 5.seconds),
+    noDataTimeout = 5.minutes
+  )
+
+  private lazy val blockchainUpdatesChannel: RestartableManagedChannel =
+    new RestartableManagedChannel(() =>
+      grpcSettings.toNettyChannelBuilder
+        .executor((command: Runnable) => grpcExecutor.execute(command))
+        .eventLoopGroup(eventLoopGroup)
+        .channelType(classOf[NioSocketChannel])
+        .usePlaintext()
+        .build
+    )
 
   private lazy val client =
-    new DefaultBlockchainUpdatesClient(eventLoopGroup, blockchainUpdatesChannel, monixScheduler)(ExecutionContext.fromExecutor(grpcExecutor))
+    new DefaultBlockchainUpdatesClient(eventLoopGroup, blockchainUpdatesChannel, monixScheduler, grpcSettings.noDataTimeout)(
+      ExecutionContext.fromExecutor(grpcExecutor)
+    )
 
   override def beforeAll(): Unit = {
     super.beforeAll()

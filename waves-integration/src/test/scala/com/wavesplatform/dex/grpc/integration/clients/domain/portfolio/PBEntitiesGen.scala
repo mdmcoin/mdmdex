@@ -55,8 +55,7 @@ trait PBEntitiesGen {
 
   val pbEmptyBalanceUpdateGen: Gen[StateUpdate.BalanceUpdate] = pbAddressGen.map { address =>
     StateUpdate.BalanceUpdate(
-      address = address,
-      amount = none
+      address = address
     )
   }
 

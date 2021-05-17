@@ -1,8 +1,5 @@
 package com.wavesplatform.dex.actors.orderbook
 
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorRef
 import akka.actor.typed.scaladsl.adapter._
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
@@ -11,10 +8,11 @@ import cats.syntax.option._
 import com.wavesplatform.dex.MatcherSpecBase
 import com.wavesplatform.dex.actors.MatcherActor.SaveSnapshot
 import com.wavesplatform.dex.actors.address.AddressActor.Command.Source
-import com.wavesplatform.dex.actors.orderbook.OrderBookActor.{MarketStatus, OrderBookRecovered, OrderBookSnapshotUpdateCompleted}
+import com.wavesplatform.dex.actors.orderbook.AggregatedOrderBookActor.MarketStatus
+import com.wavesplatform.dex.actors.orderbook.OrderBookActor.{OrderBookRecovered, OrderBookSnapshotUpdateCompleted}
 import com.wavesplatform.dex.actors.{HasOecInteraction, MatcherSpec, OrderBookAskAdapter}
 import com.wavesplatform.dex.caches.OrderFeeSettingsCache
-import com.wavesplatform.dex.db.OrderBookSnapshotDB
+import com.wavesplatform.dex.db.{OrderBookSnapshotDb, TestOrderBookSnapshotDb}
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.bytes.ByteStr
@@ -34,9 +32,11 @@ import com.wavesplatform.dex.time.SystemTime
 import org.scalamock.scalatest.PathMockFactory
 import org.scalatest.concurrent.Eventually
 
-import scala.concurrent.Await
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 class OrderBookActorSpecification
     extends MatcherSpec("OrderBookActor")
@@ -72,7 +72,7 @@ class OrderBookActorSpecification
     }
 
   private def obcTestWithPrepare(
-    prepare: (OrderBookSnapshotDB, AssetPair) => Unit,
+    prepare: (OrderBookSnapshotDb[Future], AssetPair) => Unit,
     matchingRules: NonEmptyList[DenormalizedMatchingRule] = NonEmptyList.one(DenormalizedMatchingRule(0, 0.00000001)),
     makerTakerFeeAtOffset: Long => (AcceptedOrder, LimitOrder) => (Long, Long) = _ => makerTakerPartialFee
   )(f: (AssetPair, TestActorRef[OrderBookActor with RestartableActor], TestProbe) => Unit): Unit = {
@@ -81,7 +81,7 @@ class OrderBookActorSpecification
 
     val tp = TestProbe()
     val pair = AssetPair(wctAsset, Waves)
-    val obsdb = OrderBookSnapshotDB.inMem
+    val obsdb = TestOrderBookSnapshotDb()
 
     prepare(obsdb, pair)
 

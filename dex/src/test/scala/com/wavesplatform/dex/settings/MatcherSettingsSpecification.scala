@@ -3,10 +3,11 @@ package com.wavesplatform.dex.settings
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import com.wavesplatform.dex.actors.address.AddressActor
+import com.wavesplatform.dex.actors.events.OrderEventsCoordinatorActor
 import com.wavesplatform.dex.actors.tx.ExchangeTransactionBroadcastActor
 import com.wavesplatform.dex.api.http.OrderBookHttpInfo
 import com.wavesplatform.dex.api.ws.actors.{WsExternalClientHandlerActor, WsHealthCheckSettings, WsInternalBroadcastActor, WsInternalClientHandlerActor}
-import com.wavesplatform.dex.db.{AccountStorage, OrderDB}
+import com.wavesplatform.dex.db.{AccountStorage, OrderDb}
 import com.wavesplatform.dex.domain.account.PublicKey
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.asset.AssetPair
@@ -24,7 +25,7 @@ import com.wavesplatform.dex.test.matchers.ProduceError.produce
 import com.wavesplatform.dex.tool.ComparisonTool
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
-import sttp.client.UriContext
+import sttp.client3.UriContext
 
 import scala.concurrent.duration._
 
@@ -56,7 +57,8 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
           idleTimeout = 20.seconds,
           channelOptions = GrpcClientSettings.ChannelOptionsSettings(
             connectTimeout = 99.seconds
-          )
+          ),
+          noDataTimeout = 999.minutes
         ),
         blockchainUpdatesGrpc = GrpcClientSettings(
           target = "127.1.2.10:7444",
@@ -68,7 +70,8 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
           idleTimeout = 21.seconds,
           channelOptions = GrpcClientSettings.ChannelOptionsSettings(
             connectTimeout = 100.seconds
-          )
+          ),
+          noDataTimeout = 782.minutes
         ),
         defaultCachesExpiration = 101.millis,
         balanceStreamBufferSize = 100,
@@ -85,7 +88,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     settings.snapshotsInterval should be(999)
     settings.snapshotsLoadingTimeout should be(423.seconds)
     settings.startEventsProcessingTimeout should be(543.seconds)
-    settings.orderDb should be(OrderDB.Settings(199))
+    settings.orderDb should be(OrderDb.Settings(199))
     settings.priceAssets should be(
       Seq(
         Waves,
@@ -137,6 +140,7 @@ baz"""
       )
     )
     settings.addressActor should matchTo(AddressActor.Settings(100.milliseconds, 18.seconds, 400))
+    settings.orderEventsCoordinatorActor should matchTo(OrderEventsCoordinatorActor.Settings(999))
     settings.comparisonTool should matchTo(ComparisonTool.Settings(
       checks = ComparisonTool.ChecksSettings(interval = 55.minutes, duration = 3.days, strike = 9),
       matcherRestApis = List(uri"https://127.0.0.1:1234"),
