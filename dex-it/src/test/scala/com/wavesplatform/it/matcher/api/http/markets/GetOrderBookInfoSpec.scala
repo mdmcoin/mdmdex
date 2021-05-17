@@ -74,7 +74,7 @@ class GetOrderBookInfoSpec extends MatcherSuiteBase with TableDrivenPropertyChec
 
     forAll(Table(
       ("Amount", "Price", "Http status", "Error code", "Message"),
-      ("incorrect", "WAVES", StatusCode.NotFound, 11534345, "The asset incorrect not found"),
+      ("incorrect", "TN", StatusCode.NotFound, 11534345, "The asset incorrect not found"),
       ("TN", "incorrect", StatusCode.NotFound, 9440771, "The TN-incorrect asset pair should be reversed")
     )) { (a: String, p: String, c: StatusCode, e: Int, m: String) =>
       s"for $a/$p should return (HTTP-$c; [$e: $m]) " in {

@@ -313,17 +313,17 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |      pessimistic-portfolios.max-confirmed-transactions = 10000
          |    }
          |  }
-         |  exchange-tx-base-fee = 300000
+         |  exchange-tx-base-fee = 4000000
          |  order-fee {
          |    -1: {
          |      mode = "dynamic" # | "fixed" | "percent"
          |      dynamic {
-         |        base-maker-fee = 300000
-         |        base-taker-fee = 300000
+         |        base-maker-fee = 4000000
+         |        base-taker-fee = 4000000
          |      }
          |      fixed {
-         |        asset = "WAVES" # | "some issued asset (base58)"
-         |        min-fee = 300000
+         |        asset = "TN" # | "some issued asset (base58)"
+         |        min-fee = 4000000
          |      }
          |      percent {
          |        asset-type = "amount" # | "price" | "spending" | "receiving"

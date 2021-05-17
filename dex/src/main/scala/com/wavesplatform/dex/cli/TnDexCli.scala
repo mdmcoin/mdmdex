@@ -335,7 +335,7 @@ object TnDexCli extends ScoptImplicits {
               .action((x, s) => s.copy(dexRestApi = x.some)),
             opt[String]("node-rest-api")
               .abbr("nra")
-              .text("Waves Node REST API uri. Format: scheme://host:port (default scheme will be picked if none was specified)")
+              .text("TN Node REST API uri. Format: scheme://host:port (default scheme will be picked if none was specified)")
               .valueName("<raw-string>")
               .action((x, s) => s.copy(nodeRestApi = x)),
             opt[String]("version")
