@@ -3,7 +3,6 @@ package com.wavesplatform.dex.matching
 import akka.actor.{ActorRef, Props}
 import akka.pattern.ask
 import akka.testkit.TestProbe
-import akka.util.Timeout
 import com.wavesplatform.dex.MatcherSpecBase
 import com.wavesplatform.dex.actors.MatcherSpecLike
 import com.wavesplatform.dex.actors.address.AddressActor.BlockchainInteraction
@@ -16,16 +15,15 @@ import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
-import com.wavesplatform.dex.error.ErrorFormatterContext
 import com.wavesplatform.dex.grpc.integration.clients.domain.AddressBalanceUpdates
-import com.wavesplatform.dex.meta.getSimpleName
+import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import com.wavesplatform.dex.model.Events.{OrderAdded, OrderAddedReason, OrderCanceled, OrderExecuted}
 import com.wavesplatform.dex.model.{Events, LimitOrder, MarketOrder}
 import com.wavesplatform.dex.queue.{ValidatedCommand, ValidatedCommandWithMeta}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.propspec.AnyPropSpecLike
 
-import scala.concurrent.duration.{Duration, DurationInt}
+import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.math.BigDecimal.RoundingMode.CEILING
 import scala.util.Success
@@ -77,13 +75,7 @@ import scala.util.Success
  */
 class ReservedBalanceSpecification extends AnyPropSpecLike with MatcherSpecLike with WithDb with MatcherSpecBase with TableDrivenPropertyChecks {
 
-  override protected def actorSystemName: String = getSimpleName(this)
-
   import system.dispatcher
-
-  implicit private val efc: ErrorFormatterContext = ErrorFormatterContext.from(_ => 8)
-  implicit private val timeout: Timeout = 5.seconds
-
   private val pair: AssetPair = AssetPair(mkAssetId("TN"), mkAssetId("USD"))
 
   private val addressDir = system.actorOf(
@@ -103,6 +95,9 @@ class ReservedBalanceSpecification extends AnyPropSpecLike with MatcherSpecLike 
     override def getFullBalances(address: Address, exclude: Set[Asset]): Future[AddressBalanceUpdates] = emptyAddressBalanceUpdatesF
   }
 
+  private def assetBriefInfo: Asset => BriefAssetDescription =
+    asset => BriefAssetDescription(asset.toString, 2, hasScript = false, isNft = false)
+
   private def createAddressActor(address: Address, recovered: Boolean): Props =
     Props(
       new AddressActor(
@@ -112,7 +107,8 @@ class ReservedBalanceSpecification extends AnyPropSpecLike with MatcherSpecLike 
         (_, _) => Future.successful(Right(())),
         _ => Future.failed(new IllegalStateException("Should not be used in the test")),
         recovered,
-        blockchainInteraction
+        blockchainInteraction,
+        getAssetDescription = assetBriefInfo
       )
     )
 
@@ -135,7 +131,7 @@ class ReservedBalanceSpecification extends AnyPropSpecLike with MatcherSpecLike 
     addressDir ! AddressActor.Command.ApplyOrderBookAdded(OrderAdded(LimitOrder(counter), OrderAddedReason.RequestExecuted, now))
     addressDir ! AddressActor.Command.ApplyOrderBookAdded(OrderAdded(LimitOrder(submitted), OrderAddedReason.RequestExecuted, now))
     val exec = OrderExecuted(LimitOrder(submitted), LimitOrder(counter), submitted.timestamp, counter.matcherFee, submitted.matcherFee)
-    addressDir ! AddressActor.Command.ApplyOrderBookExecuted(exec, None)
+    addressDir ! AddressActor.Command.ApplyOrderBookExecuted(exec, mkExchangeTx(exec))
     exec
   }
 
@@ -500,7 +496,8 @@ class ReservedBalanceSpecification extends AnyPropSpecLike with MatcherSpecLike 
             Future.successful(Some(ValidatedCommandWithMeta(0L, System.currentTimeMillis, command)))
           },
           recovered,
-          blockchainInteraction
+          blockchainInteraction,
+          getAssetDescription = assetBriefInfo
         )
       )
 
@@ -536,7 +533,7 @@ class ReservedBalanceSpecification extends AnyPropSpecLike with MatcherSpecLike 
       OrderAddedReason.RequestExecuted,
       time.getTimestamp()
     ))
-    addressDirWithOrderBookCache ! AddressActor.Command.ApplyOrderBookExecuted(executionEvent, None)
+    addressDirWithOrderBookCache ! AddressActor.Command.ApplyOrderBookExecuted(executionEvent, mkExchangeTx(executionEvent))
 
     executionEvent
   }

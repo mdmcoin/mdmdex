@@ -1,8 +1,7 @@
 package com.wavesplatform.it
 
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.ThreadLocalRandom
 import cats.instances.FutureInstances
+import cats.syntax.either._
 import com.softwaremill.diffx.{Derived, Diff}
 import com.wavesplatform.dex.api.http.entities.HttpV0OrderBook
 import com.wavesplatform.dex.asset.DoubleOps
@@ -23,12 +22,14 @@ import com.wavesplatform.dex.waves.WavesFeeConstants
 import com.wavesplatform.it.api.ApiExtensions
 import im.mak.waves.transactions.ExchangeTransaction
 import io.qameta.allure.scalatest.AllureScalatestContext
-import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import scala.concurrent.duration.DurationInt
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.ThreadLocalRandom
+import scala.concurrent.duration._
 
 trait MatcherSuiteBase
     extends AnyFreeSpec
@@ -51,17 +52,23 @@ trait MatcherSuiteBase
     with DiffMatcherWithImplicits
     with InformativeTestStart
     with FutureInstances
+    with ScalaFutures
     with ToWavesJConversions
     with ScorexLogging {
 
   GenesisConfig.setupAddressScheme()
+
+  private val maybeTraceTickInterval =
+    Option(System.getenv("CONFIG_FORCE_kamon_trace_tick__interval"))
+      .flatMap(x => Either.catchNonFatal(Duration(x)).toOption)
+      .filter(_ => Option(System.getenv("CONFIG_FORCE_kamon_modules_jaeger_enabled")).contains("true"))
 
   implicit val httpV0OrderBookDiff: Derived[Diff[HttpV0OrderBook]] = Derived(Diff.gen[HttpV0OrderBook].ignore[HttpV0OrderBook, Long](_.timestamp))
   implicit val exchangeTransactionDiff: Derived[Diff[ExchangeTransaction]] = Derived(Diff[String].contramap[ExchangeTransaction](_.id().base58))
 
   override protected val moduleName: String = "dex-it"
 
-  implicit override def patienceConfig: PatienceConfig = super.patienceConfig.copy(timeout = 30.seconds, interval = 1.second)
+  implicit override def patienceConfig: PatienceConfig = super.patienceConfig.copy(timeout = 1.minute, interval = 1.second)
 
   override protected def beforeAll(): Unit = {
     log.debug(s"Perform beforeAll")
@@ -74,6 +81,7 @@ trait MatcherSuiteBase
 
   override protected def afterAll(): Unit = {
     log.debug(s"Perform afterAll")
+    maybeTraceTickInterval.map(_.toMillis + 2.seconds.toMillis).foreach(Thread.sleep)
     stopBaseContainers()
     super.afterAll()
   }
@@ -102,4 +110,5 @@ trait MatcherSuiteBase
       placeAndAwaitAtDex(o)
       o.idStr()
     }.toSet
+
 }

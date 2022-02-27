@@ -2,6 +2,7 @@ package com.wavesplatform.it.sync
 
 import cats.Id
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.Implicits.durationToScalatestTimeout
 import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.api.http.entities.HttpSuccessfulBatchCancel
 import com.wavesplatform.dex.api.ws.protocol.{WsAddressChanges, WsOrderBookChanges}
@@ -10,19 +11,21 @@ import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
 import com.wavesplatform.dex.domain.order.{Order, OrderType}
+import com.wavesplatform.dex.error.OrderCanceled
 import com.wavesplatform.dex.it.api.dex.DexApi
 import com.wavesplatform.dex.it.api.websockets.HasWebSockets
 import com.wavesplatform.dex.it.docker.DexContainer
+import com.wavesplatform.dex.tool.Using._
 import com.wavesplatform.it._
 import com.wavesplatform.it.api.{MatcherCommand, MatcherState}
 import com.wavesplatform.it.config.DexTestConfig.createAssetPair
 import com.wavesplatform.it.tags.DexItExternalKafkaRequired
 import org.scalacheck.Gen
 
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
-import scala.util.Random
 import scala.util.control.NonFatal
+import scala.util.{Random, Using}
 
 @DexItExternalKafkaRequired
 class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with WsSuiteBase {
@@ -68,7 +71,7 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
     val acc = mkAccountWithBalance(10.waves -> Waves)
     dex1.disconnectFromNetwork()
     broadcastAndAwait(mkTransfer(acc, alice.toAddress, 4.waves, Waves, 0.05.waves))
-    dex2.api.getTradableBalance(acc, ethWavesPair)(Waves) shouldBe 5.95.waves
+    dex2.api.getTradableBalanceByAssetPairAndAddress(acc, ethWavesPair)(Waves) shouldBe 5.95.waves
     dex1.connectToNetwork()
   }
 
@@ -121,63 +124,60 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
   "WS Order book state should be the same on two matchers" in {
     val acc = mkAccountWithBalance(100.eth -> eth, 100.waves -> Waves)
 
-    val wsob1 = mkWsOrderBookConnection(ethWavesPair, dex1)
-    val wsob2 = mkWsOrderBookConnection(ethWavesPair, dex2)
+    Using.Manager.unsafe { use =>
+      val wsob1 = use(mkWsOrderBookConnection(ethWavesPair, dex1))
+      val wsob2 = use(mkWsOrderBookConnection(ethWavesPair, dex2))
 
-    val sell = mkOrder(acc, ethWavesPair, SELL, 10.eth, 1.waves, 0.003.waves)
-    dex1.api.place(sell)
+      val sell = mkOrder(acc, ethWavesPair, SELL, 10.eth, 1.waves, 0.003.waves)
+      dex1.api.place(sell)
 
-    List(
-      mkOrder(alice, ethWavesPair, BUY, 5.eth, 1.waves, 0.003.waves),
-      mkOrder(alice, ethWavesPair, BUY, 3.eth, 1.waves, 0.003.waves),
-      mkOrder(alice, ethWavesPair, BUY, 2.eth, 1.waves, 0.003.waves)
-    ).foreach(dex1.api.place)
+      List(
+        mkOrder(alice, ethWavesPair, BUY, 5.eth, 1.waves, 0.003.waves),
+        mkOrder(alice, ethWavesPair, BUY, 3.eth, 1.waves, 0.003.waves),
+        mkOrder(alice, ethWavesPair, BUY, 2.eth, 1.waves, 0.003.waves)
+      ).foreach(dex1.api.place)
 
-    dex1.api.waitForOrderStatus(sell, Status.Filled)
+      dex1.api.waitForOrderStatus(sell, Status.Filled)
 
-    eventually {
-      val obs1 = wsob1.receiveAtLeastN[WsOrderBookChanges](1).reduce(mergeOrderBookChanges)
-      val obs2 = wsob2.receiveAtLeastN[WsOrderBookChanges](1).reduce(mergeOrderBookChanges)
+      eventually {
+        val obs1 = wsob1.receiveAtLeastN[WsOrderBookChanges](1).reduce(mergeOrderBookChanges)
+        val obs2 = wsob2.receiveAtLeastN[WsOrderBookChanges](1).reduce(mergeOrderBookChanges)
 
-      obs1 should matchTo(obs2)
+        obs1 should matchTo(obs2)
+      }
     }
-
-    wsob1.close()
-    wsob2.close()
   }
 
   "WS Address state should be the same on two matchers" in {
     val acc = mkAccountWithBalance(100.eth -> eth, 100.waves -> Waves)
 
-    val wsau1 = mkWsAddressConnection(acc, dex1)
-    val wsau2 = mkWsAddressConnection(acc, dex2)
+    Using.Manager.unsafe { use =>
+      val wsau1 = use(mkWsAddressConnection(acc, dex1))
+      val wsau2 = use(mkWsAddressConnection(acc, dex2))
+      val sell = mkOrder(acc, ethWavesPair, SELL, 10.eth, 1.waves, 0.003.waves)
+      dex1.api.place(sell)
 
-    val sell = mkOrder(acc, ethWavesPair, SELL, 10.eth, 1.waves, 0.003.waves)
-    dex1.api.place(sell)
+      List(
+        mkOrder(alice, ethWavesPair, BUY, 5.eth, 1.waves, 0.003.waves),
+        mkOrder(alice, ethWavesPair, BUY, 3.eth, 1.waves, 0.003.waves),
+        mkOrder(alice, ethWavesPair, BUY, 2.eth, 1.waves, 0.003.waves)
+      ).foreach(dex1.api.place)
 
-    List(
-      mkOrder(alice, ethWavesPair, BUY, 5.eth, 1.waves, 0.003.waves),
-      mkOrder(alice, ethWavesPair, BUY, 3.eth, 1.waves, 0.003.waves),
-      mkOrder(alice, ethWavesPair, BUY, 2.eth, 1.waves, 0.003.waves)
-    ).foreach(dex1.api.place)
+      dex1.api.waitForOrderStatus(sell, Status.Filled)
 
-    dex1.api.waitForOrderStatus(sell, Status.Filled)
+      eventually {
+        val aus1 = wsau1.receiveAtLeastN[WsAddressChanges](1).reduce(mergeAddressChanges)
+        val aus2 = wsau2.receiveAtLeastN[WsAddressChanges](1).reduce(mergeAddressChanges)
 
-    eventually {
-      val aus1 = wsau1.receiveAtLeastN[WsAddressChanges](1).reduce(mergeAddressChanges)
-      val aus2 = wsau2.receiveAtLeastN[WsAddressChanges](1).reduce(mergeAddressChanges)
-
-      aus1 should matchTo(aus2)
+        aus1 should matchTo(aus2)
+      }
     }
-
-    wsau1.close()
-    wsau2.close()
   }
 
   "Batch cancel and single cancels simultaneously" in {
 
-    dex1.api.cancelAll(alice)
-    dex1.api.cancelAll(bob)
+    dex1.api.cancelAllOrdersWithSig(alice)
+    dex1.api.cancelAllOrdersWithSig(bob)
 
     val allOrders =
       (Gen.containerOfN[Vector, Order](150, orderGen(matcher, bob, assetPairs, Seq(OrderType.BUY))).sample.get ++
@@ -192,8 +192,8 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
       Future
         .sequence {
           orders.map { order =>
-            dex1.asyncTryApi.cancelOrder(owner, order).map {
-              case Left(x) if x.error != 9437194 => throw new RuntimeException(s"Unexpected error: $x") // OrderCanceled
+            dex1.asyncTryApi.cancelOneOrAllInPairOrdersWithSig(owner, order).map {
+              case Left(x) if x.error != OrderCanceled.code => throw new RuntimeException(s"Unexpected error: $x")
               case _ => ()
             }
           }.toList
@@ -201,19 +201,17 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
         .map(_ => ())
 
     def batchCancels(owner: KeyPair, assetPairs: Iterable[AssetPair]): Future[List[HttpSuccessfulBatchCancel]] = Future.sequence {
-      assetPairs.map(dex2.asyncApi.cancelAllByPair(owner, _, System.currentTimeMillis)).toList
+      assetPairs.map(dex2.asyncApi.cancelOneOrAllInPairOrdersWithSig(owner, _, System.currentTimeMillis)).toList
     }
 
-    Await.result(
-      batchCancels(alice, assetPairs)
-        .zip(singleCancels(alice, allOrders.filter(_.sender == alice.publicKey)))
-        .zip(singleCancels(bob, allOrders.filter(_.sender == bob.publicKey)))
-        .zip(batchCancels(bob, assetPairs)),
-      3.minutes
-    )
+    batchCancels(alice, assetPairs)
+      .zip(singleCancels(alice, allOrders.filter(_.sender == alice.publicKey)))
+      .zip(singleCancels(bob, allOrders.filter(_.sender == bob.publicKey)))
+      .zip(batchCancels(bob, assetPairs))
+      .futureValue(2.minutes)
 
-    Await.result(dex1.asyncApi.getOrderHistoryByPublicKey(alice, Some(true)), 5.seconds) shouldBe empty
-    Await.result(dex1.asyncApi.getOrderHistoryByPublicKey(bob, Some(true)), 5.seconds) shouldBe empty
+    dex1.api.getOrderHistoryByPKWithSig(alice, Some(true)) shouldBe empty
+    dex1.api.getOrderHistoryByPKWithSig(bob, Some(true)) shouldBe empty
   }
 
   private def mkOrders(account: KeyPair, number: Int = placesNumber) =

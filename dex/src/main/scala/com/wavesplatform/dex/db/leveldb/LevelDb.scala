@@ -27,6 +27,7 @@ trait LevelDb[F[_]] {
 object LevelDb {
 
   def async(db: DB)(implicit ec: ExecutionContext): LevelDb[Future] = new LevelDb[Future] {
+
     /**
      * Do not chain with map/flatMap/etc. See above
      */
@@ -41,7 +42,7 @@ object LevelDb {
     override def iterateOver(prefix: Array[Byte])(f: DBEntry => Unit): Future[Unit] = Future(db.iterateOver(prefix)(f))
   }
 
-  def sync(db: DB)(implicit ec: ExecutionContext): LevelDb[Id] = new LevelDb[Id] {
+  def sync(db: DB): LevelDb[Id] = new LevelDb[Id] {
     override def readOnly[A](f: ReadOnlyDb => A): A = db.readOnly(f)
     override def readWrite[A](f: ReadWriteDb => A): A = db.readWrite(f)
     override def get[A](key: Key[A]): A = db.get(key)

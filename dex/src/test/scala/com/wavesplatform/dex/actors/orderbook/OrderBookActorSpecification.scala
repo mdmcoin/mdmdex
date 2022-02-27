@@ -1,12 +1,12 @@
 package com.wavesplatform.dex.actors.orderbook
 
-import akka.actor.ActorRef
 import akka.actor.typed.scaladsl.adapter._
-import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
+import akka.actor.{ActorRef, Props}
+import akka.testkit.{ImplicitSender, TestProbe}
 import cats.data.NonEmptyList
 import cats.syntax.option._
 import com.wavesplatform.dex.MatcherSpecBase
-import com.wavesplatform.dex.actors.MatcherActor.SaveSnapshot
+import com.wavesplatform.dex.actors.OrderBookDirectoryActor.SaveSnapshot
 import com.wavesplatform.dex.actors.address.AddressActor.Command.Source
 import com.wavesplatform.dex.actors.orderbook.AggregatedOrderBookActor.MarketStatus
 import com.wavesplatform.dex.actors.orderbook.OrderBookActor.{OrderBookRecovered, OrderBookSnapshotUpdateCompleted}
@@ -35,11 +35,11 @@ import org.scalatest.concurrent.Eventually
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 
 class OrderBookActorSpecification
-    extends MatcherSpec("OrderBookActor")
+    extends MatcherSpec
     with HasOecInteraction
     with SystemTime
     with ImplicitSender
@@ -52,7 +52,7 @@ class OrderBookActorSpecification
   private val wctAsset = IssuedAsset(ByteStr(Array.fill(32)(1)))
   private val ethAsset = IssuedAsset(ByteStr("ETH".getBytes))
 
-  private def obcTest(f: (AssetPair, TestActorRef[OrderBookActor with RestartableActor], TestProbe) => Unit): Unit =
+  private def obcTest(f: (AssetPair, ActorRef, TestProbe) => Unit): Unit =
     obcTestWithPrepare((_, _) => ()) { (pair, actor, probe) =>
       probe.expectMsg(OrderBookRecovered(pair, None))
       f(pair, actor, probe)
@@ -75,7 +75,7 @@ class OrderBookActorSpecification
     prepare: (OrderBookSnapshotDb[Future], AssetPair) => Unit,
     matchingRules: NonEmptyList[DenormalizedMatchingRule] = NonEmptyList.one(DenormalizedMatchingRule(0, 0.00000001)),
     makerTakerFeeAtOffset: Long => (AcceptedOrder, LimitOrder) => (Long, Long) = _ => makerTakerPartialFee
-  )(f: (AssetPair, TestActorRef[OrderBookActor with RestartableActor], TestProbe) => Unit): Unit = {
+  )(f: (AssetPair, ActorRef, TestProbe) => Unit): Unit = {
 
     md.clear()
 
@@ -87,7 +87,7 @@ class OrderBookActorSpecification
 
     implicit val efc: ErrorFormatterContext = ErrorFormatterContext.from(_ => 8)
 
-    val orderBookActor = TestActorRef(
+    val orderBookActor = system.actorOf(Props {
       new OrderBookActor(
         OrderBookActor.Settings(AggregatedOrderBookActor.Settings(100.millis)),
         tp.ref,
@@ -102,7 +102,7 @@ class OrderBookActorSpecification
         makerTakerFeeAtOffset,
         None
       ) with RestartableActor
-    )
+    })
 
     f(pair, orderBookActor, tp)
     system.stop(orderBookActor)
@@ -276,7 +276,7 @@ class OrderBookActorSpecification
       (1 to 10).foreach { i =>
         actor ! wrapLimitOrder(i, buy(pair, 100000000L, 0.00041))
       }
-      tp.expectNoMessage(100.millis)
+      tp.expectNoMessage()
     }
 
     "respond on SaveSnapshotCommand" in obcTest { (pair, actor, tp) =>
@@ -306,7 +306,7 @@ class OrderBookActorSpecification
       actor ! SaveSnapshot(10L)
       actor ! SaveSnapshot(10L)
       tp.expectMsgType[OrderBookSnapshotUpdateCompleted]
-      tp.expectNoMessage(200.millis)
+      tp.expectNoMessage()
     }
 
     "restore its state at start" in obcTest { (pair, actor, tp) =>
@@ -325,7 +325,7 @@ class OrderBookActorSpecification
       orderBook ! wrapLimitOrder(1, buyOrder)
       tp.expectOecProcess[OrderAdded]
 
-      orderBook ! wrapCommand(2, CancelOrder(buyOrder.assetPair, buyOrder.id(), Source.Request))
+      orderBook ! wrapCommand(2, CancelOrder(buyOrder.assetPair, buyOrder.id(), Source.Request, Some(buyOrder.sender.toAddress)))
       tp.expectOecProcess[OrderCanceled]
     }
 
@@ -416,7 +416,7 @@ class OrderBookActorSpecification
 
       orderBook ! wrapCommand(
         2,
-        CancelOrder(buyOrder1.assetPair, buyOrder1.id(), Source.Request)
+        CancelOrder(buyOrder1.assetPair, buyOrder1.id(), Source.Request, Some(buyOrder1.sender.toAddress))
       ) // order book is looking for the price level of buyOrder1 correctly (41 but not 40)
       tp.expectOecProcess[OrderCanceled]
 
@@ -720,7 +720,7 @@ class OrderBookActorSpecification
   private def getAggregatedSnapshot(orderBookRef: ActorRef): OrderBookAggregatedSnapshot = {
     val pair = wavesUsdPair // hack
     val askAdapter = new OrderBookAskAdapter(new AtomicReference(Map(pair -> Right(orderBookRef))), 5.seconds)
-    Await.result(askAdapter.getAggregatedSnapshot(pair), 1.second).toOption.flatten.getOrElse(throw new IllegalStateException(
+    askAdapter.getAggregatedSnapshot(pair).futureValue.toOption.flatten.getOrElse(throw new IllegalStateException(
       "Can't get snapshot"
     ))
   }

@@ -35,10 +35,10 @@ object Dependencies {
 
     val silencer = "1.7.2"
 
-    val kanela = "1.0.7" // instrumentation
-    val kamon = "2.1.11" // metrics
+    val kanela = "1.0.11"
+    val kamon = "2.2.0"
 
-    val wavesProtobufSchemas = "1.2.8"
+    val wavesProtobufSchemas = "1.3.1"
     val wavesJ = "1.0.1"
 
     val postgresql = "42.2.18"
@@ -68,7 +68,7 @@ object Dependencies {
     val supertagged = "1.5"
 
     val javaLevelDb = "0.12"
-    val jniLevelDb = "1.18.3"
+    val iq80levelDb = "0.12"
     val influxDb = "2.21"
     val levelDbVersion = "1.22.1"
 
@@ -116,10 +116,10 @@ object Dependencies {
   private val slf4j = "org.slf4j" %% "slf4j-api" % Version.slf4j
   private val julToSlf4j = "org.slf4j" % "jul-to-slf4j" % Version.slf4j
   private val janino = "org.codehaus.janino" % "janino" % Version.janino
-  private val kamonCore = kamonModule("core", Version.kamon)
+  private val kamonCore = kamonModule("core")
+  private val iq80leveldb = "org.iq80.leveldb" % "leveldb-api" % Version.iq80levelDb
 
-  private val wavesProtobufSchemas =
-    ("com.wavesplatform" % "protobuf-schemas" % Version.wavesProtobufSchemas classifier "proto") % "protobuf" // for teamcity
+  private val wavesProtobufSchemas = ("com.wavesplatform" % "protobuf-schemas" % Version.wavesProtobufSchemas classifier "proto") % "protobuf"
 
   private val wavesJ = "com.wavesplatform" % "wavesj" % Version.wavesJ excludeAll (
     // Conflicts with specified gRPC. This is the problem for waves-integration-it.
@@ -140,7 +140,6 @@ object Dependencies {
   private val monixReactive = monixModule("reactive")
   private val supertagged = "org.rudogma" %% "supertagged" % Version.supertagged
   private val javaLevelDb = "org.iq80.leveldb" % "leveldb" % Version.javaLevelDb
-  private val jniLevelDb = "org.ethereum" % "leveldbjni-all" % Version.jniLevelDb
   private val influxDb = "org.influxdb" % "influxdb-java" % Version.influxDb
   private val commonsNet = "commons-net" % "commons-net" % Version.commonsNet
   private val sttpClient = sttpClientModule("core")
@@ -149,16 +148,13 @@ object Dependencies {
   private val allureScalaTest = "io.qameta.allure" %% "allure-scalatest" % Version.allureScalaTest
   private val jaxbApi = "javax.xml.bind" % "jaxb-api" % Version.jaxbApi
 
-  private[this] val levelDBJNA = {
+  private[this] val levelDBJNA =
     Seq(
-      "com.wavesplatform.leveldb-jna" % "leveldb-jna-core"   % levelDbVersion,
+      "com.wavesplatform.leveldb-jna" % "leveldb-jna-core" % levelDbVersion,
       "com.wavesplatform.leveldb-jna" % "leveldb-jna-native" % levelDbVersion classifier "linux-x86_64",
       "com.wavesplatform.leveldb-jna" % "leveldb-jna-native" % levelDbVersion classifier "windows-x86_64",
       "com.wavesplatform.leveldb-jna" % "leveldb-jna-native" % levelDbVersion classifier "osx"
     )
-  }
-
-  private val leveldbJna = "com.protonail.leveldb-jna" % "leveldb-jna" % "1.20.0" pomOnly()
 
   private val pureConfig: Seq[ModuleID] =
     Seq("pureconfig", "pureconfig-cats", "pureconfig-enumeratum").map("com.github.pureconfig" %% _ % Version.pureConfig)
@@ -194,7 +190,7 @@ object Dependencies {
     javaLevelDb,
     allureScalaTest,
     diffx
-  ).map(_ % Test)  ++ silencer
+  ).map(_ % Test) ++ silencer
 
   private val integrationTestKit: Seq[ModuleID] = Seq(wavesJ, logback % Test) ++ testKit
 
@@ -248,10 +244,13 @@ object Dependencies {
       scopt,
       kafka,
       janino,
-      jniLevelDb,
       kamonCore,
       kamonModule("influxdb"),
       kamonModule("system-metrics"),
+      kamonModule("status-page"),
+      kamonModule("jaeger"),
+      kamonModule("akka-http"),
+      kamonModule("logback"),
       influxDb,
       commonsNet,
       swaggerUi,
@@ -262,7 +261,8 @@ object Dependencies {
       sttpPlayJson,
       sttpAsyncHttpClient,
       wavesJ,
-      betterMonadicFor
+      betterMonadicFor,
+      iq80leveldb
     ) ++ pureConfig ++ enumeratum ++ testKit ++ quill ++ monocle ++ levelDBJNA
 
     lazy val dexLoad: Seq[ModuleID] = Seq(diffx) ++ pureConfig ++ silencer
@@ -300,9 +300,12 @@ object Dependencies {
       supertagged,
       monixReactive,
       betterMonadicFor,
+      kamonCore,
       mouse,
       grpcNetty,
-      wavesProtobufSchemas
+      kamonCore,
+      wavesProtobufSchemas,
+      akkaActorTyped
     ) ++ testKit ++ silencer ++ Seq(
       jsonScalaPb % Test // for testing purposes
     )

@@ -89,6 +89,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     settings.snapshotsLoadingTimeout should be(423.seconds)
     settings.startEventsProcessingTimeout should be(543.seconds)
     settings.orderDb should be(OrderDb.Settings(199))
+    settings.secureKeys should be(correctSecureKeys)
     settings.priceAssets should be(
       Seq(
         Waves,
@@ -198,11 +199,18 @@ baz"""
          |}
      """.stripMargin
 
+    val invalidSecureKeys: String =
+      s"""
+         |secure-keys = invalid
+     """.stripMargin
+
     def configStr(x: String): Config = configWithSettings(deviationsStr = x)
     val settingsInvalidEnable = getSettingByConfig(configStr(invalidEnable))
     val settingsInvalidProfit = getSettingByConfig(configStr(invalidProfit))
     val settingsInvalidLossAndFee = getSettingByConfig(configStr(invalidLossAndFee))
+    val settingsInvalidSecureKeys = getSettingByConfig(configStr(invalidSecureKeys))
 
+    settingsInvalidSecureKeys should produce("TN.dex.secure-keys")
     settingsInvalidEnable should produce("TN.dex.max-price-deviations.enable")
     settingsInvalidProfit should produce("TN.dex.max-price-deviations.max-price-profit")
     Seq("TN.dex.max-price-deviations.max-fee-deviation", "TN.dex.max-price-deviations.max-price-loss").foreach { message =>

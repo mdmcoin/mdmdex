@@ -39,6 +39,7 @@ case class MatcherSettings(
   snapshotsLoadingTimeout: FiniteDuration,
   startEventsProcessingTimeout: FiniteDuration,
   orderBooksRecoveringTimeout: FiniteDuration,
+  waitingOffsetTool: WaitingOffsetToolSettings,
   priceAssets: Seq[Asset],
   blacklistedAssets: Set[Asset.IssuedAsset],
   blacklistedNames: Seq[Regex],
@@ -62,7 +63,8 @@ case class MatcherSettings(
   addressActor: AddressActor.Settings,
   orderEventsCoordinatorActor: OrderEventsCoordinatorActor.Settings,
   comparisonTool: ComparisonTool.Settings,
-  cli: CliSettings
+  cli: CliSettings,
+  secureKeys: Set[String]
 ) {
 
   val recoverOrderHistory = !new File(dataDirectory).exists()

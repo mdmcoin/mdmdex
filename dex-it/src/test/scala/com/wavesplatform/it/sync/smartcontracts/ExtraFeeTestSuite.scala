@@ -4,6 +4,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
+import com.wavesplatform.dex.error.{AssetScriptDeniedOrder, FeeNotEnough}
 import com.wavesplatform.dex.it.test.Scripts
 import com.wavesplatform.dex.it.waves.MkWavesEntities.IssueResults
 import com.wavesplatform.it.MatcherSuiteBase
@@ -67,14 +68,14 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         val invalidFee = expectedFee - 1
 
         dex1.tryApi.place(mkOrder(alice, oneSmartPair, SELL, amount, price, invalidFee, version = 2)) should failWith(
-          9441542, // FeeNotEnough
+          FeeNotEnough.code,
           "Required 0.08 TN as fee for this order, but given 0.07999999 TN"
         )
 
         placeAndAwaitAtDex(mkOrder(alice, oneSmartPair, SELL, amount, price, expectedFee, version = 2))
 
         info("expected fee should be reserved")
-        dex1.api.getReservedBalance(alice)(Waves) shouldBe expectedFee
+        dex1.api.getReservedBalanceWithApiKey(alice)(Waves) shouldBe expectedFee
 
         val submitted = mkOrder(bob, oneSmartPair, BUY, amount, price, expectedFee, version = 2)
         dex1.api.place(submitted)
@@ -105,14 +106,14 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
           val invalidFee = expectedFee - 1
 
           dex1.tryApi.place(mkOrder(alice, bothSmartPair, SELL, amount, price, invalidFee, version = 2)) should failWith(
-            9441542, // FeeNotEnough
+            FeeNotEnough.code,
             "Required 0.16 TN as fee for this order, but given 0.15999999 TN"
           )
 
           placeAndAwaitAtDex(mkOrder(alice, bothSmartPair, SELL, amount, price, expectedFee, version = 2))
 
           info("expected fee should be reserved")
-          dex1.api.getReservedBalance(alice)(Waves) shouldBe expectedFee
+          dex1.api.getReservedBalanceWithApiKey(alice)(Waves) shouldBe expectedFee
 
           val submitted = mkOrder(bob, bothSmartPair, BUY, amount, price, expectedFee, version = 2)
           dex1.api.place(submitted)
@@ -134,8 +135,8 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
       val matcherInitBalance = wavesNode1.api.balance(matcher, feeAsset)
       val feeAssetRate = 0.0005
 
-      dex1.api.upsertRate(feeAsset, feeAssetRate)
-      dex1.api.upsertRate(btc, feeAssetRate)
+      dex1.api.upsertAssetRate(feeAsset, feeAssetRate)
+      dex1.api.upsertAssetRate(btc, feeAssetRate)
 
       withClue("with same decimals count of assets in pair") {
 
@@ -147,7 +148,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         placeAndAwaitAtDex(mkOrder(bob, oneSmartPair, SELL, amount, price, expectedFee, version = 3, feeAsset = feeAsset))
 
         info("expected fee should be reserved")
-        dex1.api.getReservedBalance(bob)(feeAsset) shouldBe expectedFee
+        dex1.api.getReservedBalanceWithApiKey(bob)(feeAsset) shouldBe expectedFee
 
         val submitted = mkOrder(alice, oneSmartPair, BUY, amount, price, expectedWavesFee, version = 2)
         placeAndAwaitAtDex(submitted, Status.Filled)
@@ -161,7 +162,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
 
       withClue("with asset pair with different decimals count") {
 
-        dex1.api.upsertRate(assetWith2Dec, 4)
+        dex1.api.upsertAssetRate(assetWith2Dec, 4)
 
         val asset2WithDecWavesPair = createAssetPair(assetWith2Dec, Waves)
 
@@ -171,7 +172,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         val aliceAssetBalance = wavesNode1.api.balance(alice, assetWith2Dec)
 
         dex1.tryApi.place(mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 4, feeAsset = assetWith2Dec)) should failWith(
-          9441542, // FeeNotEnough
+          FeeNotEnough.code,
           s"Required 0.16 $assetWith2DecId as fee for this order, but given 0.04 $assetWith2DecId"
         )
 
@@ -182,15 +183,15 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
 
         val bobOrder = mkOrder(bob, asset2WithDecWavesPair, SELL, 10000L, 300.waves * 1000000L, 48, feeAsset = assetWith2Dec)
         dex1.api.place(bobOrder)
-        dex1.api.getReservedBalance(bob)(assetWith2Dec) shouldBe 10048L
+        dex1.api.getReservedBalanceWithApiKey(bob)(assetWith2Dec) shouldBe 10048L
 
         //
         val aliceOrder = mkOrder(alice, asset2WithDecWavesPair, BUY, 20000L, 300.waves * 1000000L, 48, feeAsset = assetWith2Dec)
         dex1.api.place(aliceOrder)
         waitForOrderAtNode(bobOrder)
 
-        dex1.api.getReservedBalance(alice)(Waves) shouldBe (300.waves * 100L)
-        dex1.api.getReservedBalance(bob) shouldBe Map()
+        dex1.api.getReservedBalanceWithApiKey(alice)(Waves) shouldBe (300.waves * 100L)
+        dex1.api.getReservedBalanceWithApiKey(bob) shouldBe Map()
 
         wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 300.waves * 100L)
         wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 10048L)
@@ -201,7 +202,7 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
         dex1.api.place(anotherBobOrderId)
         waitForOrderAtNode(anotherBobOrderId)
 
-        dex1.api.getReservedBalance(alice) shouldBe Map()
+        dex1.api.getReservedBalanceWithApiKey(alice) shouldBe Map()
         wavesNode1.api.balance(bob, Waves) shouldBe (bobWavesBalance + 2 * 300.waves * 100L)
         wavesNode1.api.balance(bob, assetWith2Dec) shouldBe (bobAssetBalance - 2 * 10048L)
         wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 2 * 300.waves * 100L)
@@ -214,10 +215,10 @@ class ExtraFeeTestSuite extends MatcherSuiteBase {
     val oneSmartPair = createAssetPair(asset0, asset1)
     val feeAssetRate = 0.0005
 
-    dex1.api.upsertRate(falseFeeAsset, feeAssetRate)
+    dex1.api.upsertAssetRate(falseFeeAsset, feeAssetRate)
 
     dex1.tryApi.place(mkOrder(bob, oneSmartPair, SELL, amount, price, 6000, version = 3, feeAsset = falseFeeAsset)) should failWith(
-      11536130, // AssetScriptDeniedOrder
+      AssetScriptDeniedOrder.code,
       s"The asset's script of $falseFeeAssetId rejected the order"
     )
   }

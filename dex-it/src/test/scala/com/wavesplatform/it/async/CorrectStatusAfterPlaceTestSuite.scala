@@ -1,8 +1,7 @@
 package com.wavesplatform.it.async
 
-import java.nio.charset.StandardCharsets
-
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.Implicits.durationToScalatestTimeout
 import com.wavesplatform.dex.api.http.entities.HttpOrderStatus
 import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.account.KeyPair
@@ -14,14 +13,20 @@ import com.wavesplatform.dex.it.waves.MkWavesEntities.IssueResults
 import com.wavesplatform.it.MatcherSuiteBase
 import im.mak.waves.transactions.mass.Transfer
 
+import java.nio.charset.StandardCharsets
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 
+// leave default Patience config with timeout = 30 seconds
+// but if there will be timeout errors, set it up to 1-2 minutes,
+// because it was Duration.Inf timeout before
 class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
 
 
   private val issuer = alice
   private val now = System.currentTimeMillis()
+
+  implicit override def patienceConfig = PatienceConfig(3.minutes, 1.second)
 
   private val IssueResults(issueAsset1Tx, issuedAsset1Id, issuedAsset1) =
     mkIssueExtended(issuer, "asset1", Long.MaxValue, decimals = 0, timestamp = now)
@@ -91,17 +96,17 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
       i <- 1 to accountOrderInPair
     } yield mkOrder(account, pair, OrderType.SELL, 100000L, 10000L, ts = ts + i)
 
-    Await
-      .result(
-        for {
-          r <- Future.traverse(orders.grouped(orders.size / 5))(requests)
-          _ <- {
-            val totalSent = r.map(_.count(_._3)).sum
-            dex1.asyncApi.waitForCurrentOffset(_ == totalSent - 1)
-          }
-        } yield r,
-        10.minutes
-      )
+    val future = for {
+      r <- Future.traverse(orders.grouped(orders.size / 5))(requests)
+      _ <- {
+        val totalSent = r.map(_.count(_._3)).sum
+        dex1.asyncApi.waitForCurrentOffset(_ == totalSent - 1)
+      }
+    } yield r
+
+    // There are 1800 orders and the contention during running tests in parallel on CI.
+    // So we specified the huge timeout for this job.
+    future.futureValue(10.minutes)
       .flatten
       .foreach {
         case (id, status, sent) => if (sent) withClue(s"$id")(status should not be Status.NotFound)
@@ -112,7 +117,7 @@ class CorrectStatusAfterPlaceTestSuite extends MatcherSuiteBase {
     for {
       // TODO happens rarely, try to remove after migration to new akka-http
       sent <- dex1.asyncTryApi.place(order).map(_ => true).recover { case x => log.error("Some error with order placement occurred:", x); false }
-      status <- dex1.asyncApi.getOrderStatus(order)
+      status <- dex1.asyncApi.orderStatusByAssetPairAndId(order)
     } yield (order.id(), status.status, sent)
 
   private def requests(orders: Seq[Order]): Future[Seq[(Id, Status, Boolean)]] = Future.traverse(orders)(request)

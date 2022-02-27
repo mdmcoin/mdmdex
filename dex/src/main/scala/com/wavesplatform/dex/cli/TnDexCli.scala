@@ -1,39 +1,46 @@
 package com.wavesplatform.dex.cli
 
-import cats.syntax.option._
-import cats.syntax.either._
+import cats.Id
 import cats.instances.either._
-import com.typesafe.config.Config
+import cats.syntax.either._
+import cats.syntax.option._
 import com.typesafe.config.ConfigFactory.parseFile
+import com.typesafe.config.{Config, ConfigFactory}
 import com.wavesplatform.dex._
 import com.wavesplatform.dex.app.{forceStopApplication, MatcherStateCheckingFailedError}
-import com.wavesplatform.dex.db.AccountStorage
+import com.wavesplatform.dex.db._
+import com.wavesplatform.dex.db.leveldb.{openDb, LevelDb}
 import com.wavesplatform.dex.doc.MatcherErrorDoc
 import com.wavesplatform.dex.domain.account.{AddressScheme, KeyPair}
+import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
+import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.bytes.codec.Base58
 import com.wavesplatform.dex.error.Implicits.ThrowableOps
-import com.wavesplatform.dex.settings.{loadConfig, loadMatcherSettings, MatcherSettings}
-import com.wavesplatform.dex.tool.connectors.SuperConnector
+import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
+import com.wavesplatform.dex.model.OrderBookSideSnapshot
+import com.wavesplatform.dex.settings.{loadMatcherSettings, MatcherSettings}
 import com.wavesplatform.dex.tool._
+import com.wavesplatform.dex.tool.connectors.SuperConnector
 import monix.eval.Task
-import monix.execution.{ExecutionModel, Scheduler}
 import monix.execution.schedulers.SchedulerService
-import pureconfig.ConfigSource
+import monix.execution.{ExecutionModel, Scheduler}
 import scopt.{OParser, RenderingMode}
 import sttp.client3._
 import java.io.{File, PrintWriter}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.util.concurrent.atomic.AtomicLong
 import java.util.{Base64, Scanner}
-import scala.concurrent.{Await, TimeoutException}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{Await, TimeoutException}
+import scala.util.{Failure, Success, Try, Using}
 
 object TnDexCli extends ScoptImplicits {
 
   private val backend = HttpURLConnectionBackend()
 
+  // noinspection ScalaStyle
   def generateAccountSeed(args: Args): Unit = {
     val seedPromptText = s"Enter the${if (args.accountNonce.isEmpty) " seed of DEX's account" else " base seed"}: "
     val rawSeed = readSeedFromFromStdIn(seedPromptText, args.seedFormat)
@@ -58,6 +65,7 @@ object TnDexCli extends ScoptImplicits {
                |""".stripMargin)
   }
 
+  // noinspection ScalaStyle
   def createAccountStorage(args: Args): Unit = {
 
     val accountFile = args.outputDirectory.toPath.resolve("account.dat").toFile.getAbsoluteFile
@@ -94,6 +102,7 @@ object TnDexCli extends ScoptImplicits {
                |""".stripMargin)
   }
 
+  // noinspection ScalaStyle
   def createDocumentation(args: Args): Unit = {
     val outputBasePath = args.outputDirectory.toPath
     val errorsFile = outputBasePath.resolve("errors.md").toFile
@@ -108,6 +117,7 @@ object TnDexCli extends ScoptImplicits {
     } finally errors.close()
   }
 
+  // noinspection ScalaStyle
   def createApiKey(args: Args): Unit = {
     val hashedApiKey = Base58.encode(domain.crypto.secureHash(args.apiKey))
     println(s"""Your API Key: $hashedApiKey
@@ -117,13 +127,9 @@ object TnDexCli extends ScoptImplicits {
                |""".stripMargin)
   }
 
-  def checkServer(args: Args): Unit = {
+  // noinspection ScalaStyle
+  def checkServer(args: Args, config: Config, matcherSettings: MatcherSettings): Unit = {
     val apiKey = readSecretFromStdIn("Enter X-API-KEY: ")
-    val apiUrl = args.dexRestApi.getOrElse {
-      val matcherSettings =
-        ConfigSource.fromConfig(loadConfig(parseFile(new File(args.configPath)))).at("TN.dex").loadOrThrow[MatcherSettings]
-      s"${matcherSettings.restApi.address}:${matcherSettings.restApi.port}"
-    }
     (
       for {
         _ <- cli.log(
@@ -137,9 +143,8 @@ object TnDexCli extends ScoptImplicits {
              |  Account seed          : ${args.accountSeed.getOrElse("")}
                    """.stripMargin
         )
-        (config, matcherConfig) <- cli.wrapByLogs("  Loading Matcher settings... ")(loadAllConfigs(args.configPath))
-        superConnector <- SuperConnector.create(matcherConfig, apiUrl, args.nodeRestApi, args.authServiceRestApi)
-        checkResult <- new Checker(superConnector).checkState(args.version, args.accountSeed, apiKey, config, matcherConfig)
+        superConnector <- SuperConnector.create(matcherSettings, args.dexRestApi, args.nodeRestApi, args.authServiceRestApi, apiKey)
+        checkResult <- new Checker(superConnector).checkState(args.version, args.accountSeed, config, matcherSettings)
         _ <- cli.lift(superConnector.close())
       } yield checkResult
     ) match {
@@ -148,16 +153,7 @@ object TnDexCli extends ScoptImplicits {
     }
   }
 
-  private def loadAllConfigs(dexConfigPath: String): ErrorOr[(Config, MatcherSettings)] =
-    (for {
-      cfg <- loadConfigAtPath(dexConfigPath)
-      matcherSettings <- loadMatcherSettings(cfg)
-    } yield (cfg, matcherSettings)).toEither.leftMap(ex => s"Cannot load matcher settings by path $dexConfigPath: ${ex.getWithStackTrace}")
-
-  private def loadConfigAtPath(dexConfigPath: String): Try[Config] = Try {
-    parseFile(new File(dexConfigPath))
-  }
-
+  // noinspection ScalaStyle
   def runComparison(args: Args): Unit =
     (for {
       _ <- cli.log(
@@ -174,6 +170,7 @@ object TnDexCli extends ScoptImplicits {
       case Left(error) => println(error); forceStopApplication(MatcherStateCheckingFailedError)
     }
 
+  // noinspection ScalaStyle
   def makeSnapshots(args: Args): Unit = {
     cli.log(
       s"""
@@ -192,20 +189,13 @@ object TnDexCli extends ScoptImplicits {
     )
 
     val key = readSecretFromStdIn("Enter X-API-KEY: ")
-
-    val apiUrl = args.dexRestApi.getOrElse {
-      val matcherSettings =
-        ConfigSource.fromConfig(loadConfig(parseFile(new File(args.configPath)))).at("TN.dex").loadOrThrow[MatcherSettings]
-      s"http://${matcherSettings.restApi.address}:${matcherSettings.restApi.port}"
-    }
-
     def sendRequest(urlPart: String, key: String, method: String = "get"): String = {
       print(s"Sending ${method.toUpperCase} $urlPart... Response: ")
       val r = basicRequest.headers(Map("X-API-KEY" -> key))
 
       val body = method match {
-        case "post" => r.post(uri"$apiUrl/matcher/debug/$urlPart").send(backend).body
-        case _ => r.get(uri"$apiUrl/matcher/debug/$urlPart").send(backend).body
+        case "post" => r.post(uri"${args.dexRestApi}/matcher/debug/$urlPart").send(backend).body
+        case _ => r.get(uri"${args.dexRestApi}/matcher/debug/$urlPart").send(backend).body
       }
 
       body match {
@@ -235,6 +225,7 @@ object TnDexCli extends ScoptImplicits {
     }
   }
 
+  // noinspection ScalaStyle
   def checkConfig(args: Args): Unit = {
     import PrettyPrinter._
 
@@ -243,7 +234,6 @@ object TnDexCli extends ScoptImplicits {
         s"""
            |Passed arguments:
            |  DEX config path : ${args.configPath}
-           |Running in background
            |""".stripMargin
       )
       result <- ConfigChecker.checkConfig(args.configPath)
@@ -253,10 +243,183 @@ object TnDexCli extends ScoptImplicits {
     }
   }
 
+  // noinspection ScalaStyle
+  def cleanAssets(args: Args, matcherSettings: MatcherSettings): Unit =
+    for {
+      _ <- cli.log(
+        s"""
+           |Passed arguments:
+           |  DEX config path : ${args.configPath}
+           |""".stripMargin
+      )
+    } yield {
+      val count = withLevelDb(matcherSettings.dataDirectory)(cleanAssets)
+      println(s"Successfully removed $count assets from LevelDb cache!")
+    }
+
+  // noinspection ScalaStyle
+  def cleanAssets(levelDb: LevelDb[Id]): Long = levelDb.readWrite[Long] { rw =>
+    val removed = new AtomicLong(0)
+    rw.iterateOver(DbKeys.AssetPrefix) { entity =>
+      rw.delete(entity.getKey)
+      removed.incrementAndGet()
+    }
+    removed.get()
+  }
+
+  // noinspection ScalaStyle
+  def inspectAsset(args: Args, matcherSettings: MatcherSettings): Unit =
+    for {
+      _ <- cli.log(
+        s"""
+           |Passed arguments:
+           |  DEX config path : ${args.configPath}
+           |  Asset id        : ${args.assetId}
+           |""".stripMargin
+      )
+      assetIdBytes <- ByteStr.decodeBase58(args.assetId).toEither
+    } yield withLevelDb(matcherSettings.dataDirectory) { db =>
+      AssetsDb.levelDb(db).get(IssuedAsset(assetIdBytes)) match {
+        case None => println("There is no such asset")
+        case Some(x) =>
+          println(
+            s"""
+               |Decimals   : ${x.decimals}
+               |Name       : ${x.name}
+               |Has script : ${x.hasScript}
+               |Is NFT     : ${x.isNft}
+               |""".stripMargin
+          )
+      }
+    }
+
+  // noinspection ScalaStyle
+  def setAsset(args: Args, matcherSettings: MatcherSettings): Unit = {
+    val name = if (args.name.isEmpty) args.assetId else args.name
+    for {
+      _ <- cli.log(
+        s"""
+           |Passed arguments:
+           |  DEX config path : ${args.configPath}
+           |  Asset id        : ${args.assetId}
+           |  Name:           : ${args.name}
+           |     Will be used : $name
+           |  Decimals        : ${args.decimals}
+           |  Has script      : ${args.hasScript}
+           |  Is NFT          : ${args.isNft}
+           |""".stripMargin
+      )
+      assetIdBytes <- ByteStr.decodeBase58(args.assetId).toEither
+    } yield withLevelDb(matcherSettings.dataDirectory) { db =>
+      val briefAssetDescription = BriefAssetDescription(
+        name = name,
+        decimals = args.decimals,
+        hasScript = args.hasScript,
+        isNft = args.isNft
+      )
+
+      println(s"Writing $briefAssetDescription...")
+      AssetsDb.levelDb(db).put(IssuedAsset(assetIdBytes), briefAssetDescription)
+    }
+  }
+
+  // noinspection ScalaStyle
+  def listAssetPairs(args: Args, matcherSettings: MatcherSettings): Unit =
+    for {
+      _ <- cli.log(
+        s"""
+           |Passed arguments:
+           |  DEX config path : ${args.configPath}
+           |""".stripMargin
+      )
+    } yield withLevelDb(matcherSettings.dataDirectory) { db =>
+      val assetPairs = AssetPairsDb.levelDb(db).all().toVector.sortBy(_.key)
+      if (assetPairs.isEmpty) println("There are no asset pairs")
+      else {
+        println(s"Found ${assetPairs.size} asset pairs:")
+        assetPairs.foreach(println)
+      }
+    }
+
+  // noinspection ScalaStyle
+  def inspectOrderBook(args: Args, matcherSettings: MatcherSettings): Unit =
+    for {
+      _ <- cli.log(
+        s"""
+           |Passed arguments:
+           |  DEX config path : ${args.configPath}
+           |  Asset pair      : ${args.assetPair}
+           |""".stripMargin
+      )
+      assetPair <- AssetPair.extractAssetPair(args.assetPair).toEither
+    } yield withLevelDb(matcherSettings.dataDirectory) { db =>
+      OrderBookSnapshotDb.levelDb(db).get(assetPair) match {
+        case None => println("There is no such book")
+        case Some((offset, snapshot)) =>
+          println(
+            s"""
+               |Offset     : $offset
+               |Last trade : ${snapshot.lastTrade}
+               |Asks:
+               |${snapshotToStr(snapshot.asks)}
+               |Bids:
+               |${snapshotToStr(snapshot.bids)}
+               |""".stripMargin
+          )
+      }
+    }
+
+  // noinspection ScalaStyle
+  def deleteOrderBook(args: Args, matcherSettings: MatcherSettings): Unit =
+    for {
+      _ <- cli.log(
+        s"""
+           |Passed arguments:
+           |  DEX config path : ${args.configPath}
+           |  Asset pair      : ${args.assetPair}
+           |""".stripMargin
+      )
+      assetPair <- AssetPair.extractAssetPair(args.assetPair).toEither
+    } yield withLevelDb(matcherSettings.dataDirectory) { db =>
+      println("Removing a snapshot...")
+      OrderBookSnapshotDb.levelDb(db).delete(assetPair)
+      println("Removing from known asset pairs...")
+      AssetPairsDb.levelDb(db).remove(assetPair)
+    }
+
+  // noinspection ScalaStyle
+  def inspectOrder(args: Args, matcherSettings: MatcherSettings): Unit =
+    for {
+      _ <- cli.log(
+        s"""
+           |Passed arguments:
+           |  DEX config path : ${args.configPath}
+           |  Order id        : ${args.orderId}
+           |""".stripMargin
+      )
+      oid <- ByteStr.decodeBase58(args.orderId).toEither
+    } yield withLevelDb(matcherSettings.dataDirectory) { db =>
+      println("Getting an order...")
+      val orderDb = OrderDb.levelDb(matcherSettings.orderDb, db)
+      val order = orderDb.get(oid)
+      println(order.fold("  not found")(_.jsonStr))
+      println("Getting an order info...")
+      val orderInfo = orderDb.getOrderInfo(oid)
+      println(orderInfo.fold("  not found")(_.toString))
+    }
+
+  private def snapshotToStr(snapshot: OrderBookSideSnapshot): String =
+    if (snapshot.isEmpty) "empty"
+    else snapshot.toVector.sortBy(_._1).map { case (price, os) => s"$price: ${os.mkString(", ")}" }.mkString("  ", "\n  ", "")
+
+  def withLevelDb[T](dataDirectory: String)(f: LevelDb[Id] => T): T =
+    Using.resource(openDb(dataDirectory)) { db =>
+      f(LevelDb.sync(db))
+    }
+
   // todo commands:
   // get account by seed [and nonce]
   def main(rawArgs: Array[String]): Unit = {
-
     val builder = OParser.builder[Args]
 
     val parser = {
@@ -269,6 +432,11 @@ object TnDexCli extends ScoptImplicits {
           .text("The network byte as char. By default it is the testnet: 'l'")
           .valueName("<one char>")
           .action((x, s) => s.copy(addressSchemeByte = x.some)),
+        opt[String]("dex-config")
+          .abbr("dc")
+          .text("DEX config path")
+          .valueName("<raw-string>")
+          .action((x, s) => s.copy(configPath = x)),
         cmd(Command.GenerateAccountSeed.name)
           .action((_, s) => s.copy(command = Command.GenerateAccountSeed.some))
           .text("Generates an account seed from base seed and nonce")
@@ -332,7 +500,7 @@ object TnDexCli extends ScoptImplicits {
               .abbr("dra")
               .text("DEX REST API uri. Format: scheme://host:port (default scheme will be picked if none was specified)")
               .valueName("<raw-string>")
-              .action((x, s) => s.copy(dexRestApi = x.some)),
+              .action((x, s) => s.copy(dexRestApi = x)),
             opt[String]("node-rest-api")
               .abbr("nra")
               .text("TN Node REST API uri. Format: scheme://host:port (default scheme will be picked if none was specified)")
@@ -386,7 +554,7 @@ object TnDexCli extends ScoptImplicits {
               .abbr("dra")
               .text("DEX REST API uri. Format: scheme://host:port (default scheme will be picked if none was specified)")
               .valueName("<raw-string>")
-              .action((x, s) => s.copy(dexRestApi = x.some)),
+              .action((x, s) => s.copy(dexRestApi = x)),
             opt[FiniteDuration]("timeout")
               .abbr("to")
               .text("Timeout")
@@ -403,33 +571,193 @@ object TnDexCli extends ScoptImplicits {
               .valueName("<raw-string>")
               .required()
               .action((x, s) => s.copy(configPath = x))
+          ),
+        cmd(Command.CleanAssets.name)
+          .action((_, s) => s.copy(command = Command.CleanAssets.some))
+          .text("Cleans LevelDb cache with assets")
+          .children(
+            opt[String]("dex-config")
+              .abbr("dc")
+              .text("DEX config path")
+              .valueName("<raw-string>")
+              .required()
+              .action((x, s) => s.copy(configPath = x))
+          ),
+        cmd(Command.InspectAsset.name)
+          .action((_, s) => s.copy(command = Command.InspectAsset.some))
+          .text("Inspect saved information about specified asset")
+          .children(
+            opt[String]("dex-config")
+              .abbr("dc")
+              .text("DEX config path")
+              .valueName("<raw-string>")
+              .required()
+              .action((x, s) => s.copy(configPath = x)),
+            opt[String]("asset-id")
+              .abbr("aid")
+              .text("An asset id")
+              .valueName("<asset-id-in-base58>")
+              .required()
+              .action((x, s) => s.copy(assetId = x))
+          ),
+        cmd(Command.SetAsset.name)
+          .action((_, s) => s.copy(command = Command.SetAsset.some))
+          .text("Writes a mock value for this asset. This could be useful when there is asset from the stale fork")
+          .children(
+            opt[String]("dex-config")
+              .abbr("dc")
+              .text("DEX config path")
+              .valueName("<raw-string>")
+              .required()
+              .action((x, s) => s.copy(configPath = x)),
+            opt[String]("asset-id")
+              .abbr("aid")
+              .text("An asset id")
+              .valueName("<asset-id-in-base58>")
+              .required()
+              .action((x, s) => s.copy(assetId = x)),
+            opt[String]("name")
+              .abbr("n")
+              .text("An asset name")
+              .valueName("<string>")
+              .optional()
+              .action((x, s) => s.copy(name = x.trim)),
+            opt[Int]("decimals")
+              .abbr("d")
+              .text("Asset decimals")
+              .valueName("<0-8>")
+              .optional()
+              .validate { x =>
+                if (x < 0 || x > 8) Left("Should be in [0; 8]")
+                else Right(())
+              }
+              .action((x, s) => s.copy(decimals = x)),
+            opt[Unit]("has-script")
+              .abbr("hs")
+              .text("This asset has a script")
+              .optional()
+              .action((x, s) => s.copy(hasScript = true)),
+            opt[Unit]("is-nft")
+              .abbr("nft")
+              .text("This asset is NFT")
+              .optional()
+              .action((x, s) => s.copy(isNft = true))
+          ),
+        cmd(Command.ListAssetPairs.name)
+          .action((_, s) => s.copy(command = Command.ListAssetPairs.some))
+          .text("List known asset pairs from LevelDb")
+          .children(
+            opt[String]("dex-config")
+              .abbr("dc")
+              .text("DEX config path")
+              .valueName("<raw-string>")
+              .required()
+              .action((x, s) => s.copy(configPath = x))
+          ),
+        cmd(Command.InspectOrderBook.name)
+          .action((_, s) => s.copy(command = Command.InspectOrderBook.some))
+          .text("Inspect an order book")
+          .children(
+            opt[String]("dex-config")
+              .abbr("dc")
+              .text("DEX config path")
+              .valueName("<raw-string>")
+              .required()
+              .action((x, s) => s.copy(configPath = x)),
+            opt[String]("asset-pair")
+              .abbr("ap")
+              .text("An asset pair of order book")
+              .valueName("<amount-asset-id-in-base58>-<price-asset-id-in-base58>")
+              .required()
+              .action((x, s) => s.copy(assetPair = x))
+          ),
+        cmd(Command.DeleteOrderBook.name)
+          .action((_, s) => s.copy(command = Command.DeleteOrderBook.some))
+          .text("Deletes an order book")
+          .children(
+            opt[String]("dex-config")
+              .abbr("dc")
+              .text("DEX config path")
+              .valueName("<raw-string>")
+              .required()
+              .action((x, s) => s.copy(configPath = x)),
+            opt[String]("asset-pair")
+              .abbr("ap")
+              .text("An asset pair of order book")
+              .valueName("<amount-asset-id-in-base58>-<price-asset-id-in-base58>")
+              .required()
+              .action((x, s) => s.copy(assetPair = x))
+          ),
+        cmd(Command.InspectOrder.name)
+          .action((_, s) => s.copy(command = Command.InspectOrder.some))
+          .text("Inspect an order")
+          .children(
+            opt[String]("dex-config")
+              .abbr("dc")
+              .text("DEX config path")
+              .valueName("<raw-string>")
+              .required()
+              .action((x, s) => s.copy(configPath = x)),
+            opt[String]("order-id")
+              .abbr("oid")
+              .text("An order id")
+              .valueName("<order-id-in-base58>")
+              .required()
+              .action((x, s) => s.copy(orderId = x))
           )
       )
     }
 
+    def loadAllConfigsUnsafe(path: String): (Config, MatcherSettings) =
+      cli.wrapByLogs("  Loading Matcher settings... ") {
+        for {
+          config <- Try(parseFile(new File(path))).toEither.leftMap(th => s"Cannot load config at path $path: ${th.getWithStackTrace}")
+          matcherSettings <- loadMatcherSettings(config)
+        } yield config -> matcherSettings
+      }.fold(error => throw new RuntimeException(error), identity)
+
     // noinspection ScalaStyle
-    OParser.parse(parser, rawArgs, Args()).foreach { args =>
-      args.command match {
-        case None => println(OParser.usage(parser, RenderingMode.TwoColumns))
-        case Some(command) =>
-          println(s"Running '${command.name}' command")
-          AddressScheme.current = new AddressScheme { override val chainId: Byte = args.addressSchemeByte.getOrElse('T').toByte }
-          command match {
-            case Command.GenerateAccountSeed => generateAccountSeed(args)
-            case Command.CreateAccountStorage => createAccountStorage(args)
-            case Command.CreateDocumentation => createDocumentation(args)
-            case Command.CreateApiKey => createApiKey(args)
-            case Command.CheckServer => checkServer(args)
-            case Command.RunComparison => runComparison(args)
-            case Command.MakeOrderbookSnapshots => makeSnapshots(args)
-            case Command.CheckConfigFile => checkConfig(args)
-          }
-          println("Done")
+    OParser.parse(parser, rawArgs, Args())
+      .map { args =>
+        args.configPath match {
+          case "" => (args, ConfigFactory.empty(), none[MatcherSettings])
+          case configPath =>
+            lazy val (config, matcherSettings) = loadAllConfigsUnsafe(configPath)
+            val updatedArgs = matcherSettings.cli.defaultArgs.coverEmptyValues(args)
+            (updatedArgs, config, matcherSettings.some)
+        }
       }
-    }
+      .foreach { case (args, config, mayBeMatcherSettings) =>
+        lazy val matcherSettings = mayBeMatcherSettings.getOrElse(throw new RuntimeException("config-path is required"))
+        args.command match {
+          case None => println(OParser.usage(parser, RenderingMode.TwoColumns))
+          case Some(command) =>
+            println(s"Running '${command.name}' command")
+            AddressScheme.current = new AddressScheme { override val chainId: Byte = args.addressSchemeByte.getOrElse('T').toByte }
+            println(s"Current chain id: ${AddressScheme.current.chainId.toChar}")
+            command match {
+              case Command.GenerateAccountSeed => generateAccountSeed(args)
+              case Command.CreateAccountStorage => createAccountStorage(args)
+              case Command.CreateDocumentation => createDocumentation(args)
+              case Command.CreateApiKey => createApiKey(args)
+              case Command.CheckServer => checkServer(args, config, matcherSettings)
+              case Command.RunComparison => runComparison(args)
+              case Command.MakeOrderbookSnapshots => makeSnapshots(args)
+              case Command.CheckConfigFile => checkConfig(args)
+              case Command.CleanAssets => cleanAssets(args, matcherSettings)
+              case Command.InspectAsset => inspectAsset(args, matcherSettings)
+              case Command.SetAsset => setAsset(args, matcherSettings)
+              case Command.ListAssetPairs => listAssetPairs(args, matcherSettings)
+              case Command.InspectOrderBook => inspectOrderBook(args, matcherSettings)
+              case Command.DeleteOrderBook => deleteOrderBook(args, matcherSettings)
+              case Command.InspectOrder => inspectOrder(args, matcherSettings)
+            }
+            println("Done")
+        }
+      }
   }
 
-  sealed private trait Command {
+  sealed trait Command {
     def name: String
   }
 
@@ -467,9 +795,37 @@ object TnDexCli extends ScoptImplicits {
       override def name: String = "make-orderbook-snapshots"
     }
 
+    case object CleanAssets extends Command {
+      override def name: String = "clean-assets"
+    }
+
+    case object InspectAsset extends Command {
+      override def name: String = "inspect-asset"
+    }
+
+    case object SetAsset extends Command {
+      override def name: String = "set-asset"
+    }
+
+    case object ListAssetPairs extends Command {
+      override def name: String = "list-assetpairs"
+    }
+
+    case object InspectOrderBook extends Command {
+      override def name: String = "inspect-orderbook"
+    }
+
+    case object DeleteOrderBook extends Command {
+      override def name: String = "delete-orderbook"
+    }
+
+    case object InspectOrder extends Command {
+      override def name: String = "inspect-order"
+    }
+
   }
 
-  sealed private trait SeedFormat
+  sealed trait SeedFormat
 
   private object SeedFormat {
 
@@ -488,20 +844,27 @@ object TnDexCli extends ScoptImplicits {
 
   private val defaultFile = new File(".")
 
-  private case class Args(
+  final case class Args(
     addressSchemeByte: Option[Char] = None,
     seedFormat: SeedFormat = SeedFormat.RawString,
     accountNonce: Option[Int] = None,
     command: Option[Command] = None,
     outputDirectory: File = defaultFile,
     apiKey: String = "",
-    dexRestApi: Option[String] = None,
+    dexRestApi: String = "",
     nodeRestApi: String = "",
     version: String = "",
     configPath: String = "",
+    assetPair: String = "",
+    assetId: String = "",
+    name: String = "",
+    decimals: Int = 8,
+    hasScript: Boolean = false,
+    isNft: Boolean = false,
+    orderId: String = "",
     authServiceRestApi: Option[String] = None,
     accountSeed: Option[String] = None,
-    timeout: FiniteDuration = 30 seconds
+    timeout: FiniteDuration = 0 seconds
   )
 
   // noinspection ScalaStyle

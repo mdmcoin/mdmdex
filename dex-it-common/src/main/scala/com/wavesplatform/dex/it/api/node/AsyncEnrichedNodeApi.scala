@@ -27,6 +27,14 @@ class AsyncEnrichedNodeApi(apiKey: String, host: => InetSocketAddress)(implicit 
     basicRequest.get(uri"$apiUri/assets/balance/$address/$asset")
   }
 
+  override def nftAssetsByAddress(address: Address, limit: Long = 999L): R[Seq[NftAsset]] = mk {
+    basicRequest.get(uri"$apiUri/assets/nft/${address.stringRepr}/limit/$limit")
+  }
+
+  override def assetsBalance(address: Address): R[AssetsBalancesResponse] = mk {
+    basicRequest.get(uri"$apiUri/assets/balance/${address.stringRepr}")
+  }
+
   override def broadcast(tx: Transaction): R[Unit] = mkIgnore {
     basicRequest.post(uri"$apiUri/transactions/broadcast").body(tx.toJson).contentType(MediaType.ApplicationJson)
   }

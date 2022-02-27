@@ -6,7 +6,7 @@ import akka.actor.typed.{ActorRef, Behavior, Terminated}
 import akka.{actor => classic}
 import cats.implicits.catsSyntaxEitherId
 import cats.syntax.option._
-import com.wavesplatform.dex.actors.MatcherActor
+import com.wavesplatform.dex.actors.OrderBookDirectoryActor
 import com.wavesplatform.dex.actors.address.{AddressActor, AddressDirectoryActor}
 import com.wavesplatform.dex.actors.orderbook.AggregatedOrderBookActor
 import com.wavesplatform.dex.api.ws.actors.WsExternalClientHandlerActor.Command.CancelAddressSubscription
@@ -74,7 +74,7 @@ object WsExternalClientHandlerActor {
       import context.executionContext
       import settings.subscriptions._
 
-      context.setLoggerName(s"WsExternalHandlerActor[c=${clientRef.path.name}]")
+      context.setLoggerName(s"WsExternalClientHandlerActor[c=${clientRef.path.name}]")
       context.watch(clientRef)
 
       def matcherTime: Long = time.getTimestamp()
@@ -103,7 +103,10 @@ object WsExternalClientHandlerActor {
 
       def unsubscribeOrderBook(assetPair: AssetPair): Unit = {
         context.log.debug(s"WsUnsubscribe(assetPair=$assetPair)")
-        matcherRef ! MatcherActor.AggregatedOrderBookEnvelope(assetPair, AggregatedOrderBookActor.Command.RemoveWsSubscription(clientRef))
+        matcherRef ! OrderBookDirectoryActor.AggregatedOrderBookEnvelope(
+          assetPair,
+          AggregatedOrderBookActor.Command.RemoveWsSubscription(clientRef)
+        )
       }
 
       def awaitPong(
@@ -182,8 +185,10 @@ object WsExternalClientHandlerActor {
                       addressSubscriptions
                         .find(_._1 == subscribe.key)
                         .fold {
-
-                          addressRef ! AddressDirectoryActor.Command.ForwardMessage(subscribe.key, AddressActor.WsCommand.AddWsSubscription(clientRef))
+                          addressRef ! AddressDirectoryActor.Command.ForwardMessage(
+                            subscribe.key,
+                            AddressActor.WsCommand.AddWsSubscription(clientRef, subscribe.filters)
+                          )
                           context.log.debug(s"WsAddressSubscribe(k=$address, t=$authType) is successful, will expire in $subscriptionLifetime")
 
                           if (addressSubscriptions.lengthCompare(maxAddressNumber) == 0) {
@@ -276,7 +281,10 @@ object WsExternalClientHandlerActor {
               }
 
             case Event.AssetPairValidated(assetPair) =>
-              matcherRef ! MatcherActor.AggregatedOrderBookEnvelope(assetPair, AggregatedOrderBookActor.Command.AddWsSubscription(clientRef))
+              matcherRef ! OrderBookDirectoryActor.AggregatedOrderBookEnvelope(
+                assetPair,
+                AggregatedOrderBookActor.Command.AddWsSubscription(clientRef)
+              )
 
               if (orderBookSubscriptions.lengthCompare(maxOrderBookNumber) == 0) {
                 // safe since maxOrderBookNumber > 0
@@ -302,7 +310,7 @@ object WsExternalClientHandlerActor {
               awaitPong(maybeExpectedPong, pongTimeout, nextPing, orderBookSubscriptions, newAddressSubscriptions, maybeRatesUpdateId)
 
             case command: Command.CloseConnection =>
-              context.log.trace("Got CloseConnection: {}", command.reason.message.text)
+              context.log.debug("Got CloseConnection: {}", command.reason.message.text)
               clientRef ! WsError.from(command.reason, matcherTime)
               context.scheduleOnce(100.millis, clientRef, WsServerMessage.Complete) // Otherwise a connection is closed too quickly
               cancelSchedules(nextPing, pongTimeout)

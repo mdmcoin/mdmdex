@@ -27,7 +27,6 @@ Seq(
   // dependencyUpdates
   "com.timushev.sbt" % "sbt-updates" % "0.5.0",
   // metrics
-  // "io.kamon" % "sbt-kanela-runner" % "2.0.7", // To run locally https://github.com/kamon-io/sbt-kanela-runner
   "com.lightbend.sbt" % "sbt-javaagent" % "0.1.6" // For release artifacts
 ).map(addSbtPlugin)
 
@@ -39,4 +38,6 @@ libraryDependencies ++= Seq(
 )
 
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full) // Remove after scala 2.13 migration
-addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
+addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.13.0" cross CrossVersion.full)
+
+addDependencyTreePlugin // https://github.com/sbt/sbt-dependency-graph

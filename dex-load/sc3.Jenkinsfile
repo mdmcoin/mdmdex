@@ -6,6 +6,7 @@ pipeline {
         ansiColor('xterm')
         timeout(time: 70, unit: 'MINUTES')
         disableConcurrentBuilds()
+        timestamps()
     }
     parameters {
         string(name: 'SEED', defaultValue: 'test-seed', description: 'Seed prefix of generated accounts')
@@ -48,7 +49,7 @@ pipeline {
         stage("Web Socket") {
             steps {
                 sh 'mv ./dex-load/feeder.csv ./dex-ws-load'
-                sh 'cd ./dex-ws-load && sbt -J-Xms1056M -J-Xmx8192M -Dff=feeder.csv -Dws=ws://${AIM}:6886/ws/v0 -Drt=15 -Duc=6000 gatling:testOnly load.ConnectionsOnlyTest'
+                sh 'cd ./dex-ws-load && sbt -J-Xms1056M -J-Xmx8192M -Dff=feeder.csv -Dsm=co -Dws=ws://${AIM}:6886/ws/v0 -Drt=15 -Duc=6000 "gatling:testOnly load.DexSimulation"'
                 script {
                     GRAFANA = sh(script: '''
                                             echo "https://${GRAFANA_URL}/d/WsyjIiHiz/system-metrics?orgId=5&var-hostname=${MATCHER_URL}&from=$(date -d '- 10 minutes' +'%s')000&to=$(date -d '+ 5 minutes' +'%s')000"

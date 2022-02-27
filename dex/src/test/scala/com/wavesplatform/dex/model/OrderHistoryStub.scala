@@ -7,8 +7,11 @@ import com.wavesplatform.dex.db.{EmptyOrderDb, TestOrderDb}
 import com.wavesplatform.dex.domain.account.Address
 import com.wavesplatform.dex.domain.asset.Asset
 import com.wavesplatform.dex.domain.bytes.ByteStr
-import com.wavesplatform.dex.error.ErrorFormatterContext
+import com.wavesplatform.dex.domain.crypto.Proofs
+import com.wavesplatform.dex.domain.transaction.{ExchangeTransactionResult, ExchangeTransactionV2}
 import com.wavesplatform.dex.grpc.integration.clients.domain.AddressBalanceUpdates
+import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
+import com.wavesplatform.dex.model.Events.OrderExecuted
 import com.wavesplatform.dex.queue.ValidatedCommandWithMeta
 import com.wavesplatform.dex.time.Time
 
@@ -16,8 +19,6 @@ import scala.collection.mutable
 import scala.concurrent.Future
 
 class OrderHistoryStub(system: ActorSystem, time: Time, maxActiveOrders: Int, maxFinalizedOrders: Int) {
-
-  implicit private val efc: ErrorFormatterContext = ErrorFormatterContext.from(_ => 8)
 
   private val refs = mutable.AnyRefMap.empty[Address, ActorRef]
   private val orders = mutable.AnyRefMap.empty[ByteStr, Address]
@@ -27,6 +28,9 @@ class OrderHistoryStub(system: ActorSystem, time: Time, maxActiveOrders: Int, ma
   private val blockchainInteraction = new BlockchainInteraction {
     override def getFullBalances(address: Address, exclude: Set[Asset]): Future[AddressBalanceUpdates] = emptyAddressBalanceUpdatesF
   }
+
+  private def assetBriefInfo: Asset => BriefAssetDescription =
+    asset => BriefAssetDescription(asset.toString, 2, hasScript = false, isNft = false)
 
   def createAddressActor(address: Address, recovered: Boolean): Props =
     Props(
@@ -38,7 +42,8 @@ class OrderHistoryStub(system: ActorSystem, time: Time, maxActiveOrders: Int, ma
         e => Future.successful(Some(ValidatedCommandWithMeta(0L, 0, e))),
         recovered,
         blockchainInteraction,
-        AddressActor.Settings.default.copy(maxActiveOrders = maxActiveOrders)
+        AddressActor.Settings.default.copy(maxActiveOrders = maxActiveOrders),
+        assetBriefInfo
       )
     )
 
@@ -72,7 +77,7 @@ class OrderHistoryStub(system: ActorSystem, time: Time, maxActiveOrders: Int, ma
     case ox: Events.OrderExecuted =>
       orders += ox.submitted.order.id() -> ox.submitted.order.sender
       orders += ox.counter.order.id() -> ox.counter.order.sender
-      val command = AddressActor.Command.ApplyOrderBookExecuted(ox, None)
+      val command = AddressActor.Command.ApplyOrderBookExecuted(ox, mkExchangeTx(ox))
       List(ox.counter, ox.submitted).map(_.order.sender.toAddress).toSet.map(actorForAddress).foreach(_ ! command)
 
     case oc: Events.OrderCanceled =>
@@ -80,4 +85,21 @@ class OrderHistoryStub(system: ActorSystem, time: Time, maxActiveOrders: Int, ma
   }
 
   def processAll(events: Events.Event*): Unit = events.foreach(process)
+
+  private def mkExchangeTx(oe: OrderExecuted): ExchangeTransactionResult[ExchangeTransactionV2] = {
+    val (sellOrder, buyOrder) = if (oe.counter.isSellOrder) (oe.counter, oe.submitted) else (oe.submitted, oe.counter)
+    ExchangeTransactionV2
+      .create(
+        buyOrder = buyOrder.order,
+        sellOrder = sellOrder.order,
+        amount = sellOrder.amount,
+        price = sellOrder.price,
+        buyMatcherFee = buyOrder.matcherFee,
+        sellMatcherFee = sellOrder.matcherFee,
+        fee = 300000L,
+        timestamp = System.currentTimeMillis(),
+        proofs = Proofs.empty
+      )
+  }
+
 }

@@ -10,8 +10,7 @@ import com.wavesplatform.dex.domain.order.OrderType._
 import com.wavesplatform.dex.it.api.responses.dex.MatcherError
 import com.wavesplatform.it.MatcherSuiteBase
 
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
 class OrderBookTestSuite extends MatcherSuiteBase {
 
@@ -20,7 +19,7 @@ class OrderBookTestSuite extends MatcherSuiteBase {
   private case class ReservedBalances(wct: Long, usd: Long, waves: Long)
 
   private def reservedBalancesOf(pk: KeyPair): ReservedBalances = {
-    val reservedBalances = dex1.api.getReservedBalance(pk)
+    val reservedBalances = dex1.api.getReservedBalanceWithApiKey(pk)
     ReservedBalances(
       reservedBalances.getOrElse(wct, 0),
       reservedBalances.getOrElse(usd, 0),
@@ -65,7 +64,7 @@ class OrderBookTestSuite extends MatcherSuiteBase {
     aliceRBForBothPairs = reservedBalancesOf(alice)
     bobRBForBothPairs = reservedBalancesOf(bob)
 
-    dex1.tryApi.deleteOrderBook(wctUsdPair) shouldBe Symbol("right")
+    dex1.tryApi.deleteOrderBookWithKey(wctUsdPair) shouldBe Symbol("right")
   }
 
   "When delete order book" - {
@@ -101,8 +100,8 @@ class OrderBookTestSuite extends MatcherSuiteBase {
     }
 
     "it should not affect other pairs and their orders" in {
-      dex1.api.getOrderStatus(buyOrderForAnotherPair).status shouldBe Status.Accepted
-      dex1.api.getOrderStatus(sellOrderForAnotherPair).status shouldBe Status.Accepted
+      dex1.api.orderStatusByAssetPairAndId(buyOrderForAnotherPair).status shouldBe Status.Accepted
+      dex1.api.orderStatusByAssetPairAndId(sellOrderForAnotherPair).status shouldBe Status.Accepted
       dex1.api.place(mkOrder(alice, wctWavesPair, BUY, amount, price))
 
       val orderBook = dex1.api.getOrderBook(wctWavesPair)
@@ -111,13 +110,13 @@ class OrderBookTestSuite extends MatcherSuiteBase {
     }
 
     "matcher can start after multiple delete events" in {
-      def deleteWctWaves(): Future[Either[MatcherError, HttpMessage]] = dex1.asyncTryApi.deleteOrderBook(wctWavesPair)
+      def deleteWctWaves(): Future[Either[MatcherError, HttpMessage]] = dex1.asyncTryApi.deleteOrderBookWithKey(wctWavesPair)
       val deleteMultipleTimes = deleteWctWaves()
         .zip(deleteWctWaves())
         .map(_ => ())
         .recover { case _ => () } // It's ok: either this should fail, or restartNode should work
 
-      Await.ready(deleteMultipleTimes, 1.minute)
+      deleteMultipleTimes.futureValue
       dex1.restart()
     }
   }

@@ -1,6 +1,3 @@
-import java.io.{BufferedInputStream, FilenameFilter}
-import java.nio.file.Files
-
 import CommonSettings.autoImport.network
 import WavesNodeArtifactsPlugin.autoImport.wavesNodeVersion
 import com.typesafe.sbt.SbtNativePackager.Universal
@@ -16,6 +13,10 @@ import com.typesafe.sbt.packager.universal.UniversalDeployPlugin
 import org.apache.commons.compress.archivers.{ArchiveEntry, ArchiveStreamFactory}
 import sbt.Keys._
 import sbt._
+import scala.util.Try
+
+import java.io.{BufferedInputStream, FilenameFilter}
+import java.nio.file.Files
 
 /**
  * @note Specify "maintainer" to solve DEB warnings
@@ -73,7 +74,15 @@ object ExtensionPackaging extends AutoPlugin {
       },
       classpath := makeRelativeClasspathNames(classpathOrdering.value),
       nodePackageName := s"TN${network.value.packageSuffix}",
-      debianPackageDependencies := Seq(s"${nodePackageName.value} (= ${wavesNodeVersion.value})"), // "Depends:" in control
+      debianPackageDependencies := {
+        val nodeVersion = wavesNodeVersion.value
+        val minorNodeVersion = nodeVersion.split('.')
+          .lastOption.flatMap(x => Try(x.toInt).toOption).getOrElse(throw new RuntimeException(
+            s"Can't parse TN node minor version of $nodeVersion"
+          ))
+        val nextNodeVersion = (nodeVersion.split('.').dropRight(1) :+ (minorNodeVersion + 1)).mkString(".")
+        Seq(s"${nodePackageName.value} (>= $nodeVersion)", s"${nodePackageName.value} (<< $nextNodeVersion)")
+      }, // "Depends:" in control
       // To write files to Waves NODE directory
       linuxPackageMappings := getUniversalFolderMappings(
         nodePackageName.value,
@@ -160,7 +169,7 @@ object ExtensionPackaging extends AutoPlugin {
           case Some(artifact) =>
             val name = s"${artifact.organization}.${artifact.name}"
             exclusions.get(name) match {
-              case None => (jarMapping.updated(x.data, "lib/" + getJarFullFilename(x)), conflicts)
+              case None => r // Ignore, because we doesn't provide custom artifacts (TAG ClassNotFoundException)
               case Some(debRevision) =>
                 if (debRevision == artifact.revision) r
                 else (jarMapping, conflicts.updated(name, (debRevision, artifact.revision)))

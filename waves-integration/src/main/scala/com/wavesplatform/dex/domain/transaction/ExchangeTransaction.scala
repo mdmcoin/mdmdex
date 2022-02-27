@@ -104,8 +104,10 @@ trait ExchangeTransaction extends ByteAndJsonSerializable with Proven {
 
   def toPrettyString: String = json.map(Json.prettyPrint).value()
 
+  def canEqual(other: Any): Boolean = other.isInstanceOf[ExchangeTransaction]
+
   override def equals(other: Any): Boolean = other match {
-    case tx: ExchangeTransaction => id() == tx.id()
+    case tx: ExchangeTransaction => tx.canEqual(this) && id() == tx.id()
     case _ => false
   }
 
@@ -122,7 +124,7 @@ object ExchangeTransaction {
     bytes.headOption
       .fold(Failure(new Exception("Empty array")): Try[ExchangeTransaction]) { b =>
         val etp = if (b == 0) ExchangeTransactionV2 else ExchangeTransactionV1
-        etp.parseBytes(bytes).flatMap(validateExchangeParams(_).foldToTry)
+        etp.parseBytes(bytes).map(_._1).flatMap(validateExchangeParams(_).foldToTry)
       }
 
   def validateExchangeParams(tx: ExchangeTransaction): Either[ValidationError, ExchangeTransaction] =

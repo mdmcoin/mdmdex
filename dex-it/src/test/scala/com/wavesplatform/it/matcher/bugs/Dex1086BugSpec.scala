@@ -10,10 +10,10 @@ import com.wavesplatform.it.MatcherSuiteBase
 class Dex1086BugSpec extends MatcherSuiteBase {
 
   override protected def dexInitialSuiteConfig: Config =
-    ConfigFactory.parseString(s"""TN.dex {
-  price-assets = [ "$UsdId", "TN" ]
-  snapshots-interval = 1
-}""")
+    ConfigFactory.parseString(s"""waves.dex {
+      price-assets = [ "$UsdId", "TN" ]
+      snapshots-interval = 1
+    }""")
 
   override protected def beforeAll(): Unit = {
     wavesNode1.start()
@@ -22,7 +22,7 @@ class Dex1086BugSpec extends MatcherSuiteBase {
   }
 
   "DEX-1086" in {
-    log.info(s"bob Waves balance: ${wavesNode1.api.balance(bob, Waves)}")
+    log.info(s"bob TN balance: ${wavesNode1.api.balance(bob, Waves)}")
 
     step("placing orders")
     dex1.api.place(mkOrderDP(alice, wavesUsdPair, OrderType.BUY, 100.waves, 15))

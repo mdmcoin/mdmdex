@@ -1,12 +1,14 @@
 package com.wavesplatform.it.sync.networking
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.Implicits.durationToScalatestTimeout
 import com.wavesplatform.dex.api.http.entities.HttpOrderStatus
 import com.wavesplatform.dex.api.http.entities.HttpOrderStatus.Status
 import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.order.OrderType
 import com.wavesplatform.dex.domain.order.OrderType.SELL
 import com.wavesplatform.dex.effect.Implicits.FutureCompanionOps
+import com.wavesplatform.dex.error.BalanceNotEnough
 import com.wavesplatform.dex.it.api.HasToxiProxy
 import com.wavesplatform.dex.it.api.responses.dex.MatcherError
 import com.wavesplatform.dex.it.docker.WavesNodeContainer
@@ -14,8 +16,10 @@ import com.wavesplatform.it.WsSuiteBase
 import com.wavesplatform.it.tags.NetworkTests
 import eu.rekawek.toxiproxy.model.ToxicDirection
 
+import scala.collection.immutable.Queue
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{blocking, Await, Future}
+import scala.concurrent.{blocking, Future}
+import scala.util.Using
 
 @NetworkTests
 class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
@@ -47,7 +51,7 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
   }
 
   override protected def afterEach(): Unit = {
-    matcherExtensionProxy.toxics().getAll.forEach(_.remove())
+    matcherExtensionProxy.toxics.getAll.forEach(_.remove())
     clearOrderBook()
   }
 
@@ -56,29 +60,27 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
       mkOrder(alice, wavesUsdPair, OrderType.SELL, 1.waves, 100 + i)
     }
 
-    Await.result(
-      for {
-        _ <- Future.inSeries(orders)(dex1.asyncApi.place(_).recover { case _ => () }).zip {
-          Future(blocking(wavesNode1.reconnectToNetwork(500, 500)))
-        }
-        orderBook <- dex1.asyncApi.getOrderBook(wavesUsdPair)
-      } yield orderBook.asks should have size 100,
-      2.minute
-    )
+    def placeOrders(): Future[(Queue[Any], Unit)] =
+      Future.inSeries(orders)(dex1.asyncApi.place(_).recover { case _ => () }).zip {
+        Future(blocking(wavesNode1.reconnectToNetwork(500, 500)))
+      }
+
+    (for {
+      _ <- placeOrders()
+      orderBook <- dex1.asyncApi.getOrderBook(wavesUsdPair)
+    } yield orderBook.asks should have size 100).futureValue(2.minutes)
 
     orders.foreach(dex1.api.waitForOrderStatus(_, HttpOrderStatus.Status.Accepted))
-    dex1.api.cancelAllByPair(alice, wavesUsdPair)
+    dex1.api.cancelOneOrAllInPairOrdersWithSig(alice, wavesUsdPair)
   }
 
   "DEXClient should obtain balance changes when it reconnects after losing connection: " - {
 
     "user has a balances snapshot (got by ws connection)" in {
       val acc = mkAccountWithBalance(100.waves -> Waves)
-      val wsc = mkWsAddressConnection(acc, dex1)
-
-      eventually(wsc.addressStateChanges should have size 1)
-
-      wsc.close()
+      Using.resource(mkWsAddressConnection(acc, dex1)) { wsc =>
+        eventually(wsc.addressStateChanges should have size 1)
+      }
       dex1.disconnectFromNetwork()
 
       broadcastAndAwait(mkTransfer(acc, alice.toAddress, 99.waves, Waves))
@@ -89,7 +91,7 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
       val o = mkOrder(acc, wavesUsdPair, SELL, 50.waves, 1.usd)
 
       dex1.tryApi.place(o) match {
-        case Left(MatcherError(x, _, _, _)) => x shouldBe 3147270
+        case Left(MatcherError(x, _, _, _)) => x shouldBe BalanceNotEnough.code
         case _ => dex1.api.waitForOrderStatus(o, Status.Cancelled)
       }
     }
@@ -107,7 +109,7 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
       val o = mkOrder(acc, wavesUsdPair, SELL, 50.waves, 1.usd)
 
       dex1.tryApi.place(o) match {
-        case Left(MatcherError(x, _, _, _)) => x shouldBe 3147270
+        case Left(MatcherError(x, _, _, _)) => x shouldBe BalanceNotEnough.code
         case _ => dex1.api.waitForOrderStatus(o, Status.Cancelled)
       }
     }
@@ -115,20 +117,20 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
 
   "DEXClient should works correctly despite of latency: " - {
     "high latency (from node to dex)" in {
-      matcherExtensionProxy.toxics().latency("latency", ToxicDirection.DOWNSTREAM, 4500)
+      matcherExtensionProxy.toxics.latency("latency", ToxicDirection.DOWNSTREAM, 4500)
       makeAndMatchOrders()
       matchingShouldBeSuccess()
     }
 
     "high latency (from dex to node)" in {
-      matcherExtensionProxy.toxics().latency("latency", ToxicDirection.UPSTREAM, 4500)
+      matcherExtensionProxy.toxics.latency("latency", ToxicDirection.UPSTREAM, 4500)
       makeAndMatchOrders()
       matchingShouldBeSuccess()
     }
 
     "high latency (both directions)" in {
-      matcherExtensionProxy.toxics().latency("latencyD", ToxicDirection.DOWNSTREAM, 4500)
-      matcherExtensionProxy.toxics().latency("latencyU", ToxicDirection.UPSTREAM, 4500)
+      matcherExtensionProxy.toxics.latency("latencyD", ToxicDirection.DOWNSTREAM, 4500)
+      matcherExtensionProxy.toxics.latency("latencyU", ToxicDirection.UPSTREAM, 4500)
       makeAndMatchOrders()
       matchingShouldBeSuccess()
     }
@@ -137,20 +139,20 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
   "DEXClient should works correctly despite of slow network: " - {
 
     "16 kbps from node to dex" in {
-      matcherExtensionProxy.toxics().bandwidth("bandwidth", ToxicDirection.DOWNSTREAM, 16)
+      matcherExtensionProxy.toxics.bandwidth("bandwidth", ToxicDirection.DOWNSTREAM, 16)
       makeAndMatchOrders()
       matchingShouldBeSuccess()
     }
 
     "16 kbps from dex to node" in {
-      matcherExtensionProxy.toxics().bandwidth("bandwidth", ToxicDirection.UPSTREAM, 16)
+      matcherExtensionProxy.toxics.bandwidth("bandwidth", ToxicDirection.UPSTREAM, 16)
       makeAndMatchOrders()
       matchingShouldBeSuccess()
     }
 
     "16 kbps in both directions" in {
-      matcherExtensionProxy.toxics().bandwidth("bandwidthD", ToxicDirection.DOWNSTREAM, 16)
-      matcherExtensionProxy.toxics().bandwidth("bandwidthU", ToxicDirection.UPSTREAM, 16)
+      matcherExtensionProxy.toxics.bandwidth("bandwidthD", ToxicDirection.DOWNSTREAM, 16)
+      matcherExtensionProxy.toxics.bandwidth("bandwidthU", ToxicDirection.UPSTREAM, 16)
       makeAndMatchOrders()
       matchingShouldBeSuccess()
     }
@@ -198,8 +200,8 @@ class NetworkIssuesTestSuite extends WsSuiteBase with HasToxiProxy {
   }
 
   private def clearOrderBook(): Unit = {
-    dex1.api.cancelAll(alice)
-    dex1.api.cancelAll(bob)
+    dex1.api.cancelAllOrdersWithSig(alice)
+    dex1.api.cancelAllOrdersWithSig(bob)
   }
 
   private def makeAndMatchOrders(): Unit =

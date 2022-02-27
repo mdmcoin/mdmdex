@@ -3,7 +3,7 @@ package com.wavesplatform.dex.api.ws
 import com.softwaremill.diffx.Diff
 import com.wavesplatform.dex.MatcherSpecBase
 import com.wavesplatform.dex.api.http.PlayJsonException
-import com.wavesplatform.dex.api.ws.entities.{WsBalances, WsLastTrade, WsOrder, WsOrderBookSettings}
+import com.wavesplatform.dex.api.ws.entities.{WsBalances, WsLastTrade, WsMatchTransactionInfo, WsOrder, WsOrderBookSettings}
 import com.wavesplatform.dex.api.ws.protocol.WsOrderBookChanges.WsSide
 import com.wavesplatform.dex.api.ws.protocol.{WsAddressChanges, WsOrderBookChanges, WsRatesUpdates}
 import com.wavesplatform.dex.domain.account.KeyPair
@@ -51,7 +51,15 @@ class WsMessagesSerdeSpecification extends AnyFreeSpec with ScalaCheckDrivenProp
       case (false, false) => LimitOrder(order).partial(partialAmount, partialFee, BigInteger.valueOf(order.price))
     }
 
-    val result = WsOrder.fromDomain(ao)
+    val result = WsOrder.fromDomain(ao).copy(matchInfo =
+      Seq(WsMatchTransactionInfo.normalized(
+        ao.order.assetPair,
+        ByteStr.empty,
+        System.currentTimeMillis(),
+        ao.price,
+        partialAmount
+      ))
+    )
 
     if (isNew) result
     else
@@ -72,7 +80,7 @@ class WsMessagesSerdeSpecification extends AnyFreeSpec with ScalaCheckDrivenProp
     account <- Gen.alphaNumStr.map(x => KeyPair(ByteStr(x.getBytes(StandardCharsets.UTF_8))))
     balanceChanges <- Gen.choose(0, 5)
     orderChanges <- Gen.const(5 - balanceChanges)
-    assets <- Gen.listOfN(balanceChanges, assetGen)
+    assets <- Gen.listOfN(balanceChanges, arbitraryAssetGen)
     balances <- Gen.listOfN(balanceChanges, wsBalancesGen)
     orders <- Gen.listOfN(orderChanges, wsOrderGen)
     updateId <- Gen.choose(0L, Long.MaxValue)
@@ -151,7 +159,7 @@ class WsMessagesSerdeSpecification extends AnyFreeSpec with ScalaCheckDrivenProp
     timestamp <- Gen.choose(0L, Long.MaxValue)
     updateId <- Gen.choose(0L, Long.MaxValue)
     ratesCount <- Gen.choose(1, 5)
-    assets <- Gen.listOfN(ratesCount, assetGen)
+    assets <- Gen.listOfN(ratesCount, arbitraryAssetGen)
     rates <- Gen.listOfN(ratesCount, Gen.frequency((4, Gen.choose(0.05d, 100500d)), (1, Gen.const(-1d))))
   } yield WsRatesUpdates(assets.zip(rates).toMap, updateId, timestamp)
 

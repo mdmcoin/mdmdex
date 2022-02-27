@@ -1,17 +1,17 @@
 package com.wavesplatform.dex.actors.orderbook
 
-import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter._
+import akka.actor.{typed, Stash}
 import akka.{actor => classic}
 import cats.data.NonEmptyList
 import cats.instances.option.catsStdInstancesForOption
 import cats.syntax.apply._
 import cats.syntax.option._
-import com.wavesplatform.dex.actors.MatcherActor.{ForceStartOrderBook, OrderBookCreated, SaveSnapshot}
+import com.wavesplatform.dex.actors.OrderBookDirectoryActor.SaveSnapshot
 import com.wavesplatform.dex.actors.address.AddressActor
 import com.wavesplatform.dex.actors.events.OrderEventsCoordinatorActor
 import com.wavesplatform.dex.actors.orderbook.OrderBookActor._
-import com.wavesplatform.dex.actors.{orderbook, MatcherActor, WorkingStash}
+import com.wavesplatform.dex.actors.{orderbook, OrderBookDirectoryActor}
 import com.wavesplatform.dex.api.ws.actors.WsInternalBroadcastActor
 import com.wavesplatform.dex.api.ws.protocol.WsOrdersUpdate
 import com.wavesplatform.dex.domain.asset.AssetPair
@@ -45,7 +45,7 @@ class OrderBookActor(
   restrictions: Option[OrderRestrictionsSettings]
 )(implicit ec: ExecutionContext, efc: ErrorFormatterContext)
     extends classic.Actor
-    with WorkingStash
+    with Stash
     with ScorexLogging {
 
   override protected lazy val log = LoggerFacade(LoggerFactory.getLogger(s"OrderBookActor[$assetPair]"))
@@ -120,10 +120,11 @@ class OrderBookActor(
       context.become(working)
       unstashAll()
 
-    case x => stash(x)
+    case _ => stash()
   }
 
   private def working: Receive = {
+    // DEX-1192 docs/places-and-cancels.md
     case request: ValidatedCommandWithMeta =>
       actualizeRules(request.offset)
       lastProcessedOffset match {
@@ -131,8 +132,8 @@ class OrderBookActor(
         case _ =>
           lastProcessedOffset = Some(request.offset)
           request.command match {
-            case ValidatedCommand.PlaceOrder(limitOrder) => onAddOrder(request, limitOrder)
-            case ValidatedCommand.PlaceMarketOrder(marketOrder) => onAddOrder(request, marketOrder)
+            case ValidatedCommand.PlaceOrder(limitOrder, _) => onAddOrder(request, limitOrder)
+            case ValidatedCommand.PlaceMarketOrder(marketOrder, _) => onAddOrder(request, marketOrder)
             case x: ValidatedCommand.CancelOrder => onCancelOrder(request, x)
             case _: ValidatedCommand.DeleteOrderBook =>
               process(request.timestamp, orderBook.cancelAll(request.timestamp, OrderCanceledReason.OrderBookDeleted))
@@ -144,9 +145,7 @@ class OrderBookActor(
 
     case AggregatedOrderBookActor.Event.Stopped => context.stop(self)
 
-    case MatcherActor.Ping => sender() ! MatcherActor.Pong
-
-    case ForceStartOrderBook(p) if p == assetPair => sender() ! OrderBookCreated(assetPair)
+    case OrderBookDirectoryActor.Ping => sender() ! OrderBookDirectoryActor.Pong
 
     case OrderBookSnapshotStoreActor.Response.Updated(offset) =>
       log.info(s"Snapshot has been saved at offset $offset")
@@ -164,7 +163,7 @@ class OrderBookActor(
 
     case classic.Terminated(ref) =>
       log.error(s"Terminated actor: $ref")
-      // If this happens the issue is critical and should not be handled. The order book will be stopped, see MatcherActor
+      // If this happens the issue is critical and should not be handled. The order book will be stopped, see OrderBookDirectoryActor
       if (ref == aggregatedRef) throw new RuntimeException("Aggregated order book was terminated")
   }
 
@@ -177,6 +176,7 @@ class OrderBookActor(
   private def processEvents(timestamp: Long, events: IterableOnce[Event]): Unit =
     events.iterator.foreach { event =>
       logEvent(event)
+      // DEX-1192 docs/places-and-cancels.md
       eventsCoordinatorRef ! OrderEventsCoordinatorActor.Command.Process(event)
 
       val changes = event match {
@@ -208,7 +208,7 @@ class OrderBookActor(
       case _ =>
         log.warn(s"Can't apply $command: order not found")
         eventsCoordinatorRef ! OrderEventsCoordinatorActor.Command.ProcessError(
-          OrderCancelFailed(cancelCommand.orderId, error.OrderNotFound(cancelCommand.orderId))
+          OrderCancelFailed(cancelCommand.orderId, error.OrderNotFound(cancelCommand.orderId), cancelCommand.maybeOwner)
         )
     }
   }

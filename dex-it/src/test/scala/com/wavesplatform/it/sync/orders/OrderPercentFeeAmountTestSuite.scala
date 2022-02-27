@@ -3,6 +3,7 @@ package com.wavesplatform.it.sync.orders
 import com.typesafe.config.{Config, ConfigFactory}
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
+import com.wavesplatform.dex.error.{FeeNotEnough, UnexpectedFeeAsset}
 import com.wavesplatform.dex.settings.AssetType._
 
 class V1OrderPercentFeeAmountTestSuite extends OrderPercentFeeAmountTestSuite(1.toByte)
@@ -20,7 +21,7 @@ class V3OrderPercentFeeAmountTestSuite extends OrderPercentFeeAmountTestSuite(3.
         minimalFeeWaves,
         usd
       )
-    ) should failWith(9441540) // UnexpectedFeeAsset
+    ) should failWith(UnexpectedFeeAsset.code)
   }
 
   s"sell order should be rejected is fee Asset not equal TN when fee asset-type = $assetType" in {
@@ -34,7 +35,7 @@ class V3OrderPercentFeeAmountTestSuite extends OrderPercentFeeAmountTestSuite(3.
         minimalFeeWaves,
         usd
       )
-    ) should failWith(9441540) // UnexpectedFeeAsset
+    ) should failWith(UnexpectedFeeAsset.code)
   }
 }
 
@@ -76,10 +77,10 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
       wavesNode1.api.balance(accountSeller, Waves) should be(0L)
       wavesNode1.api.balance(accountSeller, IssuedAsset(UsdId)) shouldBe fullyAmountUsd
 
-      dex1.api.getReservedBalance(accountBuyer).getOrElse(Waves, 0L) shouldBe 0L
-      dex1.api.getReservedBalance(accountBuyer).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
-      dex1.api.getReservedBalance(accountSeller).getOrElse(Waves, 0L) shouldBe 0L
-      dex1.api.getReservedBalance(accountSeller).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
+      dex1.api.getReservedBalanceWithApiKey(accountBuyer).getOrElse(Waves, 0L) shouldBe 0L
+      dex1.api.getReservedBalanceWithApiKey(accountBuyer).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
+      dex1.api.getReservedBalanceWithApiKey(accountSeller).getOrElse(Waves, 0L) shouldBe 0L
+      dex1.api.getReservedBalanceWithApiKey(accountSeller).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
     }
 
     s"users should pay correct fee when fee asset-type = $assetType and order partially filled" in {
@@ -94,13 +95,13 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
       wavesNode1.api.balance(accountSeller, Waves) shouldBe 0L
       wavesNode1.api.balance(accountSeller, IssuedAsset(UsdId)) shouldBe partiallyAmountUsd
 
-      dex1.api.getReservedBalance(accountBuyer).getOrElse(Waves, 0L) shouldBe minimalFeeWaves - partiallyFeeWaves
+      dex1.api.getReservedBalanceWithApiKey(accountBuyer).getOrElse(Waves, 0L) shouldBe minimalFeeWaves - partiallyFeeWaves
       dex1.api
-        .getReservedBalance(accountBuyer)
+        .getReservedBalanceWithApiKey(accountBuyer)
         .getOrElse(IssuedAsset(UsdId), 0L) shouldBe fullyAmountUsd - partiallyAmountUsd
-      dex1.api.getReservedBalance(accountSeller).getOrElse(Waves, 0L) shouldBe 0L
-      dex1.api.getReservedBalance(accountSeller).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
-      dex1.api.cancelAll(accountBuyer)
+      dex1.api.getReservedBalanceWithApiKey(accountSeller).getOrElse(Waves, 0L) shouldBe 0L
+      dex1.api.getReservedBalanceWithApiKey(accountSeller).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
+      dex1.api.cancelAllOrdersWithSig(accountBuyer)
     }
 
     s"order should be processed if amount less then fee when fee asset-type = $assetType" in {
@@ -115,10 +116,10 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
       wavesNode1.api.balance(accountSeller, Waves) should be(0L)
       wavesNode1.api.balance(accountSeller, IssuedAsset(UsdId)) shouldBe fullyAmountUsd
 
-      dex1.api.getReservedBalance(accountBuyer).getOrElse(Waves, 0L) shouldBe 0L
-      dex1.api.getReservedBalance(accountBuyer).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
-      dex1.api.getReservedBalance(accountSeller).getOrElse(Waves, 0L) shouldBe 0L
-      dex1.api.getReservedBalance(accountSeller).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
+      dex1.api.getReservedBalanceWithApiKey(accountBuyer).getOrElse(Waves, 0L) shouldBe 0L
+      dex1.api.getReservedBalanceWithApiKey(accountBuyer).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
+      dex1.api.getReservedBalanceWithApiKey(accountSeller).getOrElse(Waves, 0L) shouldBe 0L
+      dex1.api.getReservedBalanceWithApiKey(accountSeller).getOrElse(IssuedAsset(UsdId), 0L) shouldBe 0L
     }
 
     s"buy order should be rejected user will get tokens for pay fee after order executed when fee asset-type = $assetType" in {
@@ -147,7 +148,7 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
           version = version
         )
       ) should failWith(
-        9441542, // FeeNotEnough
+        FeeNotEnough.code,
         "Required 2.1 TN as fee for this order, but given 2.09 TN"
       )
     }
@@ -164,7 +165,7 @@ abstract class OrderPercentFeeAmountTestSuite(version: Byte) extends OrderFeeBas
           version = version
         )
       ) should failWith(
-        9441542, // FeeNotEnough
+        FeeNotEnough.code,
         "Required 2.1 TN as fee for this order, but given 2.09 TN"
       )
     }

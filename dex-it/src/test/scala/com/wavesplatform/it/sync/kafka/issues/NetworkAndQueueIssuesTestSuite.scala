@@ -15,6 +15,7 @@ import com.wavesplatform.it.WsSuiteBase
 
 import java.util.concurrent.ThreadLocalRandom
 import scala.concurrent.duration.DurationInt
+import scala.util.Using
 
 class NetworkAndQueueIssuesTestSuite extends WsSuiteBase with HasWebSockets with HasKafka {
 
@@ -75,7 +76,7 @@ class NetworkAndQueueIssuesTestSuite extends WsSuiteBase with HasWebSockets with
 
     dex1.tryApi.place(mkOrderDP(alice, wavesUsdPair, SELL, 1.waves, 3.0)) shouldBe Symbol("right")
 
-    dex1.api.cancelAll(alice)
+    dex1.api.cancelAllOrdersWithSig(alice)
   }
 
   "Matcher should free reserved balances if order wasn't placed into the queue" in {
@@ -83,62 +84,64 @@ class NetworkAndQueueIssuesTestSuite extends WsSuiteBase with HasWebSockets with
     val initialWavesBalance: Double = denormalizeWavesAmount(wavesNode1.api.balance(alice, Waves)).toDouble
     val initialUsdBalance: Double = denormalizeAmountAndFee(wavesNode1.api.balance(alice, usd), 2).toDouble
 
-    val wsac = mkWsAddressConnection(alice, dex1)
+    Using.resource(mkWsAddressConnection(alice, dex1)) { wsac =>
 
-    assertChanges(wsac, squash = false)(Map(Waves -> WsBalances(initialWavesBalance, 0), usd -> WsBalances(initialUsdBalance, 0)))()
+      assertChanges(wsac, squash = false)(Map(Waves -> WsBalances(initialWavesBalance, 0), usd -> WsBalances(initialUsdBalance, 0)))()
 
-    val sellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 10.waves, 3.0)
-    placeAndAwaitAtDex(sellOrder)
+      val sellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 10.waves, 3.0)
+      placeAndAwaitAtDex(sellOrder)
 
-    dex1.api.getReservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.04.waves))
 
-    assertChanges(wsac)(Map(Waves -> WsBalances(initialWavesBalance - 10.04, 10.04))) {
-      WsOrder.fromDomain(LimitOrder(sellOrder))
+      dex1.api.getReservedBalanceWithApiKey(alice) should matchTo(Map[Asset, Long](Waves -> 10.04.waves))
+
+      assertChanges(wsac)(Map(Waves -> WsBalances(initialWavesBalance - 10.04, 10.04))) {
+        WsOrder.fromDomain(LimitOrder(sellOrder))
+      }
+
+      disconnectKafkaFromNetwork()
+      Thread.sleep(waitAfterNetworkChanges.toMillis)
+
+      dex1.tryApi.cancelOneOrAllInPairOrdersWithSig(alice, sellOrder) shouldBe Symbol("left")
+
+      val bigSellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 30.waves, 3.0)
+      dex1.tryApi.place(bigSellOrder) shouldBe Symbol("left")
+
+      dex1.api.getReservedBalanceWithApiKey(alice) should matchTo(Map[Asset, Long](Waves -> 10.04.waves))
+
+      assertChanges(wsac, squash = false)(
+        Map(Waves -> WsBalances(initialWavesBalance - 40.08, 40.08)),
+        Map(Waves -> WsBalances(initialWavesBalance - 10.04, 10.04))
+      )()
+
+      val oh = dex1.api.getOrderHistoryByPKWithSig(alice, Some(true))
+      oh should have size 1
+      oh.head.id shouldBe sellOrder.id()
+
+      connectKafkaToNetwork()
+      Thread.sleep(waitAfterNetworkChanges.toMillis)
+
+      dex1.tryApi.cancelOneOrAllInPairOrdersWithSig(alice, sellOrder) shouldBe Symbol("right")
+      dex1.api.waitForOrderStatus(sellOrder, Status.Cancelled)
+
+      dex1.api.getOrderHistoryByPKWithSig(alice, Some(true)) should have size 0
+      dex1.api.getReservedBalanceWithApiKey(alice) shouldBe empty
+
+      assertChanges(wsac, squash = false)(Map(Waves -> WsBalances(initialWavesBalance, 0))) {
+        WsOrder(id = sellOrder.id(), status = OrderStatus.Cancelled.name)
+      }
+
+      dex1.tryApi.place(bigSellOrder) shouldBe Symbol("right")
+      dex1.api.waitForOrderStatus(bigSellOrder, Status.Accepted)
+
+      dex1.api.getOrderHistoryByPKWithSig(alice, Some(true)) should have size 1
+      dex1.api.getReservedBalanceWithApiKey(alice) should matchTo(Map[Asset, Long](Waves -> 30.04.waves))
+
+      assertChanges(wsac, squash = false)(Map(Waves -> WsBalances(initialWavesBalance - 30.04, 30.04))) {
+        WsOrder.fromDomain(LimitOrder(bigSellOrder))
+      }
+
+      dex1.api.cancelAllOrdersWithSig(alice)
     }
-
-    disconnectKafkaFromNetwork()
-    Thread.sleep(waitAfterNetworkChanges.toMillis)
-
-    dex1.tryApi.cancelOrder(alice, sellOrder) shouldBe Symbol("left")
-
-    val bigSellOrder = mkOrderDP(alice, wavesUsdPair, SELL, 30.waves, 3.0)
-    dex1.tryApi.place(bigSellOrder) shouldBe Symbol("left")
-
-    dex1.api.getReservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 10.04.waves))
-
-    assertChanges(wsac, squash = false)(
-      Map(Waves -> WsBalances(initialWavesBalance - 40.08, 40.08)),
-      Map(Waves -> WsBalances(initialWavesBalance - 10.04, 10.04))
-    )()
-
-    val oh = dex1.api.getOrderHistoryByPublicKey(alice, Some(true))
-    oh should have size 1
-    oh.head.id shouldBe sellOrder.id()
-
-    connectKafkaToNetwork()
-    Thread.sleep(waitAfterNetworkChanges.toMillis)
-
-    dex1.tryApi.cancelOrder(alice, sellOrder) shouldBe Symbol("right")
-    dex1.api.waitForOrderStatus(sellOrder, Status.Cancelled)
-
-    dex1.api.getOrderHistoryByPublicKey(alice, Some(true)) should have size 0
-    dex1.api.getReservedBalance(alice) shouldBe empty
-
-    assertChanges(wsac, squash = false)(Map(Waves -> WsBalances(initialWavesBalance, 0))) {
-      WsOrder(id = sellOrder.id(), status = OrderStatus.Cancelled.name)
-    }
-
-    dex1.tryApi.place(bigSellOrder) shouldBe Symbol("right")
-    dex1.api.waitForOrderStatus(bigSellOrder, Status.Accepted)
-    dex1.api.getOrderHistoryByPublicKey(alice, Some(true)) should have size 1
-    dex1.api.getReservedBalance(alice) should matchTo(Map[Asset, Long](Waves -> 30.04.waves))
-
-    assertChanges(wsac, squash = false)(Map(Waves -> WsBalances(initialWavesBalance - 30.04, 30.04))) {
-      WsOrder.fromDomain(LimitOrder(bigSellOrder))
-    }
-
-    dex1.api.cancelAll(alice)
-    wsac.close()
   }
 
   "Matcher should stop working with appropriate error if the queue was " - {
@@ -168,7 +171,7 @@ class NetworkAndQueueIssuesTestSuite extends WsSuiteBase with HasWebSockets with
     val orders = (1 to 10).map(i => mkOrderDP(alice, wavesUsdPair, SELL, 10.waves, 3.0, ttl = i.days))
     orders.foreach(placeAndAwaitAtDex(_))
 
-    orders.foreach(dex1.api.cancelOrder(alice, _))
+    orders.foreach(dex1.api.cancelOneOrAllInPairOrdersWithSig(alice, _))
     dex1.api.waitForOrderHistory(alice, true.some)(_.isEmpty)
 
     dex1.api.saveSnapshots

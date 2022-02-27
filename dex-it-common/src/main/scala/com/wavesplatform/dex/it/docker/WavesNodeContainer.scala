@@ -1,8 +1,5 @@
 package com.wavesplatform.dex.it.docker
 
-import java.net.InetSocketAddress
-import java.nio.file.{Path, Paths}
-
 import cats.tagless.FunctorK
 import com.dimafeng.testcontainers.GenericContainer
 import com.typesafe.config.Config
@@ -14,10 +11,11 @@ import com.wavesplatform.dex.it.cache.CachedData
 import com.wavesplatform.dex.it.resources.getRawContentFromResource
 import com.wavesplatform.dex.it.sttp.LoggingSttpBackend
 import com.wavesplatform.dex.settings.utils.ConfigOps.ConfigOps
-import org.testcontainers.containers.BindMode
-import org.testcontainers.containers.Network.NetworkImpl
+import org.testcontainers.containers.{BindMode, Network}
 import sttp.model.StatusCode
 
+import java.net.InetSocketAddress
+import java.nio.file.{Path, Paths}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
@@ -29,6 +27,7 @@ final case class WavesNodeContainer(override val internalIp: String, underlying:
 ) extends BaseContainer(WavesNodeContainer.baseContainerPath, underlying) {
 
   override protected val cachedRestApiAddress: CachedData[InetSocketAddress] = CachedData(getExternalAddress(WavesNodeContainer.restApiPort))
+  def restApiAddress: InetSocketAddress = cachedRestApiAddress.get()
 
   private val cachedNetworkAddress = CachedData(getInternalAddress(WavesNodeContainer.networkPort))
   private val cachedMatcherExtGrpcApiAddress = CachedData(getExternalAddress(WavesNodeContainer.matcherGrpcExtensionPort))
@@ -56,7 +55,7 @@ final case class WavesNodeContainer(override val internalIp: String, underlying:
 
   def asyncApi: NodeApi[AsyncUnsafe] = apiFunctorK.mapK(asyncRawApi)(toAsyncUnsafe)
   def asyncTryApi: NodeApi[AsyncTry] = apiFunctorK.mapK(asyncRawApi)(toAsyncTry)
-  def asyncRawApi: AsyncEnrichedNodeApi = new AsyncEnrichedNodeApi(apiKey, cachedRestApiAddress.get())
+  def asyncRawApi: AsyncEnrichedNodeApi = new AsyncEnrichedNodeApi(apiKey, restApiAddress)
 
   override def waitReady(): Unit = {
     val r = Iterator
@@ -93,12 +92,14 @@ object WavesNodeContainer extends ScorexLogging {
   val matcherGrpcExtensionPort: Int = 6887 // application.conf waves.dex.grpc.integration.port
   val blockchainUpdatesGrpcExtensionPort: Int = 6881 // application.conf waves.dex.blockchain-updates-grpc.integration.port
 
+  private val exposedPorts = List(restApiPort, networkPort, matcherGrpcExtensionPort, blockchainUpdatesGrpcExtensionPort)
+
   val wavesNodeNetAlias: String = "TN.nodes"
 
   def apply(
     name: String,
     networkName: String,
-    network: NetworkImpl,
+    network: Network,
     internalIp: String,
     runConfig: Config,
     suiteInitialConfig: Config,
@@ -113,16 +114,16 @@ object WavesNodeContainer extends ScorexLogging {
 
     val underlying = GenericContainer(
       dockerImage = image,
-      exposedPorts = List(restApiPort, networkPort, matcherGrpcExtensionPort, blockchainUpdatesGrpcExtensionPort),
       env = getEnv(name, internalIp),
       waitStrategy = ignoreWaitStrategy
     ).configure { c =>
       c.withNetwork(network)
       netAlias.foreach(c.withNetworkAliases(_))
       c.withFileSystemBind(localLogsDir.toString, containerLogsPath, BindMode.READ_WRITE)
-      c.withCreateContainerCmdModifier {
-        _.withName(s"$networkName-$name") // network.getName returns random id
-          .withIpv4Address(internalIp): Unit
+      c.withCreateContainerCmdModifier { cmd =>
+        cmd.withName(s"$networkName-$name") // network.getName returns random id
+          .withIpv4Address(internalIp)
+        cmd.getHostConfig.withPortBindings(PortBindingKeeper.getBindings(cmd, exposedPorts))
       }
 
       // Copy files to container

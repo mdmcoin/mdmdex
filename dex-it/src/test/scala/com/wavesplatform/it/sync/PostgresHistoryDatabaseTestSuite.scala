@@ -24,7 +24,7 @@ import pureconfig.generic.auto._
 
 import scala.concurrent.duration.DurationInt
 import scala.io.Source
-import scala.util.Try
+import scala.util.{Try, Using}
 
 class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgresJdbcContext with OptionValues {
 
@@ -91,16 +91,15 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
     }
 
     def executeCreateTablesStatement(sqlConnection: Connection): Try[Unit] = Try {
-
       val createTablesDDL = getFileContentStr(orderHistoryDDLFileName)
-      val createTablesStatement = sqlConnection.prepareStatement(createTablesDDL)
-
-      createTablesStatement.executeUpdate()
-      createTablesStatement.close()
+      Using.resource(sqlConnection.prepareStatement(createTablesDDL)) { createTablesStatement =>
+        createTablesStatement.executeUpdate()
+      }
     }
 
-    val sqlConnection = DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password)
-    executeCreateTablesStatement(sqlConnection).map(_ => sqlConnection.close()).get // Force throw
+    Using.resource(DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password)) { sqlConnection =>
+      executeCreateTablesStatement(sqlConnection).get // Force throw
+    }
     log.info("Tables created")
   }
 
@@ -115,14 +114,14 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
     dex1.start()
 
-    dex1.api.upsertRate(eth, 0.00567593)
-    dex1.api.upsertRate(btc, 0.00009855)
-    dex1.api.upsertRate(usd, 0.5)
+    dex1.api.upsertAssetRate(eth, 0.00567593)
+    dex1.api.upsertAssetRate(btc, 0.00009855)
+    dex1.api.upsertAssetRate(usd, 0.5)
   }
 
   override def afterEach(): Unit = {
     super.afterEach()
-    Seq(alice, bob).foreach(dex1.api.cancelAll(_))
+    Seq(alice, bob).foreach(dex1.api.cancelAllOrdersWithSig(_))
   }
 
   import ctx._
@@ -231,7 +230,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
     placeAndAwaitAtNode(sellOrder)
 
     // buy counter order is not executed completely, but has filled status
-    dex1.api.getOrderStatus(buyOrder) should matchTo(HttpOrderStatus(Status.Filled, 2.70476663.waves.some, 0.03999992.btc.some))
+    dex1.api.orderStatusByAssetPairAndId(buyOrder) should matchTo(HttpOrderStatus(Status.Filled, 2.70476663.waves.some, 0.03999992.btc.some))
 
     eventually {
       val buyOrderEvents = getEventsInfoByOrderId(buyOrder.id())
@@ -241,7 +240,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
     getEventsInfoByOrderId(sellOrder.id()).last.status shouldBe statusPartiallyFilled
 
-    Seq(alice, bob).foreach(dex1.api.cancelAll(_))
+    Seq(alice, bob).foreach(dex1.api.cancelAllOrdersWithSig(_))
     cleanTables()
   }
 
@@ -284,7 +283,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
 
       // Because we have to wait more than 30 seconds
       eventually(timeout = Timeout(90.seconds), interval = Interval(1.second)) {
-        dex1.api.getOrderStatus(order).status shouldBe Status.Cancelled
+        dex1.api.orderStatusByAssetPairAndId(order).status shouldBe Status.Cancelled
       }
 
       eventually {
@@ -328,7 +327,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
     dex1.api.waitForOrderStatus(buyOrder, Status.PartiallyFilled)
     dex1.api.waitForOrderStatus(sellOrder2, Status.Filled)
 
-    dex1.api.cancelOrder(alice, buyOrder)
+    dex1.api.cancelOneOrAllInPairOrdersWithSig(alice, buyOrder)
 
     withClue("checking info for 2 small submitted orders\n") {
       Set(sellOrder1, sellOrder2).foreach { order =>
@@ -625,7 +624,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
         }
       }
 
-      Seq(alice, bob).foreach(dex1.api.cancelAll(_))
+      Seq(alice, bob).foreach(dex1.api.cancelAllOrdersWithSig(_))
     }
   }
 

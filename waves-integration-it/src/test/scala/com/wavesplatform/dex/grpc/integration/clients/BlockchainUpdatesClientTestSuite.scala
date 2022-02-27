@@ -25,14 +25,9 @@ import monix.execution.cancelables.BooleanCancelable
 import java.util.concurrent.Executors
 import scala.collection.immutable
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext}
 
 class BlockchainUpdatesClientTestSuite extends IntegrationSuiteBase with HasToxiProxy with NoStackTraceCancelAfterFailure {
-
-  implicit override def patienceConfig: PatienceConfig = super.patienceConfig.copy(
-    timeout = 1.minute,
-    interval = 1.second
-  )
 
   private val grpcExecutor = Executors.newCachedThreadPool(
     new ThreadFactoryBuilder()
@@ -52,7 +47,7 @@ class BlockchainUpdatesClientTestSuite extends IntegrationSuiteBase with HasToxi
   private val keepAliveTimeout = 5.seconds
 
   private val grpcSettings = GrpcClientSettings(
-    target = s"127.0.0.1:${blockchainUpdatesProxy.getProxyPort}",
+    target = s"127.0.0.1:${blockchainUpdatesProxy.proxyPort}",
     maxHedgedAttempts = 5,
     maxRetryAttempts = 5,
     keepAliveWithoutCalls = true,
@@ -149,7 +144,7 @@ class BlockchainUpdatesClientTestSuite extends IntegrationSuiteBase with HasToxi
       Thread.sleep(5.seconds.toMillis)
 
       cancellable.cancel()
-      val xs = Await.result(eventsF, 1.minute).map { evt =>
+      val xs = eventsF.futureValue.map { evt =>
         val event = BlockchainUpdatesConversions.toEvent(evt.getUpdate)
         log.debug(s"Got $event")
         event.flatMap {
@@ -208,7 +203,7 @@ class BlockchainUpdatesClientTestSuite extends IntegrationSuiteBase with HasToxi
     broadcastAndAwait(tx)
 
     client.blockchainEvents.startFrom(startHeight)
-    val receivedTx = wait(receivedTxFuture)
+    val receivedTx = receivedTxFuture.futureValue
     client.blockchainEvents.stop()
 
     Thread.sleep(1000)
@@ -216,7 +211,5 @@ class BlockchainUpdatesClientTestSuite extends IntegrationSuiteBase with HasToxi
 
     receivedTx
   }
-
-  private def wait[T](f: => Future[T]): T = Await.result(f, 1.minute)
 
 }

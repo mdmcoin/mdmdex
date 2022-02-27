@@ -9,7 +9,6 @@ import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.crypto.Proofs
 import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.domain.transaction.{ExchangeTransaction, ExchangeTransactionV2}
-import com.wavesplatform.dex.domain.utils.EitherExt2
 import com.wavesplatform.dex.grpc.integration.clients.CheckedBroadcastResult
 import com.wavesplatform.dex.time.{TestTime, Time}
 import org.scalamock.scalatest.PathMockFactory
@@ -232,9 +231,9 @@ class ExchangeTransactionBroadcastActorSpecification
           createdTs = testTime.getTimestamp() - ExchangeTransactionBroadcastActor.ExchangeTransactionExpirationMillis + 10
         )
 
-        manualTime.timePasses(10.millis)
+        manualTime.timePasses(11.millis)
         attempts.get() shouldBe 1
-        testTime.advance(10.millis)
+        testTime.advance(11.millis)
 
         (1 to 10).foreach { _ =>
           manualTime.timePasses(21.millis)
@@ -300,8 +299,7 @@ class ExchangeTransactionBroadcastActorSpecification
           fee = 4000000L,
           timestamp = createdTs,
           proofs = Proofs.empty
-        )
-        .explicitGet()
+        ).transaction
     )
   }
 

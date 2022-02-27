@@ -6,6 +6,7 @@ import com.wavesplatform.dex.domain.asset.Asset.Waves
 import com.wavesplatform.dex.domain.model.Denormalization._
 import com.wavesplatform.dex.domain.model.Normalization._
 import com.wavesplatform.dex.domain.order.OrderType.{BUY, SELL}
+import com.wavesplatform.dex.error.FeeNotEnough
 import com.wavesplatform.it.MatcherSuiteBase
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -36,20 +37,20 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
     broadcastAndAwait(mkTransfer(alice, bob, 100.eth, eth))
 
     dex1.start()
-    dex1.api.upsertRate(eth, 0.00567593)
+    dex1.api.upsertAssetRate(eth, 0.00567593)
   }
 
   "DEX with static non-default DynamicSettings" - {
 
     "should reject orders with insufficient fee" in {
       dex1.tryApi.place(mkOrderDP(maker, wavesUsdPair, SELL, 1.waves, 3.00, 0.00499999.waves)) should failWith(
-        9441542, // FeeNotEnough
-        s"Required 0.05 TN as fee for this order, but given 0.00499999 TN"
+        FeeNotEnough.code,
+        s"Required 0.05 TN as fee for this order, but given 0.00499999 WAVES"
       )
 
       dex1.tryApi.place(mkOrderDP(maker, wavesUsdPair, SELL, 1.waves, 3.00, 0.00002837.eth, eth)) should failWith(
-        9441542, // FeeNotEnough
-        s"Required 0.0002838 $EthId as fee for this order, but given 0.00002837 $EthId"
+        FeeNotEnough.code,
+        s"Required 0.00002838 $EthId as fee for this order, but given 0.00002837 $EthId"
       )
     }
 
@@ -86,8 +87,8 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
         placeAndAwaitAtDex(makerOrder)
         placeAndAwaitAtNode(takerOrder, isMarketOrder = isTMarket)
 
-        dex1.api.cancelAll(maker)
-        dex1.api.cancelAll(taker)
+        dex1.api.cancelAllOrdersWithSig(maker)
+        dex1.api.cancelAllOrdersWithSig(taker)
 
         def printAmount(value: Long, asset: Asset): String = s"${denormalizeAmountAndFee(value, assetDecimalsMap(asset))} $asset"
 
@@ -123,7 +124,7 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
     val offset2 = offset1 + 1
     val offset3 = offset2 + 1
 
-    dex1.restartWithNewSuiteConfig(
+    dex1.safeRestartWithNewSuiteConfig(
       ConfigFactory.parseString(
         s"""
            |TN.dex {
@@ -179,8 +180,8 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
       tx.sellMatcherFee() shouldBe 0.08.waves
       tx.buyMatcherFee() shouldBe 0.05.waves
 
-      dex1.api.cancelAll(maker)
-      dex1.api.cancelAll(taker)
+      dex1.api.cancelAllOrdersWithSig(maker)
+      dex1.api.cancelAllOrdersWithSig(taker)
     }
 
     withClue(
@@ -200,8 +201,8 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
       tx.sellMatcherFee() shouldBe 0.00001419.eth
       tx.buyMatcherFee() shouldBe 0.00000567.eth
 
-      dex1.api.cancelAll(maker)
-      dex1.api.cancelAll(taker)
+      dex1.api.cancelAllOrdersWithSig(maker)
+      dex1.api.cancelAllOrdersWithSig(taker)
     }
   }
 }

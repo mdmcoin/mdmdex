@@ -9,6 +9,7 @@ import com.wavesplatform.dex.domain.crypto
 import com.wavesplatform.dex.domain.crypto.Proofs
 import com.wavesplatform.dex.domain.order.{Order, OrderType, OrderV2}
 import com.wavesplatform.dex.domain.utils.EitherExt2
+import com.wavesplatform.dex.error.{AccountScriptDeniedOrder, AccountScriptReturnedError}
 import com.wavesplatform.dex.it.api.responses.dex.MatcherError
 import com.wavesplatform.dex.it.test.Scripts
 import com.wavesplatform.dex.it.waves.MkWavesEntities.IssueResults
@@ -219,10 +220,10 @@ class ProofAndAssetPairTestSuite extends MatcherSuiteBase {
           val aliceOrd2 = mkOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2)
           placeAndAwaitAtDex(aliceOrd2)
 
-          dex1.api.cancelOrder(alice, aliceOrd1)
+          dex1.api.cancelOneOrAllInPairOrdersWithSig(alice, aliceOrd1)
           dex1.api.waitForOrderStatus(aliceOrd1, Status.Cancelled)
 
-          dex1.api.cancelOrder(alice, aliceOrd2).status shouldBe "OrderCanceled"
+          dex1.api.cancelOneOrAllInPairOrdersWithSig(alice, aliceOrd2).status shouldBe "OrderCanceled"
           dex1.api.waitForOrderStatus(aliceOrd2, Status.Cancelled)
         }
       }
@@ -253,7 +254,7 @@ class ProofAndAssetPairTestSuite extends MatcherSuiteBase {
           val signed = unsigned.copy(proofs = Proofs(Seq(sigAlice, sigBob)))
           placeAndAwaitAtDex(signed)
 
-          dex1.api.cancelOrder(alice, signed)
+          dex1.api.cancelOneOrAllInPairOrdersWithSig(alice, signed)
           dex1.api.waitForOrderStatus(signed, Status.Cancelled)
         }
 
@@ -287,7 +288,7 @@ class ProofAndAssetPairTestSuite extends MatcherSuiteBase {
           waitForOrderAtNode(bobOrd1).head.fee().value() shouldBe 4000000
           waitForOrderAtNode(bobOrd2).head.fee().value() shouldBe 4000000
 
-          dex1.api.getReservedBalance(bob) shouldBe empty
+          dex1.api.getReservedBalanceWithApiKey(bob) shouldBe empty
         }
       }
 
@@ -334,7 +335,7 @@ class ProofAndAssetPairTestSuite extends MatcherSuiteBase {
           waitForOrderAtNode(bobOrd1).head.fee().value() shouldBe 4000000
           waitForOrderAtNode(bobOrd2).head.fee().value() shouldBe 4000000
 
-          dex1.api.getReservedBalance(bob) shouldBe empty
+          dex1.api.getReservedBalanceWithApiKey(bob) shouldBe empty
         }
 
         resetAliceAccountScript()
@@ -349,14 +350,14 @@ class ProofAndAssetPairTestSuite extends MatcherSuiteBase {
           dex1.tryApi.place(
             mkOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2)
           ) should failWith(
-            3147522, // AccountScriptDeniedOrder
+            AccountScriptDeniedOrder.code,
             MatcherError.Params(address = Some(alice.toAddress.stringRepr))
           )
 
           dex1.tryApi.place(
             mkOrder(alice, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2)
           ) should failWith(
-            3147522, // AccountScriptDeniedOrder
+            AccountScriptDeniedOrder.code,
             MatcherError.Params(address = Some(alice.toAddress.stringRepr))
           )
         }
@@ -366,7 +367,7 @@ class ProofAndAssetPairTestSuite extends MatcherSuiteBase {
           dex1.tryApi.place(
             mkOrder(alice, predefAssetPair, OrderType.BUY, 500, 2.waves * Order.PriceConstant, smartMatcherFee, version = 2)
           ) should failWith(
-            3147520, // AccountScriptReturnedError
+            AccountScriptReturnedError.code,
             "An access to the blockchain.height is denied on DEX"
           )
         }
@@ -405,8 +406,8 @@ class ProofAndAssetPairTestSuite extends MatcherSuiteBase {
           r2 shouldBe Symbol("left")
           r2.swap.explicitGet().error shouldBe 307 // node's ApiError TransactionNotAllowedByAccountScript.Id
 
-          dex1.api.orderHistoryWithApiKey(alice, activeOnly = Some(true)).length shouldBe 0
-          dex1.api.getReservedBalance(bob) shouldBe empty
+          dex1.api.getOrderHistoryByPKWithSig(alice, activeOnly = Some(true)).length shouldBe 0
+          dex1.api.getReservedBalanceWithApiKey(bob) shouldBe empty
 
           resetAliceAccountScript()
         }

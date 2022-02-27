@@ -50,7 +50,7 @@ object OrderValidator extends ScorexLogging {
 
   private[dex] def multiplyAmountByDouble(a: Long, d: Double): Long = (BigDecimal(a) * d).setScale(0, RoundingMode.HALF_UP).toLong
   private[dex] def multiplyPriceByDouble(p: Long, d: Double): Long = (BigDecimal(p) * d).setScale(0, RoundingMode.HALF_UP).toLong
-  private[dex] def multiplyFeeByDouble(f: Long, d: Double): Long = (BigDecimal(f) * d).setScale(0, RoundingMode.CEILING).toLong
+  private[dex] def multiplyFeeByBigDecimal(f: Long, d: BigDecimal): Long = (BigDecimal(f) * d).setScale(0, RoundingMode.CEILING).toLong
 
   private def verifySignature(order: Order): FutureResult[Unit] = liftAsync {
     Verifier
@@ -176,7 +176,7 @@ object OrderValidator extends ScorexLogging {
       lazy val exchangeTx: Result[ExchangeTransaction] = {
         val fakeOrder: Order = order.updateType(order.orderType.opposite)
         val oe: OrderExecuted = OrderExecuted(LimitOrder(fakeOrder), LimitOrder(order), time.correctedTime(), order.matcherFee, order.matcherFee)
-        transactionCreator(oe) leftMap (txValidationError => error.CanNotCreateExchangeTransaction(txValidationError.toString))
+        transactionCreator(oe).toEither leftMap (txValidationError => error.CanNotCreateExchangeTransaction(txValidationError.toString))
       }
 
       def verifyAssetScript(assetId: Asset): FutureResult[Unit] = assetId.fold(successAsync) { assetId =>
@@ -229,7 +229,7 @@ object OrderValidator extends ScorexLogging {
   private[dex] def convertFeeByAssetRate(feeInWaves: Long, asset: Asset, assetDecimals: Int, rateCache: RateCache): Result[Long] =
     asset.fold(lift(feeInWaves)) { issuedAsset =>
       rateCache.getRate(issuedAsset) map { assetRate =>
-        multiplyFeeByDouble(
+        multiplyFeeByBigDecimal(
           feeInWaves,
           MatcherModel.correctRateByAssetDecimals(assetRate, assetDecimals)
         )
@@ -299,7 +299,7 @@ object OrderValidator extends ScorexLogging {
         .ensure(error.OrderVersionDenied(order.version, matcherSettings.allowedOrderVersions))(o =>
           matcherSettings.allowedOrderVersions(o.version)
         )
-      _ <- validateBlacklistedAsset(order.feeAsset, error.FeeAssetBlacklisted)
+      _ <- validateBlacklistedAsset(order.feeAsset, error.FeeAssetBlacklisted(_))
       _ <- validateFeeAsset(order, getActualOrderFeeSettings, rateCache)
       _ <- validateFee(order, getActualOrderFeeSettings, feeDecimals, rateCache)
     } yield order
@@ -402,7 +402,7 @@ object OrderValidator extends ScorexLogging {
         (),
         error.WrongExpiration(time.correctedTime(), MinExpiration, order.expiration)
       )
-      _ <- order.isValid(time.correctedTime()).toEither.leftMap(error.OrderCommonValidationFailed)
+      _ <- order.isValid(time.correctedTime()).toEither.leftMap(error.OrderCommonValidationFailed(_))
     } yield order
 
   private def validateBalance(acceptedOrder: AcceptedOrder, tradableBalance: Asset => Long, orderBookCache: OrderBookAggregatedSnapshot)(implicit

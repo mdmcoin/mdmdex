@@ -12,7 +12,7 @@ import com.wavesplatform.settings.BlockchainSettings
 import com.wavesplatform.state.reader.LeaseDetails
 import com.wavesplatform.state.{AssetDescription, AssetScriptInfo, Blockchain, DataEntry, LeaseBalance, VolumeAndFee}
 import com.wavesplatform.transaction.assets.exchange.Order
-import com.wavesplatform.transaction.smart.script.{ScriptRunnerFixed}
+import com.wavesplatform.transaction.smart.script.ScriptRunnerFixed
 import com.wavesplatform.transaction.transfer.TransferTransaction
 import com.wavesplatform.transaction.{Asset, Transaction}
 import shapeless.Coproduct
@@ -21,8 +21,8 @@ import scala.util.control.NoStackTrace
 
 object MatcherScriptRunner {
 
-  def apply(script: Script, order: Order, useStdLibFromScript: Boolean = false): Either[ExecutionError, EVALUATED] =
-    ScriptRunnerFixed(
+  def apply(script: Script, order: Order, isSynchronousCallsActivated: Boolean): Either[ExecutionError, EVALUATED] =
+    ScriptRunnerFixed.applyGeneric(
       in = Coproduct[ScriptRunnerFixed.TxOrd](order),
       blockchain = deniedBlockchain,
       script = script,
@@ -30,8 +30,9 @@ object MatcherScriptRunner {
       scriptContainerAddress = Coproduct[Environment.Tthis](Recipient.Address(ByteStr(order.senderPublicKey.toAddress.bytes))),
       complexityLimit = Int.MaxValue,
       default = TRUE,
-      useStdLibFromScript
-    )._2
+      isSynchronousCallsActivated,
+      isSynchronousCallsActivated
+    )._3
 
   private class Denied(methodName: String)
       extends SecurityException(s"An access to the blockchain.$methodName is denied on DEX")
@@ -40,6 +41,8 @@ object MatcherScriptRunner {
   private def kill(methodName: String) = throw new Denied(methodName)
 
   private val deniedBlockchain = new Blockchain {
+
+    override def hasData(address: Address): Boolean = kill("hasData")
 
     override def transactionInfo(id: BlockId) = kill("transactionInfo")
     override def accountScript(address: Address) = kill("accountScript")

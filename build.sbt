@@ -102,7 +102,7 @@ inScope(Global)(
   Seq(
     scalaVersion := "2.13.4",
     semanticdbEnabled := true,
-    semanticdbVersion :=  scalafixSemanticdb.revision,
+    semanticdbVersion := scalafixSemanticdb.revision,
     organization := "com.wavesplatform",
     organizationName := "TurtleNetwork",
     organizationHomepage := Some(url("https://Turtlenetwork.eu")),
@@ -218,3 +218,6 @@ commands ++= List(
 
 // IDE settings
 ideExcludedDirectories := Seq((root / baseDirectory).value / "_local")
+
+addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
+addCommandAlias("fmtCheck", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
