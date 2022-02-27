@@ -50,7 +50,7 @@ jobs:
 - job: quickCheck
   timeoutInMinutes: 360
   pool:
-    name: Default
+    name: Turtle
 
   steps:
   - script: 'sbt -J-Xms4G -J-Xmx4G quickCheck'
