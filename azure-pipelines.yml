@@ -11,7 +11,7 @@ jobs:
 - job: Default
   timeoutInMinutes: 360
   pool:
-    name: Default
+    name: Turtle
 
   steps:
   - script: |
