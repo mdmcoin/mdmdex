@@ -68,9 +68,9 @@ executableScriptName := "tn-dex-extension"
 
 // Add waves-grpc's JAR, dependency modules are ignored by ExtensionPackaging plugin
 classpathOrdering += ExtensionPackaging.linkedProjectJar(
-  jar = (LocalProject("waves-grpc") / Compile / packageBin).value,
-  art = (LocalProject("waves-grpc") / Compile / packageBin / artifact).value,
-  moduleId = (LocalProject("waves-grpc") / projectID).value
+  jar = (LocalProject("tn-grpc") / Compile / packageBin).value,
+  art = (LocalProject("tn-grpc") / Compile / packageBin / artifact).value,
+  moduleId = (LocalProject("tn-grpc") / projectID).value
 )
 
 // Exclude waves-all*.jar
@@ -104,7 +104,7 @@ inTask(docker)(
 
       val grpcServerDir = unmanagedBase.value
         .listFiles(new FilenameFilter {
-          override def accept(dir: File, name: String): Boolean = name.startsWith("waves-grpc-server") && name.endsWith(".tgz")
+          override def accept(dir: File, name: String): Boolean = name.startsWith("tn-grpc-server") && name.endsWith(".tgz")
         })
         .headOption match {
         case None => throw new RuntimeException("Can't find the grcp-server archive")

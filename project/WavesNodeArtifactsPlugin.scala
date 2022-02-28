@@ -88,8 +88,8 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
         // Additional steps
         // Unpacking waves-grpc-server extension JARs to have all required dependencies, including grpc ones
         val grpcServerArchive = targetDir.listFiles(new FileFilter {
-          override def accept(pathname: File): Boolean = pathname.name.matches("waves-grpc-server.+\\.tgz")
-        }).headOption.getOrElse(throw new RuntimeException("Can't find a waves-grpc-server archive"))
+          override def accept(pathname: File): Boolean = pathname.name.matches("tn-grpc-server.+\\.tgz")
+        }).headOption.getOrElse(throw new RuntimeException("Can't find a tn-grpc-server archive"))
 
         MatcherIOUtils.decompressTgz(grpcServerArchive, targetDir)
         val grpcServerDir = targetDir / grpcServerArchive.name.replace(".tgz", "")
