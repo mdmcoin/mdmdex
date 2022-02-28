@@ -113,7 +113,7 @@ object WavesNodeArtifactsPlugin extends AutoPlugin {
   // List[Alternatives]
   private def artifactNames(version: String): List[List[String]] = List(
     List(s"tn-all-$version.jar"),
-    networkSuffixes.map(x => s"tn$x${version}_all.deb"),
+    networkSuffixes.map(x => s"tn_$x${version}_all.deb"),
     networkSuffixes.map(x => s"tn-grpc-server$x-$version.tgz"),
     networkSuffixes.map(x => s"tn-grpc-server${x}_${version}_all.deb")
   )

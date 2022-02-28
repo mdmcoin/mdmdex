@@ -68,9 +68,9 @@ executableScriptName := "tn-dex-extension"
 
 // Add waves-grpc's JAR, dependency modules are ignored by ExtensionPackaging plugin
 classpathOrdering += ExtensionPackaging.linkedProjectJar(
-  jar = (LocalProject("tn-grpc") / Compile / packageBin).value,
-  art = (LocalProject("tn-grpc") / Compile / packageBin / artifact).value,
-  moduleId = (LocalProject("tn-grpc") / projectID).value
+  jar = (LocalProject("waves-grpc") / Compile / packageBin).value,
+  art = (LocalProject("waves-grpc") / Compile / packageBin / artifact).value,
+  moduleId = (LocalProject("waves-grpc") / projectID).value
 )
 
 // Exclude waves-all*.jar

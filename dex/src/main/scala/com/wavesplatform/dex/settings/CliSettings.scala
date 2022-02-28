@@ -1,7 +1,7 @@
 package com.wavesplatform.dex.settings
 
 import cats.syntax.option._
-import com.wavesplatform.dex.cli.WavesDexCli.Args
+import com.wavesplatform.dex.cli.TnDexCli.Args
 
 import scala.concurrent.duration.FiniteDuration
 
