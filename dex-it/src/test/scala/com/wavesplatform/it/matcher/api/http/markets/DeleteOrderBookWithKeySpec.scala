@@ -56,26 +56,16 @@ class DeleteOrderBookWithKeySpec extends MatcherSuiteBase with ApiKeyHeaderCheck
 
     "should return an error exception when the price asset is not correct base58 string" in {
       validateMatcherError(
-<<<<<<< HEAD:dex-it/src/test/scala/com/wavesplatform/it/matcher/api/http/markets/DeleteOrderBookSpec.scala
-        dex1.rawApi.deleteOrderBook("TN", "null", Map("X-API-KEY" -> apiKey)),
-=======
-        dex1.rawApi.deleteOrderBookWithKey("WAVES", "null", Map("X-API-KEY" -> apiKey)),
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344:dex-it/src/test/scala/com/wavesplatform/it/matcher/api/http/markets/DeleteOrderBookWithKeySpec.scala
+        dex1.rawApi.deleteOrderBookWithKey("TN", "null", Map("X-API-KEY" -> apiKey)),
         StatusCode.BadRequest,
         InvalidAsset.code,
         s"The asset 'null' is wrong, reason: requirement failed: Wrong char 'l' in Base58 string 'null'"
       )
     }
 
-<<<<<<< HEAD:dex-it/src/test/scala/com/wavesplatform/it/matcher/api/http/markets/DeleteOrderBookSpec.scala
-    shouldReturnErrorWithoutApiKeyHeader(dex1.rawApi.deleteOrderBook("TN", UsdId.toString, Map.empty))
+    shouldReturnErrorWithoutApiKeyHeader(dex1.rawApi.deleteOrderBookWithKey("TN", UsdId.toString, Map.empty))
 
-    shouldReturnErrorWithIncorrectApiKeyValue(dex1.rawApi.deleteOrderBook("TN", UsdId.toString, incorrectApiKeyHeader))
-=======
-    shouldReturnErrorWithoutApiKeyHeader(dex1.rawApi.deleteOrderBookWithKey("WAVES", UsdId.toString, Map.empty))
-
-    shouldReturnErrorWithIncorrectApiKeyValue(dex1.rawApi.deleteOrderBookWithKey("WAVES", UsdId.toString, incorrectApiKeyHeader))
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344:dex-it/src/test/scala/com/wavesplatform/it/matcher/api/http/markets/DeleteOrderBookWithKeySpec.scala
+    shouldReturnErrorWithIncorrectApiKeyValue(dex1.rawApi.deleteOrderBookWithKey("TN", UsdId.toString, incorrectApiKeyHeader))
   }
 
 }

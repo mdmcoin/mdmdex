@@ -86,13 +86,8 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
           feeAsset = btc
         )
       ) should failWith(
-<<<<<<< HEAD
-        9441542, // FeeNotEnough
-        s"Required 0.00002 $BtcId as fee for this order, but given 0.000001 $BtcId"
-=======
         FeeNotEnough.code,
-        s"Required 0.0000015 $BtcId as fee for this order, but given 0.000001 $BtcId"
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
+        s"Required 0.00002 $BtcId as fee for this order, but given 0.000001 $BtcId"
       ) // TODO
 
       // TODO
@@ -108,13 +103,8 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         )
       )
 
-<<<<<<< HEAD
-      r should failWith(3147270, s"0.000256 $EthId") // BalanceNotEnough
-      r should failWith(3147270, s"0.0005 $BtcId") // BalanceNotEnough
-=======
-      r should failWith(BalanceNotEnough.code, s"0.0000192 $EthId")
+      r should failWith(BalanceNotEnough.code, s"0.000256 $EthId")
       r should failWith(BalanceNotEnough.code, s"0.0005 $BtcId")
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
 
       List(btc, eth).foreach(dex1.api.deleteAssetRate)
     }
@@ -139,13 +129,8 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       dex1.api.cancelAllOrdersWithSig(bob)
 
       dex1.api.place(mkBobOrder)
-<<<<<<< HEAD
-      val after = dex1.api.getReservedBalance(bob)
-      after(btc) shouldEqual 52000L
-=======
       val after = dex1.api.getReservedBalanceWithApiKey(bob)
-      after(btc) shouldEqual 50150L
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
+      after(btc) shouldEqual 52000L
       after.keys shouldNot contain(Waves)
       dex1.api.cancelAllOrdersWithSig(bob)
       dex1.api.deleteAssetRate(btc)
@@ -192,13 +177,8 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
     "only waves supported" in {
       dex1.tryApi.place(order) should failWith(
-<<<<<<< HEAD
-        9441540, // UnexpectedFeeAsset
-        s"Required one of the following fee asset: TN. But given $BtcId"
-=======
         UnexpectedFeeAsset.code,
-        s"Required one of the following fee asset: WAVES. But given $BtcId"
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
+        s"Required one of the following fee asset: TN. But given $BtcId"
       )
     }
 
@@ -253,24 +233,15 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       )
 
       dex1.api.place(aliceOrder)
-<<<<<<< HEAD
-      dex1.api.getReservedBalance(alice)(eth) shouldBe 25600L
-=======
-      dex1.api.getReservedBalanceWithApiKey(alice)(eth) shouldBe 1920L
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
+      dex1.api.getReservedBalanceWithApiKey(alice)(eth) shouldBe 25600L
       dex1.api.place(mkBobOrder)
       dex1.api.waitForOrderStatus(aliceOrder, Status.PartiallyFilled)
 
       waitForOrderAtNode(aliceOrder)
 
       eventually {
-<<<<<<< HEAD
-        dex1.api.getReservedBalance(alice)(eth) shouldBe 12800L
+        dex1.api.getReservedBalanceWithApiKey(alice)(eth) shouldBe 12800L
         wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 2000L - 50000L)
-=======
-        dex1.api.getReservedBalanceWithApiKey(alice)(eth) shouldBe 960L
-        wavesNode1.api.balance(bob, btc) shouldBe (bobBtcBalance - 150L - 50000L)
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
         wavesNode1.api.balance(alice, btc) shouldBe (aliceBtcBalance + 50000L)
         wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 12800L)
       }
@@ -303,13 +274,8 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
       val newBtcRate = btcRate * 2
 
-<<<<<<< HEAD
-      dex1.httpApi.upsertRate(btc, newBtcRate).code shouldBe StatusCode.Ok
-      dex1.api.getReservedBalance(bob)(btc) shouldBe 52000L
-=======
       dex1.httpApi.upsertAssetRate(btc, newBtcRate).code shouldBe StatusCode.Ok
-      dex1.api.getReservedBalanceWithApiKey(bob)(btc) shouldBe 50150L
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
+      dex1.api.getReservedBalanceWithApiKey(bob)(btc) shouldBe 52000L
       dex1.api.place(mkAliceOrder)
 
       waitForOrderAtNode(bobOrder)
@@ -495,40 +461,22 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
       dex1.api.place(aliceOrder)
       List(bobOrder, aliceOrder).foreach(waitForOrderAtNode(_))
-<<<<<<< HEAD
-      dex1.api.cancelOrder(alice, aliceOrder).status shouldBe "OrderCanceled"
-      dex1.api.getReservedBalance(alice).keys.size shouldBe 0
-      wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 12800L) // 960 = 1920/2
-      List(btc, eth).foreach(dex1.api.deleteRate)
-=======
       dex1.api.cancelOneOrAllInPairOrdersWithSig(alice, aliceOrder).status shouldBe "OrderCanceled"
       dex1.api.getReservedBalanceWithApiKey(alice).keys.size shouldBe 0
-      wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 960L) // 960 = 1920/2
+      wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 12800L) // 960 = 1920/2
       List(btc, eth).foreach(dex1.api.deleteAssetRate)
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
     }
   }
 
   "fee in pairs with different decimals count" in {
-<<<<<<< HEAD
-    upsertRates(usd -> 5d)
-    dex1.tryApi.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, matcherFee = 10L, feeAsset = usd)) should failWith(
-      9441542, // FeeNotEnough
-      s"Required 0.2 $UsdId as fee for this order, but given 0.1 $UsdId"
-    )
-
-    upsertRates(usd -> 3)
-    broadcastAndAwait(mkTransfer(alice, bob.toAddress, 12L, usd))
-=======
     upsertAssetRate(usd -> 5d)
-    dex1.tryApi.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, matcherFee = 1L, feeAsset = usd)) should failWith(
+    dex1.tryApi.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, matcherFee = 10L, feeAsset = usd)) should failWith(
       FeeNotEnough.code,
-      s"Required 0.02 $UsdId as fee for this order, but given 0.01 $UsdId"
+      s"Required 0.2 $UsdId as fee for this order, but given 0.1 $UsdId"
     )
 
     upsertAssetRate(usd -> 3)
     broadcastAndAwait(mkTransfer(alice, bob.toAddress, 1L, usd))
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
 
     val aliceWavesBalance = wavesNode1.api.balance(alice, Waves)
     val aliceUsdBalance = wavesNode1.api.balance(alice, usd)
@@ -539,13 +487,8 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
     dex1.api.place(bobOrder)
 
     dex1.api.getOrderBook(wavesUsdPair).asks shouldBe List(HttpV0LevelAgg(1.waves, 300))
-<<<<<<< HEAD
-    dex1.api.getReservedBalance(bob) shouldBe Map(usd -> 12L, Waves -> 1.waves)
-    dex1.api.cancelOrder(bob, bobOrder)
-=======
-    dex1.api.getReservedBalanceWithApiKey(bob) shouldBe Map(usd -> 1L, Waves -> 1.waves)
+    dex1.api.getReservedBalanceWithApiKey(bob) shouldBe Map(usd -> 12L, Waves -> 1.waves)
     dex1.api.cancelOneOrAllInPairOrdersWithSig(bob, bobOrder)
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
 
     wavesNode1.api.balance(alice, Waves) shouldBe aliceWavesBalance
     wavesNode1.api.balance(alice, usd) shouldBe aliceUsdBalance
@@ -557,11 +500,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
     dex1.api.place(aliceOrderId)
 
     dex1.api.getOrderBook(wavesUsdPair).bids shouldBe List(HttpV0LevelAgg(1.waves, 300))
-<<<<<<< HEAD
-    dex1.api.getReservedBalance(alice) shouldBe Map(usd -> 312)
-=======
-    dex1.api.getReservedBalanceWithApiKey(alice) shouldBe Map(usd -> 301)
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
+    dex1.api.getReservedBalanceWithApiKey(alice) shouldBe Map(usd -> 312)
 
     dex1.api.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 300, 12L, feeAsset = usd))
 
@@ -864,17 +803,10 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
       broadcastAndAwait(mkTransfer(alice, bob, defaultAssetQuantity / 2, eth, 0.02.waves))
 
-<<<<<<< HEAD
-      dex1.restartWithNewSuiteConfig(ConfigFactory.parseString("TN.dex.order-fee.-1.mode = percent").withFallback(dexInitialSuiteConfig))
+      dex1.safeRestartWithNewSuiteConfig(ConfigFactory.parseString("TN.dex.order-fee.-1.mode = percent").withFallback(dexInitialSuiteConfig))
       check()
 
-      dex1.restartWithNewSuiteConfig(ConfigFactory.parseString("TN.dex.order-fee.-1.mode = fixed").withFallback(dexInitialSuiteConfig))
-=======
-      dex1.safeRestartWithNewSuiteConfig(ConfigFactory.parseString("waves.dex.order-fee.-1.mode = percent").withFallback(dexInitialSuiteConfig))
-      check()
-
-      dex1.safeRestartWithNewSuiteConfig(ConfigFactory.parseString("waves.dex.order-fee.-1.mode = fixed").withFallback(dexInitialSuiteConfig))
->>>>>>> 9aa4136ebc2f545b9314b414eb32c447249b4344
+      dex1.safeRestartWithNewSuiteConfig(ConfigFactory.parseString("TN.dex.order-fee.-1.mode = fixed").withFallback(dexInitialSuiteConfig))
       check()
 
       dex1.safeRestartWithNewSuiteConfig(
