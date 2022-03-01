@@ -76,7 +76,7 @@ class GetOrderBookRestrictionsSpec extends MatcherSuiteBase with TableDrivenProp
     forAll(Table(
       ("Amount", "Price", "Http status", "Error code", "Message"),
       ("incorrect", "TN", StatusCode.NotFound, AssetNotFound.code, "The asset incorrect not found"),
-      ("TN", "incorrect", StatusCode.NotFound, OrderAssetPairReversed.code, "The TN-incorrect asset pair should be reversed")
+      ("TN", "incorrect", StatusCode.BadRequest, OrderAssetPairReversed.code, "The TN-incorrect asset pair should be reversed")
     )) { (a: String, p: String, c: StatusCode, e: Int, m: String) =>
       s"for $a/$p should return (HTTP-$c; [$e: $m]) " in {
         validateMatcherError(dex1.rawApi.getOrderBookRestrictions(AssetPair.createAssetPair(a, p).get), c, e, m)

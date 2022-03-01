@@ -16,7 +16,7 @@ class RatesTestSuite extends MatcherSuiteBase {
     s"""TN.dex {
        |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
        |}""".stripMargin
-  )
+  ).withFallback(mkCompositeDynamicFeeSettings(BtcId))
 
   val defaultRateMap: HttpRates = Map(Waves -> 1d)
 

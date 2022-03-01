@@ -8,13 +8,14 @@ class GetMatcherPublicSettingsSpec extends MatcherSuiteBase with RawHttpChecks {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
     s"""TN.dex {
-       |  price-assets = [ "$UsdId", "TN" ]
+       |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
+       |  blacklisted-assets = [ "$BtcId" ]
        |}""".stripMargin
   )
 
   override protected def beforeAll(): Unit = {
     wavesNode1.start()
-    broadcastAndAwait(IssueUsdTx)
+    broadcastAndAwait(IssueUsdTx, IssueBtcTx)
     dex1.start()
   }
 
@@ -27,6 +28,7 @@ class GetMatcherPublicSettingsSpec extends MatcherSuiteBase with RawHttpChecks {
       settings.matcherPublicKey should be(matcher.publicKey)
       settings.priceAssets should have size 2
       settings.priceAssets should contain(usd)
+      settings.priceAssets should not contain btc
     }
   }
 

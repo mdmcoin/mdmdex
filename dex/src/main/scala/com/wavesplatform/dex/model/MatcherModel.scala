@@ -1,7 +1,6 @@
 package com.wavesplatform.dex.model
 
 import java.math.{BigDecimal, BigInteger, RoundingMode}
-
 import cats.instances.long.catsKernelStdGroupForLong
 import cats.syntax.group._
 import com.wavesplatform.dex.domain.account.Address
@@ -13,6 +12,7 @@ import com.wavesplatform.dex.error
 import com.wavesplatform.dex.fp.MapImplicits.cleaningGroup
 import com.wavesplatform.dex.model.AcceptedOrder.FillingInfo
 import com.wavesplatform.dex.model.Events.OrderCanceledReason
+import com.wavesplatform.dex.queue.ValidatedCommandWithMeta
 
 object MatcherModel {
 
@@ -89,9 +89,9 @@ sealed trait AcceptedOrder {
 
   lazy val amountOfPriceAsset: Long = AcceptedOrder.calcAmountOfPriceAsset(amount, price)
 
-  lazy val amountOfAmountAsset: Long = correctedAmountOfAmountAsset(amount, price)
+  lazy val amountOfAmountAsset: Long = AcceptedOrder.correctedAmountOfAmountAsset(amount, price)
 
-  protected def executionAmount(counterPrice: Price): Long = correctedAmountOfAmountAsset(amount, counterPrice)
+  protected def executionAmount(counterPrice: Price): Long = AcceptedOrder.correctedAmountOfAmountAsset(amount, counterPrice)
 
   lazy val isValid: Boolean = isValid(price)
   lazy val isFilled: Boolean = !isValid
@@ -101,20 +101,6 @@ sealed trait AcceptedOrder {
 
   protected def minimalAmountOfAmountAssetByPrice(p: Long): Long =
     Order.PriceConstantDecimal.divide(BigDecimal.valueOf(p), 0, RoundingMode.CEILING).longValue()
-
-  protected def correctedAmountOfAmountAsset(a: Long, p: Long): Long = correctedAmountOfAmountAsset(BigDecimal.valueOf(a), BigDecimal.valueOf(p))
-
-  protected def correctedAmountOfAmountAsset(a: BigDecimal, p: BigDecimal): Long = {
-    val settledTotal = a
-      .multiply(p)
-      .scaleByPowerOfTen(-Order.PriceConstantExponent)
-      .setScale(0, RoundingMode.FLOOR)
-
-    settledTotal
-      .scaleByPowerOfTen(Order.PriceConstantExponent)
-      .divide(p, 0, RoundingMode.CEILING)
-      .longValue()
-  }
 
   def isFirstMatch: Boolean = amount == order.amount
   def forMarket(fm: MarketOrder => Unit): Unit
@@ -141,6 +127,21 @@ object AcceptedOrder {
     .scaleByPowerOfTen(-Order.PriceConstantExponent)
     .setScale(0, RoundingMode.FLOOR)
     .longValue()
+
+  def correctedAmountOfAmountAsset(a: BigDecimal, p: BigDecimal): Long = {
+    val settledTotal = a
+      .multiply(p)
+      .scaleByPowerOfTen(-Order.PriceConstantExponent)
+      .setScale(0, RoundingMode.FLOOR)
+
+    settledTotal
+      .scaleByPowerOfTen(Order.PriceConstantExponent)
+      .divide(p, 0, RoundingMode.CEILING)
+      .longValue()
+  }
+
+  def correctedAmountOfAmountAsset(a: Long, p: Long): Long =
+    correctedAmountOfAmountAsset(BigDecimal.valueOf(a), BigDecimal.valueOf(p))
 
   /**
    * Returns executed amount obtained as a result of the match of submitted and counter orders
@@ -197,7 +198,7 @@ object AcceptedOrder {
     lazy val counterPrice = BigDecimal.valueOf(counter.price)
 
     def minBetweenMatchedAmountAnd(value: Long): Long = math.min(matchedAmount, value)
-    def correctByCounterPrice(value: java.math.BigDecimal): Long = submitted.correctedAmountOfAmountAsset(value, counterPrice)
+    def correctByCounterPrice(value: java.math.BigDecimal): Long = AcceptedOrder.correctedAmountOfAmountAsset(value, counterPrice)
 
     submitted match {
       case _: LimitOrder => matchedAmount
@@ -410,8 +411,14 @@ object Events {
     def reason: EventReason
   }
 
-  case class OrderExecuted(submitted: AcceptedOrder, counter: LimitOrder, timestamp: Long, counterExecutedFee: Long, submittedExecutedFee: Long)
-      extends Event {
+  case class OrderExecuted(
+    submitted: AcceptedOrder,
+    counter: LimitOrder,
+    timestamp: Long,
+    counterExecutedFee: Long,
+    submittedExecutedFee: Long,
+    commandOffset: Option[ValidatedCommandWithMeta.Offset]
+  ) extends Event {
 
     def executedPrice: Long = counter.price
     lazy val executedAmount: Long = AcceptedOrder.executedAmount(submitted, counter)
@@ -467,6 +474,19 @@ object Events {
     def traders: Set[Address] = Set(counter.order.senderPublicKey.toAddress, submitted.order.senderPublicKey.toAddress)
 
     override def reason: EventReason = OrderExecutedReason
+  }
+
+  object OrderExecuted {
+
+    def apply(
+      submitted: AcceptedOrder,
+      counter: LimitOrder,
+      timestamp: Long,
+      counterExecutedFee: Long,
+      submittedExecutedFee: Long,
+      commandOffset: ValidatedCommandWithMeta.Offset
+    ): OrderExecuted = OrderExecuted(submitted, counter, timestamp, counterExecutedFee, submittedExecutedFee, Some(commandOffset))
+
   }
 
   case object OrderExecutedReason extends EventReason

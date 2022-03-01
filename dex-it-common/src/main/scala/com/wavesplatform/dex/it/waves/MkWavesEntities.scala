@@ -15,10 +15,10 @@ import com.wavesplatform.dex.it.config.PredefinedAccounts.matcher
 import com.wavesplatform.dex.it.waves.Implicits._
 import com.wavesplatform.dex.it.waves.MkWavesEntities.IssueResults
 import com.wavesplatform.dex.waves.WavesFeeConstants._
-import im.mak.waves.transactions.common.{Amount, Base64String}
-import im.mak.waves.transactions.invocation.Function
-import im.mak.waves.transactions.mass.Transfer
-import im.mak.waves.transactions.{ExchangeTransaction => JExchangeTransaction, _}
+import com.wavesplatform.transactions.common.{Amount, Base64String}
+import com.wavesplatform.transactions.invocation.Function
+import com.wavesplatform.transactions.mass.Transfer
+import com.wavesplatform.transactions.{ExchangeTransaction => JExchangeTransaction, _}
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
@@ -238,9 +238,26 @@ trait MkWavesEntities {
     matcherFee: Long = matcherFee,
     timestamp: Long = System.currentTimeMillis,
     matcher: KeyPair,
-    chainId: Byte = GenesisConfig.chainId
+    chainId: Byte = GenesisConfig.chainId,
+    buyOrderFeeAsset: Asset = Waves,
+    sellOrderFeeAsset: Asset = Waves,
+    buyOrderVersion: Byte = orderVersion,
+    sellOrderVersion: Byte = orderVersion
   ): JExchangeTransaction =
-    mkDomainExchange(buyOrderOwner, sellOrderOwner, pair, amount, price, matcherFee, timestamp = timestamp, matcher = matcher).toWavesJ(chainId)
+    mkDomainExchange(
+      buyOrderOwner,
+      sellOrderOwner,
+      pair,
+      amount,
+      price,
+      matcherFee,
+      timestamp,
+      matcher,
+      buyOrderFeeAsset,
+      sellOrderFeeAsset,
+      buyOrderVersion,
+      sellOrderVersion
+    ).toWavesJ(chainId)
 
   def mkDomainExchange(
     buyOrderOwner: KeyPair,
@@ -250,11 +267,35 @@ trait MkWavesEntities {
     price: Long,
     matcherFee: Long = matcherFee,
     timestamp: Long = System.currentTimeMillis(),
-    matcher: KeyPair
+    matcher: KeyPair,
+    buyOrderFeeAsset: Asset = Waves,
+    sellOrderFeeAsset: Asset = Waves,
+    buyOrderVersion: Byte = orderVersion,
+    sellOrderVersion: Byte = orderVersion
   ): ExchangeTransaction = {
 
-    val buyOrder = mkOrder(buyOrderOwner, pair, OrderType.BUY, amount, price, matcherFee, matcher = matcher)
-    val sellOrder = mkOrder(sellOrderOwner, pair, OrderType.SELL, amount, price, matcherFee, matcher = matcher)
+    val buyOrder = mkOrder(
+      buyOrderOwner,
+      pair,
+      OrderType.BUY,
+      amount,
+      price,
+      matcherFee,
+      matcher = matcher,
+      feeAsset = buyOrderFeeAsset,
+      version = buyOrderVersion
+    )
+    val sellOrder = mkOrder(
+      sellOrderOwner,
+      pair,
+      OrderType.SELL,
+      amount,
+      price,
+      matcherFee,
+      matcher = matcher,
+      feeAsset = sellOrderFeeAsset,
+      version = sellOrderVersion
+    )
 
     ExchangeTransactionV2
       .create(
@@ -263,10 +304,10 @@ trait MkWavesEntities {
         sellOrder = sellOrder,
         amount = amount,
         price = price,
-        buyMatcherFee = buyOrder.matcherFee,
-        sellMatcherFee = sellOrder.matcherFee,
-        fee = matcherFee,
-        timestamp = timestamp
+        buyOrder.matcherFee,
+        sellOrder.matcherFee,
+        matcherFee,
+        timestamp
       ).transaction
   }
 

@@ -44,7 +44,7 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
        |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", "TN", $EthId ]
        |  order-db.max-orders = $maxOrders
        |}""".stripMargin
-  )
+  ).withFallback(mkCompositeDynamicFeeSettings(UsdnId))
 
   override protected def beforeAll(): Unit = {
     wavesNode1.start()
@@ -388,15 +388,15 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         val o1 = mkOrderDP(bob, wavesUsdPair, SELL, 1.waves, 3000.0, ts = now)
         val o2 = mkOrderDP(bob, wavesUsdPair, SELL, 1.waves, 3000.0, ts = now + 100)
 
-        val orderIds = Set(o1.id(), o2.id())
+        val orderIds = Seq(o1.id(), o2.id())
 
         Seq(o1, o2).foreach(dex1.api.place)
 
-        dex1.tryApi.cancelOrdersByIdsWithKey(bob, orderIds, Some(alice.publicKey)) should failWith(
+        dex1.tryApi.cancelOrdersByIdsWithKeyOrSignature(bob, orderIds, Some(alice.publicKey)) should failWith(
           UserPublicKeyIsNotValid.code,
           "Provided public key is not correct, reason: invalid public key"
         )
-        dex1.tryApi.cancelOrdersByIdsWithKey(bob, orderIds, Some(bob.publicKey)) shouldBe Symbol("right")
+        dex1.tryApi.cancelOrdersByIdsWithKeyOrSignature(bob, orderIds, Some(bob.publicKey)) shouldBe Symbol("right")
       }
 
       "/matcher/orders/{address}" in {
@@ -591,8 +591,24 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
         )
       )
 
+      dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(
+        s"""waves.dex {
+           |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", "WAVES", $EthId]
+           |  blacklisted-assets  = [$EthId]
+           |}""".stripMargin
+      ))
+
       dex1.api.deleteOrderBookWithKey(ethWavesPair)
-      dex1.api.waitForOrderStatus(wavesEthPair, sellOrder1.id(), Status.Cancelled)
+      eventually {
+        dex1.api.getOrderHistoryByPKWithSig(alice, activeOnly = Some(false)).find(_.id == sellOrder1.id()).value.status shouldBe "Cancelled"
+      }
+
+      dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(
+        s"""waves.dex {
+           |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", $EthId, "WAVES" ]
+           |  blacklisted-assets  = []
+           |}""".stripMargin
+      ))
 
       placeAndAwaitAtDex(mkOrderDP(alice, wavesEthPair, SELL, 100, 1))
     }

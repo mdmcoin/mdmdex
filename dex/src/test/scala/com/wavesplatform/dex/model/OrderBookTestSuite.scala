@@ -2,7 +2,6 @@ package com.wavesplatform.dex.model
 
 import java.math.BigInteger
 import java.nio.ByteBuffer
-
 import cats.syntax.semigroup._
 import com.wavesplatform.dex.codecs.OrderBookSideSnapshotCodecs
 import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
@@ -40,7 +39,7 @@ class OrderBookTestSuite
   implicit class OrderBookOps(ob: OrderBook) {
 
     def append(ao: AcceptedOrder, ts: Long, tickSize: Long = MatchingRule.DefaultRule.tickSize): OrderBookUpdates =
-      ob.add(ao, ts, (t, m) => getDefaultMakerTakerFee(t, m), tickSize)
+      ob.add(ao, ts, (t, m) => getDefaultMakerTakerFee(t, m), (eventTs, _) => eventTs, 0L, tickSize)
 
     def appendLimit(o: Order, ts: Long, tickSize: Long = MatchingRule.DefaultRule.tickSize): OrderBookUpdates =
       append(LimitOrder(o), ts, tickSize)
@@ -184,7 +183,7 @@ class OrderBookTestSuite
         Queue[Event](
           OrderAdded(counterSellOrder, OrderAddedReason.RequestExecuted, ts),
           OrderAdded(submittedBuyOrder, OrderAddedReason.RequestExecuted, ts + 1),
-          OrderExecuted(submittedBuyOrder, counterSellOrder, ts + 1, counterSellOrder.matcherFee, submittedBuyOrder.matcherFee)
+          OrderExecuted(submittedBuyOrder, counterSellOrder, ts + 1, counterSellOrder.matcherFee, submittedBuyOrder.matcherFee, 0L)
         )
       )
 
@@ -230,7 +229,7 @@ class OrderBookTestSuite
       events2 should matchTo(
         Queue[Event](
           OrderAdded(submitted, OrderAddedReason.RequestExecuted, submittedTs),
-          OrderExecuted(submitted, counter, submittedTs, submitted.matcherFee, counter.matcherFee)
+          OrderExecuted(submitted, counter, submittedTs, submitted.matcherFee, counter.matcherFee, 0L)
         )
       )
 
@@ -332,9 +331,9 @@ class OrderBookTestSuite
 
     val OrderBookUpdates(ob, _, _, _) = OrderBook.empty.appendAllAccepted(List(ord1, ord2, ord3).map(LimitOrder(_)), nowTs)
 
-    val corrected1 = Order.correctAmount(ord2.amount, ord2.price)
+    val corrected1 = AcceptedOrder.correctedAmountOfAmountAsset(ord2.amount, ord2.price)
     val leftovers1 = ord3.amount - corrected1
-    val corrected2 = Order.correctAmount(leftovers1, ord1.price)
+    val corrected2 = AcceptedOrder.correctedAmountOfAmountAsset(leftovers1, ord1.price)
     val restAmount = ord1.amount - corrected2
     // See OrderExecuted.submittedRemainingFee
     val restFee = ord1.matcherFee - AcceptedOrder.partialFee(ord1.matcherFee, ord1.amount, corrected2)
@@ -363,22 +362,38 @@ class OrderBookTestSuite
 
     val OrderBookUpdates(ob, _, _, _) = OrderBook.empty.appendAllLimit(List(s, b), nowTs)
 
-    val restSAmount = Order.correctAmount(700000L, 280)
+    val restSAmount = AcceptedOrder.correctedAmountOfAmountAsset(700000L, 280)
     val restAmount = 30000000000L - restSAmount
     val restFee = s.matcherFee - AcceptedOrder.partialFee(s.matcherFee, s.amount, restSAmount)
     ob.allOrders.toList should matchTo(List[LimitOrder](SellLimitOrder(restAmount, restFee, s, (BigInt(restSAmount) * 280).bigInteger)))
   }
 
   "cleanup expired buy orders" in {
-    pending
+    val pair = AssetPair(IssuedAsset(ByteStr("BTC".getBytes)), IssuedAsset(ByteStr("USD".getBytes)))
+    val sellOrder = LimitOrder(sell(pair, 1000, 2000, ts = Some(nowTs)))
+    val buyOrder = LimitOrder(buy(pair, 1000, 2000, ts = Some(nowTs), expiration = 500))
+
+    val OrderBookUpdates(ob, _, _, _) =
+      OrderBook.empty
+        .append(sellOrder, nowTs)
+        .orderBook
+        .append(buyOrder, nowTs + 500)
+
+    ob.bids should have size 0
   }
 
   "cleanup expired sell orders" in {
-    pending
-  }
+    val pair = AssetPair(IssuedAsset(ByteStr("BTC".getBytes)), IssuedAsset(ByteStr("USD".getBytes)))
+    val sellOrder = LimitOrder(sell(pair, 1000, 2000, ts = Some(nowTs), expiration = 500))
+    val buyOrder = LimitOrder(buy(pair, 1000, 2000, ts = Some(nowTs)))
 
-  "aggregate levels for snapshot, preserving order" in {
-    pending
+    val OrderBookUpdates(ob, _, _, _) =
+      OrderBook.empty
+        .append(buyOrder, nowTs)
+        .orderBook
+        .append(sellOrder, nowTs + 500)
+
+    ob.asks should have size 0
   }
 
   "LimitOrder serialization" in forAll(limitOrderGenerator) { x =>
@@ -497,7 +512,7 @@ class OrderBookTestSuite
       val gmtf = Fee.getMakerTakerFee(ofs)(_, _)
 
       // Ignore first two OrderAdded, take next OrderExecuted, other events aren't interesting
-      val evt = OrderBook.empty.appendAll(List(maker, taker))(_.add(_, nowTs, gmtf)).events.drop(2).head
+      val evt = OrderBook.empty.appendAll(List(maker, taker))(_.add(_, nowTs, gmtf, (eventTs, _) => eventTs, 0L)).events.drop(2).head
 
       evt shouldBe a[OrderExecuted]
       val oe = evt.asInstanceOf[OrderExecuted]
@@ -537,7 +552,7 @@ class OrderBookTestSuite
       val sell3 = LimitOrder(createOrder(wavesUsdPair, SELL, 110.waves, 3.0))
 
       val OrderBookUpdates(_, events, _, _) = ob.appendAll(Seq(sell1, sell2, sell3, buy).zipWithIndex) {
-        case (ob, (order, timeOffset)) => ob.add(order, ts + timeOffset, getDefaultMakerTakerFee)
+        case (ob, (order, timeOffset)) => ob.add(order, ts + timeOffset, getDefaultMakerTakerFee, (eventTs, _) => eventTs, submittedOffset = 0L)
       }
 
       events should have size (if (buy.isLimit) 7 else 8)
@@ -618,7 +633,8 @@ class OrderBookTestSuite
     asks <- asksGen
     bids <- bidsGen
     lastTrade <- Gen.option(lastTradeGen)
-  } yield OrderBookSnapshot(bids, asks, lastTrade)
+    matchTs <- Gen.choose(0L, System.currentTimeMillis())
+  } yield OrderBookSnapshot(bids, asks, lastTrade, matchTs)
 
   private lazy val sideSnapshotSerGen: Gen[OrderBookSideSnapshot] = Gen.oneOf(asksGen, bidsGen)
 }

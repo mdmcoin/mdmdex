@@ -33,18 +33,16 @@ class OrderHistoryStub(system: ActorSystem, time: Time, maxActiveOrders: Int, ma
     asset => BriefAssetDescription(asset.toString, 2, hasScript = false, isNft = false)
 
   def createAddressActor(address: Address, recovered: Boolean): Props =
-    Props(
-      new AddressActor(
-        address,
-        time,
-        TestOrderDb(maxFinalizedOrders),
-        (_, _) => Future.successful(Right(())),
-        e => Future.successful(Some(ValidatedCommandWithMeta(0L, 0, e))),
-        recovered,
-        blockchainInteraction,
-        AddressActor.Settings.default.copy(maxActiveOrders = maxActiveOrders),
-        assetBriefInfo
-      )
+    AddressActor.props(
+      address,
+      time,
+      TestOrderDb(maxFinalizedOrders),
+      (_, _) => Future.successful(Right(())),
+      e => Future.successful(Some(ValidatedCommandWithMeta(0L, 0, e))),
+      recovered,
+      blockchainInteraction,
+      AddressActor.Settings.default.copy(maxActiveOrders = maxActiveOrders),
+      assetBriefInfo
     )
 
   private def actorFor(ao: AcceptedOrder): ActorRef = actorForAddress(ao.order.sender)
@@ -77,7 +75,8 @@ class OrderHistoryStub(system: ActorSystem, time: Time, maxActiveOrders: Int, ma
     case ox: Events.OrderExecuted =>
       orders += ox.submitted.order.id() -> ox.submitted.order.sender
       orders += ox.counter.order.id() -> ox.counter.order.sender
-      val command = AddressActor.Command.ApplyOrderBookExecuted(ox, mkExchangeTx(ox))
+      val command =
+        AddressActor.Command.ApplyOrderBookExecuted(AddressActor.OrderBookExecutedEvent(ox, mkExchangeTx(ox)))
       List(ox.counter, ox.submitted).map(_.order.sender.toAddress).toSet.map(actorForAddress).foreach(_ ! command)
 
     case oc: Events.OrderCanceled =>

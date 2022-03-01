@@ -5,11 +5,12 @@ import akka.http.scaladsl.model.Uri
 import akka.stream.Materializer
 import com.softwaremill.diffx.{Derived, Diff}
 import com.wavesplatform.dex.api.ws.connection.{WsConnection, WsConnectionOps}
-import com.wavesplatform.dex.api.ws.entities.{WsAddressBalancesFilter, WsBalances, WsMatchTransactionInfo, WsOrder}
+import com.wavesplatform.dex.api.ws.entities.{WsAddressFlag, WsBalances, WsMatchTransactionInfo, WsOrder}
 import com.wavesplatform.dex.api.ws.protocol._
 import com.wavesplatform.dex.domain.account.KeyPair
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.error.ErrorFormatterContext
 import com.wavesplatform.dex.fp.MapImplicits.MapOps
 import com.wavesplatform.dex.it.config.PredefinedAssets
@@ -55,11 +56,11 @@ trait HasWebSockets extends BeforeAndAfterAll with BeforeAndAfterEach with HasJw
     dex: DexContainer,
     keepAlive: Boolean = true,
     subscriptionLifetime: FiniteDuration = 1.hour,
-    filters: Set[WsAddressBalancesFilter] = Set.empty
+    flags: Set[WsAddressFlag] = Set.empty
   ): WsConnection = {
     val jwt = mkJwt(client, lifetime = subscriptionLifetime)
-    val connection = mkDexWsConnection(dex, keepAlive = keepAlive, filters = filters)
-    connection.send(WsAddressSubscribe(client.toAddress, WsAddressSubscribe.defaultAuthType, jwt, filters))
+    val connection = mkDexWsConnection(dex, keepAlive = keepAlive)
+    connection.send(WsAddressSubscribe(client.toAddress, WsAddressSubscribe.defaultAuthType, jwt, flags))
     connection
   }
 
@@ -82,8 +83,7 @@ trait HasWebSockets extends BeforeAndAfterAll with BeforeAndAfterEach with HasJw
     dex: DexContainer,
     os: Option[String] = None,
     client: Option[String] = None,
-    keepAlive: Boolean = true,
-    filters: Set[WsAddressBalancesFilter] = Set.empty
+    keepAlive: Boolean = true
   ): WsConnection = {
     val query: Map[String, String] = Map
       .empty[String, String]
@@ -106,37 +106,54 @@ trait HasWebSockets extends BeforeAndAfterAll with BeforeAndAfterEach with HasJw
     c: WsConnection,
     squash: Boolean = true
   )(expBs: Map[Asset, WsBalances]*)(expOs: WsOrder*): Unit = {
+    val (expBsSquashed, expOsSquashed) =
+      if (squash) {
+        val bs = expBs.toList.squashed
+        val os = expOs.toList.squashed
+        log.info(s"Expecting balance changes: $bs, order changes: $os")
+        (bs, os)
+      } else (Map.empty[Asset, WsBalances], Map.empty[Order.Id, WsOrder])
+
     eventually {
       if (squash) {
-        c.balanceChanges.squashed should matchTo(expBs.toList.squashed)
-        c.orderChanges.squashed should matchTo(expOs.toList.squashed)
+        val bs = c.balanceChanges.squashed
+        val os = c.orderChanges.squashed
+        withClue(s"balanceChanges(squashed: $bs): ")(bs should matchTo(expBsSquashed))
+        withClue(s"orderChanges(squashed: $os): ")(os should matchTo(expOsSquashed))
       } else {
-        c.balanceChanges should matchTo(expBs)
-        c.orderChanges should matchTo(expOs)
+        withClue("balanceChanges: ")(c.balanceChanges should matchTo(expBs))
+        withClue("orderChanges: ")(c.orderChanges should matchTo(expOs))
       }
     }
 
     c.clearMessages()
   }
 
-  protected def mergeWsOrder(orig: WsOrder, diff: WsOrder): WsOrder = WsOrder(
-    id = orig.id,
-    timestamp = diff.timestamp,
-    amountAsset = orig.amountAsset.orElse(diff.amountAsset),
-    priceAsset = orig.priceAsset.orElse(diff.priceAsset),
-    side = orig.side.orElse(diff.side),
-    isMarket = orig.isMarket.orElse(diff.isMarket),
-    price = orig.price.orElse(diff.price),
-    amount = orig.amount.orElse(diff.amount),
-    fee = orig.fee.orElse(diff.fee),
-    feeAsset = orig.feeAsset.orElse(diff.feeAsset),
-    status = diff.status.orElse(orig.status),
-    filledAmount = diff.filledAmount.orElse(orig.filledAmount),
-    filledFee = diff.filledFee.orElse(orig.filledFee),
-    avgWeighedPrice = diff.avgWeighedPrice.orElse(orig.avgWeighedPrice),
-    totalExecutedPriceAssets = diff.totalExecutedPriceAssets.orElse(orig.totalExecutedPriceAssets),
-    matchInfo = (orig.matchInfo ++ diff.matchInfo).distinct
-  )
+  protected def mergeWsOrder(orig: WsOrder, diff: WsOrder): WsOrder = {
+    orig.id shouldBe diff.id
+    orig.amountAsset shouldBe diff.amountAsset
+    orig.priceAsset shouldBe diff.priceAsset
+    orig.side shouldBe diff.side
+    orig.feeAsset shouldBe diff.feeAsset
+    WsOrder(
+      orig.id,
+      diff.timestamp.orElse(orig.timestamp),
+      amountAsset = orig.amountAsset,
+      priceAsset = orig.priceAsset,
+      side = orig.side,
+      isMarket = orig.isMarket.orElse(diff.isMarket),
+      price = orig.price.orElse(diff.price),
+      amount = orig.amount.orElse(diff.amount),
+      fee = orig.fee.orElse(diff.fee),
+      feeAsset = orig.feeAsset,
+      status = diff.status.orElse(orig.status),
+      filledAmount = diff.filledAmount.orElse(orig.filledAmount),
+      filledFee = diff.filledFee.orElse(orig.filledFee),
+      avgWeighedPrice = diff.avgWeighedPrice.orElse(orig.avgWeighedPrice),
+      totalExecutedPriceAssets = diff.totalExecutedPriceAssets.orElse(orig.totalExecutedPriceAssets),
+      matchInfo = (orig.matchInfo ++ diff.matchInfo).distinct
+    )
+  }
 
   protected def mergeAddressChanges(orig: WsAddressChanges, diff: WsAddressChanges): WsAddressChanges = WsAddressChanges(
     address = diff.address,
@@ -147,6 +164,8 @@ trait HasWebSockets extends BeforeAndAfterAll with BeforeAndAfterEach with HasJw
         if (index < 0) x +: r
         else r.updated(index, mergeWsOrder(r(index), x))
     },
+    maybeNotObservedTxs = diff.maybeNotObservedTxs,
+    maybeNotCreatedTxs = diff.maybeNotCreatedTxs,
     updateId = diff.updateId,
     timestamp = diff.timestamp
   )

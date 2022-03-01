@@ -2,7 +2,6 @@ package com.wavesplatform.dex.api.http.routes.v0
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server._
 import akka.stream.Materializer
 import akka.util.Timeout
@@ -17,7 +16,7 @@ import com.wavesplatform.dex.api.routes.PathMatchers.{AddressPM, AssetPairPM, Or
 import com.wavesplatform.dex.api.routes.{ApiRoute, AuthRoute}
 import com.wavesplatform.dex.app.MatcherStatus
 import com.wavesplatform.dex.db.OrderDb
-import com.wavesplatform.dex.domain.account.Address
+import com.wavesplatform.dex.domain.account.{Address, PublicKey}
 import com.wavesplatform.dex.domain.asset.AssetPair
 import com.wavesplatform.dex.domain.bytes.ByteStr
 import com.wavesplatform.dex.domain.utils.ScorexLogging
@@ -36,7 +35,7 @@ final class CancelRoute(
   addressActor: ActorRef,
   override val matcherStatus: () => MatcherStatus,
   orderDb: OrderDb[Future],
-  override val apiKeyHash: Option[Array[Byte]]
+  override val apiKeyHashes: List[Array[Byte]]
 )(implicit mat: Materializer)
     extends ApiRoute
     with ProtectDirective
@@ -52,7 +51,7 @@ final class CancelRoute(
       pathPrefix("orderbook") {
         matcherStatusBarrier(cancelOneOrAllInPairOrdersWithSig ~ cancelAllOrdersWithSig)
       } ~ pathPrefix("orders") {
-        matcherStatusBarrier(cancelOrdersByIdsWithKey ~ cancelOneOrderWithKey)
+        matcherStatusBarrier(cancelOrdersByIdsWithKeyOrSignature ~ cancelOneOrderWithKey)
       }
     }
 
@@ -114,6 +113,7 @@ final class CancelRoute(
   @Path("/orders/{address}/cancel#cancelOrdersByIdsWithKey")
   @ApiOperation(
     value = "Cancel active orders by IDs. Requires API Key",
+    notes = "A response has the same order of ids as in a request. Duplicates are removed",
     httpMethod = "POST",
     authorizations = Array(new Authorization(SwaggerDocService.apiKeyDefinitionName)),
     produces = "application/json",
@@ -133,15 +133,15 @@ final class CancelRoute(
       )
     )
   )
-  def cancelOrdersByIdsWithKey: Route =
+  def cancelOrdersByIdsWithKeyOrSignature: Route =
     (path(AddressPM / "cancel") & post) { addressOrError =>
       (withMetricsAndTraces("cancelAllByApiKeyAndIds") & protect) {
-        (withAuth & withUserPublicKeyOpt) { userPublicKey =>
+        (signedGetByAddress(addressOrError).tmap(_ => Option.empty[PublicKey]) | (withAuth & withUserPublicKeyOpt)) { userPublicKey =>
           withAddress(addressOrError) { address =>
             userPublicKey match {
               case Some(upk) if upk.toAddress != address => invalidUserPublicKey
               case _ =>
-                entity(as[Set[ByteStr]]) { xs =>
+                entity(as[List[ByteStr]]) { xs =>
                   complete {
                     askAddressActor(addressActor, address, AddressActor.Command.CancelOrders(xs, AddressActor.Command.Source.Request))(
                       handleBatchCancelResponse
@@ -216,7 +216,7 @@ final class CancelRoute(
           case (_, Left(e)) => Left(HttpError.from(e, "OrderCancelRejected"))
         }.toList
       )
-    case x: error.MatcherError => StatusCodes.ServiceUnavailable -> HttpError.from(x, "BatchCancelRejected")
+    case x: error.MatcherError => x.httpCode -> HttpError.from(x, "BatchCancelRejected")
   }
 
   private def handleCancelRequestToFuture(
@@ -234,11 +234,11 @@ final class CancelRoute(
         askAddressActor(addressActor, sender, AddressActor.Command.CancelOrder(oid, AddressActor.Command.Source.Request)) {
           case AddressActor.Event.OrderCanceled(x) => SimpleResponse(HttpSuccessfulSingleCancel(x))
           case x: error.MatcherError =>
-            if (x == error.CanNotPersistEvent) StatusCodes.ServiceUnavailable -> HttpError.from(x, "WavesNodeUnavailable")
-            else StatusCodes.BadRequest -> HttpError.from(x, "OrderCancelRejected")
+            if (x == error.CanNotPersistEvent) x.httpCode -> HttpError.from(x, "WavesNodeUnavailable")
+            else x.httpCode -> HttpError.from(x, "OrderCancelRejected")
         }
       case _ =>
-        Future.successful(StatusCodes.BadRequest -> HttpError.from(error.CancelRequestIsIncomplete, "OrderCancelRejected"))
+        Future.successful(error.CancelRequestIsIncomplete.httpCode -> HttpError.from(error.CancelRequestIsIncomplete, "OrderCancelRejected"))
     }
 
 }

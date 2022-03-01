@@ -10,8 +10,8 @@ import cats.syntax.semigroup.catsSyntaxSemigroup
 import com.wavesplatform.dex.actors.orderbook.AggregatedOrderBookActor.MarketStatus
 import com.wavesplatform.dex.caches.RateCache
 import com.wavesplatform.dex.domain.account.{Address, PublicKey}
-import com.wavesplatform.dex.domain.asset.Asset
-import com.wavesplatform.dex.domain.asset.Asset.IssuedAsset
+import com.wavesplatform.dex.domain.asset.Asset.{IssuedAsset, Waves}
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.crypto.Verifier
 import com.wavesplatform.dex.domain.feature.{BlockchainFeature, BlockchainFeatures}
 import com.wavesplatform.dex.domain.model.Normalization
@@ -51,6 +51,7 @@ object OrderValidator extends ScorexLogging {
   private[dex] def multiplyAmountByDouble(a: Long, d: Double): Long = (BigDecimal(a) * d).setScale(0, RoundingMode.HALF_UP).toLong
   private[dex] def multiplyPriceByDouble(p: Long, d: Double): Long = (BigDecimal(p) * d).setScale(0, RoundingMode.HALF_UP).toLong
   private[dex] def multiplyFeeByBigDecimal(f: Long, d: BigDecimal): Long = (BigDecimal(f) * d).setScale(0, RoundingMode.CEILING).toLong
+  private[dex] def multiplyByDiscount(a: Long, d: BigDecimal): Long = (BigDecimal(a) * d).setScale(0, RoundingMode.CEILING).toLong
 
   private def verifySignature(order: Order): FutureResult[Unit] = liftAsync {
     Verifier
@@ -61,8 +62,8 @@ object OrderValidator extends ScorexLogging {
       )
   }
 
-  private def verifyOrderByAccountScript(blockchain: WavesBlockchainClient, address: Address, order: Order)(implicit
-    ec: ExecutionContext
+  private def verifyOrderByAccountScript(blockchain: WavesBlockchainClient, address: Address, order: Order, handleProofs: Order => Order)(
+    implicit ec: ExecutionContext
   ): FutureResult[Unit] = {
 
     lazy val verifyAddressScript: FutureResult[Unit] = {
@@ -70,7 +71,7 @@ object OrderValidator extends ScorexLogging {
       lazy val verifyScript: FutureResult[Unit] = {
         if (order.version <= 1) liftErrorAsync[Unit](error.AccountNotSupportOrderVersion(address, 2, order.version))
         else
-          liftFutureAsync(blockchain.runScript(address, order)) subflatMap {
+          liftFutureAsync(blockchain.runScript(address, handleProofs(order))) subflatMap {
             case RunScriptResult.ScriptError(execError) => error.AccountScriptReturnedError(address, execError).asLeft
             case RunScriptResult.Denied => error.AccountScriptDeniedOrder(address).asLeft
             case RunScriptResult.Allowed => success
@@ -162,11 +163,10 @@ object OrderValidator extends ScorexLogging {
     orderRestrictions: Option[OrderRestrictionsSettings],
     assetDescriptions: Asset => BriefAssetDescription,
     rateCache: RateCache,
-    hasMatcherAccountScript: Boolean
+    hasMatcherAccountScript: Boolean,
+    handleProofs: Order => Order
   )(order: Order)(implicit ec: ExecutionContext, efc: ErrorFormatterContext): FutureResult[Order] =
     timer.measure {
-
-      import ExchangeTransactionCreator.minFee
 
       val assetPair = order.assetPair
       val amountAsset = assetPair.amountAsset
@@ -175,7 +175,15 @@ object OrderValidator extends ScorexLogging {
 
       lazy val exchangeTx: Result[ExchangeTransaction] = {
         val fakeOrder: Order = order.updateType(order.orderType.opposite)
-        val oe: OrderExecuted = OrderExecuted(LimitOrder(fakeOrder), LimitOrder(order), time.correctedTime(), order.matcherFee, order.matcherFee)
+        val oe: OrderExecuted =
+          OrderExecuted(
+            LimitOrder(fakeOrder),
+            LimitOrder(order),
+            time.correctedTime(),
+            order.matcherFee,
+            order.matcherFee,
+            None // don't need it at validation level
+          )
         transactionCreator(oe).toEither leftMap (txValidationError => error.CanNotCreateExchangeTransaction(txValidationError.toString))
       }
 
@@ -188,41 +196,55 @@ object OrderValidator extends ScorexLogging {
       }
 
       /** Checks whether order fee is enough to cover matcher's expenses for the Exchange transaction issue */
-      lazy val validateOrderFeeByTransactionRequirements: FutureResult[Order] = orderFeeSettings match {
-        case ds: DynamicSettings =>
+      lazy val validateOrderFeeByTransactionRequirements: FutureResult[Order] =
+        liftAsync {
           for {
-            minFee <- liftValueAsync(minFee(ds.maxBaseFee, hasMatcherAccountScript, assetPair, assetDescriptions(_).hasScript))
-            minFeeConverted <- liftAsync(convertFeeByAssetRate(minFee, feeAsset, assetDescriptions(feeAsset).decimals, rateCache))
-            _ <- liftAsync(cond(order.matcherFee >= minFeeConverted, order, error.FeeNotEnough(minFeeConverted, order.matcherFee, feeAsset)))
+            minFee <-
+              getMinValidTxFeeForSettings(
+                OrderParams.fromOrder(order),
+                orderFeeSettings,
+                hasMatcherAccountScript,
+                assetDescriptions,
+                rateCache
+              )
+            _ <- cond(order.matcherFee >= minFee, order, error.FeeNotEnough(minFee, order.matcherFee, feeAsset))
           } yield order
-        case _ => liftValueAsync(order)
-      }
+        }
 
       for {
         _ <- checkOrderVersion(order.version, blockchain.isFeatureActivated)
         _ <- validateOrderFeeByTransactionRequirements
         decimalsPair <- validateDecimals(assetDescriptions(_).decimals, order)
         _ <- validateAmountAndPrice(order, decimalsPair, orderRestrictions)
-        _ <- verifyOrderByAccountScript(blockchain, order.sender, order)
+        _ <- verifyOrderByAccountScript(blockchain, order.sender, order, handleProofs)
         _ <- verifyAssetScript(amountAsset)
         _ <- verifyAssetScript(priceAsset)
         _ <- verifyMatcherFeeAssetScript
       } yield order
     }
 
-  private[dex] def getValidFeeAssetForSettings(order: Order, orderFeeSettings: OrderFeeSettings, rateCache: RateCache): Set[Asset] =
+  private[dex] def isDiscountAsset(
+    asset: Asset,
+    orderFeeSettings: OrderFeeSettings
+  ): Boolean =
     orderFeeSettings match {
-      case _: DynamicSettings => rateCache.getAllRates.keySet
+      case cs: CompositeSettings => cs.discount.exists(_.asset == asset)
+      case _ => false
+    }
+
+  @tailrec
+  private[dex] def getValidFeeAssetsForSettings(
+    assetPair: AssetPair,
+    orderType: OrderType,
+    orderFeeSettings: OrderFeeSettings,
+    maybeDiscountAsset: Option[Asset] = None
+  ): Set[Asset] =
+    orderFeeSettings match {
+      case _: DynamicSettings => Set(Waves) ++ maybeDiscountAsset
       case FixedSettings(assetId, _) => Set(assetId)
-      case PercentSettings(assetType, _) =>
-        Set(
-          assetType match {
-            case AssetType.Amount => order.assetPair.amountAsset
-            case AssetType.Price => order.assetPair.priceAsset
-            case AssetType.Receiving => order.getReceiveAssetId
-            case AssetType.Spending => order.getSpendAssetId
-          }
-        )
+      case ps: PercentSettings => Set(ps.getFeeAsset(assetPair, orderType)) ++ maybeDiscountAsset
+      case cs: CompositeSettings =>
+        getValidFeeAssetsForSettings(assetPair, orderType, cs.getOrderFeeSettings(assetPair), cs.discount.map(_.asset))
     }
 
   /** Converts fee in waves to fee in the specified asset, taking into account correction by the asset decimals */
@@ -236,13 +258,18 @@ object OrderValidator extends ScorexLogging {
       } toRight error.RateNotFound(asset)
     }
 
-  private[dex] def getMinValidFeeForPercentFeeSettings(order: Order, percentSettings: PercentSettings, matchPrice: Long): Long = {
-    lazy val receiveAmount = order.getReceiveAmount(order.amount, matchPrice).explicitGet()
-    lazy val spentAmount = order.getSpendAmount(order.amount, matchPrice).explicitGet()
+  private[dex] def getMinValidFeeForPercentFeeSettings(
+    orderType: OrderType,
+    orderAmount: Long,
+    percentSettings: PercentSettings,
+    matchPrice: Long
+  ): Long = {
+    lazy val receiveAmount = Order.getReceiveAmount(orderType, orderAmount, matchPrice).explicitGet()
+    lazy val spentAmount = Order.getSpendAmountUnsafe(orderType, orderAmount, matchPrice).explicitGet()
 
     val amount = percentSettings.assetType match {
-      case AssetType.Amount => order.amount
-      case AssetType.Price => if (order.orderType == OrderType.BUY) spentAmount else receiveAmount
+      case AssetType.Amount => orderAmount
+      case AssetType.Price => if (orderType == OrderType.BUY) spentAmount else receiveAmount
       case AssetType.Receiving => receiveAmount
       case AssetType.Spending => spentAmount
     }
@@ -250,33 +277,91 @@ object OrderValidator extends ScorexLogging {
     multiplyAmountByDouble(amount, percentSettings.minFee / 100)
   }
 
-  /**
-   * Returns minimal valid fee that should be paid to the matcher when order is placed
-   *
-   * @param order            placed order
-   * @param orderFeeSettings matcher settings for the fee of orders
-   * @param rateCache        assets rate cache
-   */
-  private[dex] def getMinValidFeeForSettings(
-    order: Order,
+  private[dex] def getMinValidTxFeeForSettings(
+    orderParams: OrderParams,
     orderFeeSettings: OrderFeeSettings,
-    feeDecimals: Int,
+    hasMatcherAccountScript: Boolean,
+    assetDescriptions: Asset => BriefAssetDescription,
     rateCache: RateCache
-  ): Result[Long] = orderFeeSettings match {
-    case FixedSettings(_, fixedMinFee) => lift(fixedMinFee)
-    case ps: PercentSettings => lift(getMinValidFeeForPercentFeeSettings(order, ps, order.price))
-    case ds: DynamicSettings => convertFeeByAssetRate(ds.maxBaseFee, order.feeAsset, feeDecimals, rateCache)
+  ): Result[Long] = {
+    val extraFee = ExchangeTransactionCreator.minFee(0L, hasMatcherAccountScript, orderParams.assetPair, assetDescriptions(_).hasScript)
+    getMinValidFeeForSettings(
+      orderParams,
+      orderFeeSettings,
+      assetDescriptions(_).decimals,
+      rateCache,
+      extraFeeInWaves = extraFee
+    )
   }
 
-  private def validateFeeAsset(order: Order, orderFeeSettings: OrderFeeSettings, rateCache: RateCache): Result[Order] = {
-    val requiredFeeAssets = getValidFeeAssetForSettings(order, orderFeeSettings, rateCache)
+  @tailrec
+  private[dex] def getMinValidFeeForSettings(
+    orderParams: OrderParams,
+    orderFeeSettings: OrderFeeSettings,
+    assetDecimals: Asset => Int,
+    rateCache: RateCache,
+    extraFeeInWaves: Long = 0L,
+    maybeDiscount: Option[BigDecimal] = None
+  ): Result[Long] = orderFeeSettings match {
+    case FixedSettings(_, fixedMinFee) => lift(fixedMinFee)
+    case cs: CompositeSettings =>
+      val maybeDiscount =
+        cs.discount.flatMap { discountAssetSettings =>
+          if (discountAssetSettings.asset == orderParams.feeAsset)
+            Some(1 - (discountAssetSettings.value / 100))
+          else
+            None
+        }
+      getMinValidFeeForSettings(
+        orderParams,
+        cs.getOrderFeeSettings(orderParams.assetPair),
+        assetDecimals,
+        rateCache,
+        extraFeeInWaves,
+        maybeDiscount
+      )
+    case ds: DynamicSettings =>
+      val fee = maybeDiscount.fold(ds.maxBaseFee)(multiplyByDiscount(ds.maxBaseFee, _))
+      convertFeeByAssetRate(fee + extraFeeInWaves, orderParams.feeAsset, assetDecimals(orderParams.feeAsset), rateCache)
+    case ps: PercentSettings =>
+      convertFeeByAssetRate(ps.minFeeInWaves, orderParams.feeAsset, assetDecimals(orderParams.feeAsset), rateCache)
+        .flatMap { constMinValidFee =>
+          val psFeeAsset = ps.getFeeAsset(orderParams.assetPair, orderParams.orderType)
+          val orderMinValidFee = {
+            val fee = getMinValidFeeForPercentFeeSettings(orderParams.orderType, orderParams.amount, ps, orderParams.price)
+            if (psFeeAsset == orderParams.feeAsset)
+              Right(fee)
+            else
+              for {
+                psFeeAssetRate <- rateCache.getRate(psFeeAsset).toRight(error.RateNotFound(psFeeAsset))
+                discountAssetRate <- rateCache.getRate(orderParams.feeAsset).toRight(error.RateNotFound(orderParams.feeAsset))
+                psFeeAssetRateCorrected = BigDecimal(MatcherModel.correctRateByAssetDecimals(psFeeAssetRate, assetDecimals(psFeeAsset)))
+                discountAssetRateCorrected =
+                  BigDecimal(MatcherModel.correctRateByAssetDecimals(discountAssetRate, assetDecimals(orderParams.feeAsset)))
+              } yield multiplyFeeByBigDecimal(fee, discountAssetRateCorrected / psFeeAssetRateCorrected)
+          }
+
+          orderMinValidFee.map { minValidFee =>
+            val fee = minValidFee max constMinValidFee
+            maybeDiscount.fold(fee)(multiplyByDiscount(fee, _))
+          }
+        }
+  }
+
+  private def validateFeeAsset(order: Order, orderFeeSettings: OrderFeeSettings): Result[Order] = {
+    val requiredFeeAssets = getValidFeeAssetsForSettings(order.assetPair, order.orderType, orderFeeSettings)
     cond(requiredFeeAssets contains order.feeAsset, order, error.UnexpectedFeeAsset(requiredFeeAssets, order.feeAsset))
   }
 
-  private def validateFee(order: Order, orderFeeSettings: OrderFeeSettings, feeDecimals: Int, rateCache: RateCache)(implicit
+  private def validateFee(
+    order: Order,
+    orderFeeSettings: OrderFeeSettings,
+    assetDecimals: Asset => Int,
+    rateCache: RateCache
+  )(implicit
     efc: ErrorFormatterContext
   ): Result[Order] =
-    getMinValidFeeForSettings(order, orderFeeSettings, feeDecimals, rateCache) flatMap { requiredFee =>
+    getMinValidFeeForSettings(OrderParams.fromOrder(order), orderFeeSettings, assetDecimals, rateCache) flatMap { requiredFee =>
       cond(order.matcherFee >= requiredFee, order, error.FeeNotEnough(requiredFee, order.matcherFee, order.feeAsset))
     }
 
@@ -284,7 +369,7 @@ object OrderValidator extends ScorexLogging {
     matcherPublicKey: PublicKey,
     blacklistedAddresses: Set[Address],
     matcherSettings: MatcherSettings,
-    feeDecimals: Int,
+    assetDecimals: Asset => Int,
     rateCache: RateCache,
     getActualOrderFeeSettings: => OrderFeeSettings
   )(order: Order)(implicit efc: ErrorFormatterContext): Result[Order] = {
@@ -300,8 +385,8 @@ object OrderValidator extends ScorexLogging {
           matcherSettings.allowedOrderVersions(o.version)
         )
       _ <- validateBlacklistedAsset(order.feeAsset, error.FeeAssetBlacklisted(_))
-      _ <- validateFeeAsset(order, getActualOrderFeeSettings, rateCache)
-      _ <- validateFee(order, getActualOrderFeeSettings, feeDecimals, rateCache)
+      _ <- validateFeeAsset(order, getActualOrderFeeSettings)
+      _ <- validateFee(order, getActualOrderFeeSettings, assetDecimals, rateCache)
     } yield order
   }
 
@@ -362,11 +447,12 @@ object OrderValidator extends ScorexLogging {
   )(implicit efc: ErrorFormatterContext): Result[Order] = {
 
     def isFeeInDeviationBoundsForMatchedPrice(matchedPrice: Long): Boolean = orderFeeSettings match {
-      case PercentSettings(assetType, minFee) =>
+      case PercentSettings(assetType, minFee, minFeeInWaves) =>
         order.matcherFee >=
           getMinValidFeeForPercentFeeSettings(
-            order,
-            PercentSettings(assetType, minFee * (1 - (deviationSettings.maxFeeDeviation / 100))),
+            order.orderType,
+            order.amount,
+            PercentSettings(assetType, minFee * (1 - (deviationSettings.maxFeeDeviation / 100)), minFeeInWaves),
             matchedPrice
           )
       case _ => true
@@ -479,4 +565,20 @@ object OrderValidator extends ScorexLogging {
   private def lift[T](x: T): Result[T] = x.asRight[MatcherError]
   def liftAsync[T](result: Result[T]): FutureResult[T] = EitherT(Future.successful(result))
   val success: Result[Unit] = lift(())
+
+  final case class OrderParams(
+    assetPair: AssetPair,
+    orderType: OrderType,
+    feeAsset: Asset,
+    amount: Long,
+    price: Long
+  )
+
+  object OrderParams {
+
+    def fromOrder(order: Order): OrderParams =
+      OrderParams(order.assetPair, order.orderType, order.feeAsset, order.amount, order.price)
+
+  }
+
 }

@@ -1,14 +1,17 @@
 package com.wavesplatform.dex.api.http.routes.v0
 
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.directives.FutureDirectives
+import akka.http.scaladsl.server.{Route, _}
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.util.Timeout
+import alleycats.std.all.alleyCatsSetTraverse
 import cats.instances.future._
 import cats.instances.list._
+import cats.syntax.option._
 import cats.syntax.traverse._
 import com.wavesplatform.dex._
 import com.wavesplatform.dex.actors.OrderBookDirectoryActor._
@@ -23,14 +26,15 @@ import com.wavesplatform.dex.api.routes.{ApiRoute, AuthRoute}
 import com.wavesplatform.dex.app.MatcherStatus
 import com.wavesplatform.dex.db.OrderDb
 import com.wavesplatform.dex.domain.account.{Address, PublicKey}
-import com.wavesplatform.dex.domain.asset.AssetPair
-import com.wavesplatform.dex.domain.order.Order
+import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
+import com.wavesplatform.dex.domain.order.{Order, OrderType}
 import com.wavesplatform.dex.domain.utils.ScorexLogging
 import com.wavesplatform.dex.effect.FutureResult
+import com.wavesplatform.dex.error.{Blacklisted, MatcherError}
 import com.wavesplatform.dex.model.{AssetPairBuilder, _}
 import com.wavesplatform.dex.queue.MatcherQueue.StoreValidatedCommand
 import com.wavesplatform.dex.queue.ValidatedCommand
-import com.wavesplatform.dex.settings.{OrderRestrictionsSettings}
+import com.wavesplatform.dex.settings.OrderRestrictionsSettings
 import io.swagger.annotations._
 
 import javax.ws.rs.Path
@@ -48,8 +52,11 @@ final class MarketsRoute(
   storeCommand: StoreValidatedCommand,
   orderBook: AssetPair => Option[Either[Unit, ActorRef]],
   orderBookHttpInfo: OrderBookHttpInfo,
+  isDiscountAsset: Asset => Boolean,
+  getValidFeeAssets: (AssetPair, OrderType) => Set[Asset],
+  getMinValidTxFee: OrderValidator.OrderParams => Future[Either[MatcherError, Long]],
   override val matcherStatus: () => MatcherStatus,
-  override val apiKeyHash: Option[Array[Byte]]
+  override val apiKeyHashes: List[Array[Byte]]
 )(implicit mat: Materializer)
     extends ApiRoute
     with ProtectDirective
@@ -65,7 +72,8 @@ final class MarketsRoute(
     pathPrefix("matcher") {
       pathPrefix("orderbook") {
         matcherStatusBarrier {
-          getOrderBookRestrictions ~ getOrderStatusByPKAndIdWithSig ~ getOrderBook ~ getOrderBooks ~ getOrderBookStatus ~ deleteOrderBookWithKey ~ getOrderStatusByAssetPairAndId
+          getOrderBookRestrictions ~ getOrderStatusByPKAndIdWithSig ~ getOrderBook ~ getOrderBooks ~
+          getOrderBookStatus ~ deleteOrderBookWithKey ~ getOrderStatusByAssetPairAndId ~ cancelAllInOrderBookWithKey ~ calculateFeeByAssetPairAndOrderParams
         }
       } ~ pathPrefix("orders") {
         matcherStatusBarrier(getOrderStatusByAddressAndIdWithKey)
@@ -344,13 +352,53 @@ final class MarketsRoute(
     (path(AssetPairPM) & delete) { pairOrError =>
       (withMetricsAndTraces("deleteOrderBookWithKey") & protect & withAuth) {
         withAssetPair(assetPairBuilder, pairOrError, validate = false) { pair =>
+          withOnlyBlacklistedAssetPair(pair) {
+            orderBook(pair) match {
+              case Some(Right(_)) =>
+                complete(
+                  storeCommand(ValidatedCommand.DeleteOrderBook(pair))
+                    .map {
+                      case None => NotImplemented(error.FeatureDisabled)
+                      case _ => SimpleResponse(StatusCodes.Accepted, "Deleting order book")
+                    }
+                    .recover { case e: Throwable =>
+                      log.error("Can not persist event", e)
+                      CanNotPersist(error.CanNotPersistEvent)
+                    }
+                )
+              case _ => complete(OrderBookUnavailable(error.OrderBookBroken(pair)))
+            }
+          }
+        }
+      }
+    }
+
+  @Path("/orderbook/{amountAsset}/{priceAsset}/cancelAll#cancelAllInOrderBookWithKey")
+  @ApiOperation(
+    value = "Cancel all orders in Order Book for a given Asset Pair. Requires API Key",
+    notes = "Cancel all orders in Order Book for a given Asset Pair. Requires API Key",
+    httpMethod = "POST",
+    authorizations = Array(new Authorization(SwaggerDocService.apiKeyDefinitionName)),
+    tags = Array("markets"),
+    response = classOf[HttpMessage]
+  )
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset ID in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "priceAsset", value = "Price Asset ID in Pair, or 'WAVES'", dataType = "string", paramType = "path")
+    )
+  )
+  def cancelAllInOrderBookWithKey: Route =
+    (path(AssetPairPM / "cancelAll") & post) { pairOrError =>
+      (withMetricsAndTraces("cancelAllInOrderBookWithKey") & protect & withAuth) {
+        withAssetPair(assetPairBuilder, pairOrError) { pair =>
           orderBook(pair) match {
             case Some(Right(_)) =>
               complete(
-                storeCommand(ValidatedCommand.DeleteOrderBook(pair))
+                storeCommand(ValidatedCommand.CancelAllOrders(pair))
                   .map {
                     case None => NotImplemented(error.FeatureDisabled)
-                    case _ => SimpleResponse(StatusCodes.Accepted, "Deleting order book")
+                    case _ => SimpleResponse(StatusCodes.Accepted, "Canceling all orders in order book")
                   }
                   .recover { case e: Throwable =>
                     log.error("Can not persist event", e)
@@ -362,6 +410,64 @@ final class MarketsRoute(
         }
       }
     }
+
+  @Path("/orderbook/{amountAsset}/{priceAsset}/calculateFee#calculateFeeByAssetPairAndOrderParams")
+  @ApiOperation(
+    value = "Calculates fee for a given Asset Pair and Order Params",
+    notes = "Calculates fee for a given Asset Pair and Order Params",
+    httpMethod = "POST",
+    tags = Array("markets"),
+    response = classOf[HttpCalculatedFeeResponse]
+  )
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset ID in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "priceAsset", value = "Price Asset ID in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(
+        name = "body",
+        value = "Json with data",
+        required = true,
+        paramType = "body",
+        dataType = "com.wavesplatform.dex.api.http.entities.HttpCalculateFeeRequest"
+      )
+    )
+  )
+  def calculateFeeByAssetPairAndOrderParams: Route =
+    (path(AssetPairPM / "calculateFee") & post & entity(as[HttpCalculateFeeRequest])) { (pairOrError, calcFeeRequest) =>
+      withMetricsAndTraces("calculateFeeByAssetPairAndOrderParams") {
+        withAssetPair(assetPairBuilder, pairOrError) { pair =>
+          val feeAssets = getValidFeeAssets(pair, calcFeeRequest.orderType)
+          val assetsMinTxFee: Future[Either[MatcherError, Set[(Asset, HttpOffset)]]] =
+            feeAssets.map { asset =>
+              val minTxFee = getMinValidTxFee(
+                OrderValidator.OrderParams(pair, calcFeeRequest.orderType, asset, calcFeeRequest.amount, calcFeeRequest.price)
+              )
+              minTxFee.map(_.map(asset -> _))
+            }.sequence.map(_.sequence)
+
+          complete {
+            assetsMinTxFee.map[ToResponseMarshallable] {
+              case Left(matcherError) => SimpleErrorResponse(matcherError)
+              case Right(assetsMinTxFee) =>
+                assetsMinTxFee.foldLeft(HttpCalculatedFeeResponse(none, none)) { case (response, (asset, fee)) =>
+                  if (isDiscountAsset(asset))
+                    response.copy(discount = HttpCalculatedFeeResponse.CalculatedFee(asset, fee).some)
+                  else
+                    response.copy(base = HttpCalculatedFeeResponse.CalculatedFee(asset, fee).some)
+                }
+            }
+          }
+        }
+      }
+    }
+
+  private def withOnlyBlacklistedAssetPair(assetPair: AssetPair): Directive0 = FutureDirectives.onSuccess(
+    assetPairBuilder.validateAssetPair(assetPair).value
+  ).flatMap {
+    case Left(_: MatcherError with Blacklisted) => pass
+    case Left(e) => complete(InfoNotFound(e))
+    case Right(_) => complete(InfoNotFound(error.AssetPairNotBlacklisted(assetPair)))
+  }
 
   private def getOrderBookRestrictions(pair: AssetPair): FutureResult[HttpOrderBookInfo] = settings.getActualTickSize(pair).map { tickSize =>
     HttpOrderBookInfo(

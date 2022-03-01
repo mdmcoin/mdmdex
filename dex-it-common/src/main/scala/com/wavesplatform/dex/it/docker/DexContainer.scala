@@ -3,6 +3,7 @@ package com.wavesplatform.dex.it.docker
 import cats.Functor
 import cats.tagless.FunctorK
 import com.dimafeng.testcontainers.GenericContainer
+import com.github.dockerjava.api.model.Capability
 import com.typesafe.config.Config
 import com.wavesplatform.dex.app.MatcherStatus.Working
 import com.wavesplatform.dex.domain.utils.ScorexLogging
@@ -75,6 +76,17 @@ final case class DexContainer private (override val internalIp: String, underlyi
     super.restartWithNewSuiteConfig(newSuiteConfig)
   }
 
+  def switchOutgoingTrafficOnPort(port: Int, block: Boolean): Unit = {
+    val shouldBlock = if (block) "-A" else "-D"
+    underlying.container.execInContainer(List("iptables-legacy", shouldBlock, "OUTPUT", "-p", "tcp", "--dport", s"$port", "-j", "DROP"): _*)
+  }
+
+  def blockKafkaTraffic(kafkaPort: Int = 9092): Unit =
+    switchOutgoingTrafficOnPort(kafkaPort, block = true)
+
+  def unblockKafkaTraffic(kafkaPort: Int = 9092): Unit =
+    switchOutgoingTrafficOnPort(kafkaPort, block = false)
+
   /**
    * This method could affect an execution of orders. If you provide such settings, use safe.
    * Use on your risk.
@@ -108,8 +120,14 @@ object DexContainer extends ScorexLogging {
   private val baseContainerPath: String = "/usr/share/tn-dex"
   private val containerLogsPath: String = s"$baseContainerPath/logs"
 
+<<<<<<< HEAD
   private val restApiPort: Int = 6886 // application.conf TN.dex.rest-api.port
   private val exposedPorts = Seq(6886)
+=======
+  private val restApiPort: Int = 6886 // application.conf waves.dex.rest-api.port
+  private val prometheusPort = 9095
+  private val exposedPorts = Seq(restApiPort, prometheusPort)
+>>>>>>> 09ad80e4504ebe895c1721c8bc1709043719926b
 
   def apply(
     name: String,
@@ -136,7 +154,10 @@ object DexContainer extends ScorexLogging {
       c.withCreateContainerCmdModifier { cmd =>
         cmd.withName(s"$networkName-$name") // network.getName returns random id
           .withIpv4Address(internalIp)
-        cmd.getHostConfig.withPortBindings(PortBindingKeeper.getBindings(cmd, exposedPorts))
+
+        cmd.getHostConfig
+          .withPortBindings(PortBindingKeeper.getBindings(cmd, exposedPorts))
+          .withCapAdd(Capability.NET_ADMIN, Capability.NET_RAW) //for iptables
       }
 
       // Copy files to container

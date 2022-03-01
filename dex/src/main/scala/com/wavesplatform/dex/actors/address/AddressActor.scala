@@ -4,28 +4,30 @@ import akka.actor.typed.scaladsl.adapter._
 import akka.actor.{typed, Actor, ActorRef, Cancellable, Props, Stash, Status}
 import akka.pattern.{pipe, CircuitBreakerOpenException}
 import akka.{actor => classic}
+import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.instances.long._
-import cats.syntax.either._
-import cats.syntax.option._
 import cats.syntax.foldable._
 import cats.syntax.group.catsSyntaxGroup
+import cats.syntax.option._
+import cats.syntax.semigroup._
+import com.wavesplatform.dex.actors.address.AddressActor.Command.{HasOrderBookEvents, ObservedTxData}
 import com.wavesplatform.dex.actors.address.AddressActor.Settings.default
 import com.wavesplatform.dex.actors.address.AddressActor._
 import com.wavesplatform.dex.actors.address.BalancesFormatter.format
 import com.wavesplatform.dex.api.http.entities.MatcherResponse
-import com.wavesplatform.dex.api.ws.entities.{WsAddressBalancesFilter, WsAssetInfo, WsBalances, WsOrder}
+import com.wavesplatform.dex.api.ws.entities.{WsAddressFlag, WsAssetInfo, WsBalances, WsOrder}
 import com.wavesplatform.dex.api.ws.protocol.WsAddressChanges
 import com.wavesplatform.dex.api.ws.state.WsAddressState
 import com.wavesplatform.dex.collections.{NegativeMap, PositiveMap}
 import com.wavesplatform.dex.db.OrderDb
 import com.wavesplatform.dex.db.OrderDb.orderInfoOrdering
-import com.wavesplatform.dex.domain.account.Address
+import com.wavesplatform.dex.domain.account.{Address, PublicKey}
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.model.Denormalization.denormalizeAmountAndFee
 import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.domain.transaction.{ExchangeTransaction, ExchangeTransactionResult, ExchangeTransactionV2}
-import com.wavesplatform.dex.domain.utils.{LoggerFacade, ScorexLogging}
+import com.wavesplatform.dex.domain.utils.LoggerFacade
 import com.wavesplatform.dex.effect.Implicits.FutureOps
 import com.wavesplatform.dex.error
 import com.wavesplatform.dex.error.{ErrorFormatterContext, MatcherError, UnexpectedError, WavesNodeConnectionBroken}
@@ -45,6 +47,7 @@ import kamon.trace.Span
 import org.slf4j.LoggerFactory
 
 import java.time.{Instant, Duration => JDuration}
+import java.util.concurrent.ConcurrentHashMap
 import scala.collection.immutable.Queue
 import scala.collection.mutable.{AnyRefMap => MutableMap, HashSet => MutableSet}
 import scala.concurrent.duration._
@@ -60,17 +63,18 @@ class AddressActor(
   recovered: Boolean,
   blockchain: BlockchainInteraction,
   settings: AddressActor.Settings = AddressActor.Settings.default,
-  getAssetDescription: Asset => BriefAssetDescription
+  getAssetDescription: Asset => BriefAssetDescription,
+  log: LoggerFacade
 ) extends Actor
-    with Stash
-    with ScorexLogging {
+    with Stash {
 
   import context.dispatcher
 
   implicit val efc = ErrorFormatterContext.from(a => getAssetDescription(a).decimals)
 
-  override protected lazy val log = LoggerFacade(LoggerFactory.getLogger(s"AddressActor[$owner]"))
   private val ignoreRef = context.system.toTyped.ignoreRef.toClassic
+
+  private val enableRealtimeWs = settings.realtimeWsAddresses.contains(owner) || settings.wsMessagesInterval.length == 0
 
   private var isWorking = false
 
@@ -78,6 +82,10 @@ class AddressActor(
   //  placing an order may affect following places.
   private var placementQueue = Queue.empty[EnqueuedOrder]
   private val pendingCommands = MutableMap.empty[Order.Id, PendingCommand]
+
+  // orders that in process of adding, but may not be present in leveldb or in pendingCommands and activeOrders
+  // See DEX-1435, DEX-1511
+  private val processingOrders = ConcurrentHashMap.newKeySet[Order.Id]()
 
   private val activeOrders = MutableMap.empty[Order.Id, AcceptedOrder]
   private val expiration = MutableMap.empty[Order.Id, Cancellable]
@@ -102,7 +110,9 @@ class AddressActor(
       //    but anyway saved to a queue and processed
       //  - for slave DEX it is a new order and we have to send balance changes via WS API
       val origActiveOrder = activeOrders.get(order.id)
-      log.debug(s"OrderAdded(${order.id}, ${event.reason}, ${event.timestamp}), isNew=${origActiveOrder.isEmpty}, status: ${order.status}")
+      log.debug(
+        s"OrderAdded(${order.id}, ${event.reason}, ${event.timestamp}), isNew=${origActiveOrder.isEmpty}, status: ${order.status}"
+      )
       activeOrders.put(order.id, order)
 
       def reserve(xs: Map[Asset, Long]): Unit = {
@@ -137,56 +147,74 @@ class AddressActor(
       scheduleExpiration(order.order)
       scheduleOrderWs(order, order.status, unmatchable = false, maybeMatchTx = None)
 
-      if (isWorking) pendingCommands.remove(order.id).foreach { command =>
-        log.trace(s"Confirming placement for ${order.id}")
-        command.client ! Event.OrderAccepted(order.order)
-      }
+      if (isWorking)
+        pendingCommands.remove(order.id).foreach { command =>
+          log.trace(s"Confirming placement for ${order.id}")
+          command.client ! Event.OrderAccepted(order.order)
+        }
 
     case command: Command.ApplyOrderBookExecuted =>
-      val ownerRemainingOrders = List(command.event.counterRemaining, command.event.submittedRemaining).filter(_.order.sender.toAddress == owner)
-      val txResult = command.expectedTx
-      log.debug(
-        s"OrderExecuted(${ownerRemainingOrders.map(o => s"${o.id} -> ${o.status}").mkString(
-          ", "
-        )}, tx=${txResult.transaction.id()}${txResult.error.fold("")(e => s", e=$e")}"
+      val orderExecutedUpdates = command.nonEmptyEvents.foldLeft(WsOrderExecutedUpdates()) {
+        case (acc, event) =>
+          val ownerRemainingOrders = List(event.event.counterRemaining, event.event.submittedRemaining).filter(_.order.sender.toAddress == owner)
+          val txResult = event.expectedTx
+          log.debug(
+            s"OrderExecuted(${ownerRemainingOrders.map(o => s"${o.id} -> ${o.status}").mkString(
+              ", "
+            )}, tx=${txResult.transaction.id()}${txResult.error.fold("")(e => s", e=$e")}"
+          )
+
+          val cumulativeDiff = ownerRemainingOrders
+            .foldMap { remaining =>
+              remaining.status match {
+                case status: OrderStatus.Final =>
+                  expiration.remove(remaining.id).foreach(_.cancel())
+                  orderDb.saveOrderInfo(remaining.id, owner, OrderInfo.v6(remaining, status)).onComplete { t =>
+                    //TODO probably inconsistent state can be introduced
+                    t.failed.foreach(log.error("error while saving order info", _))
+                    processingOrders.remove(remaining.id)
+                  }
+                  activeOrders.remove(remaining.id) match {
+                    case Some(origActiveOrder) => origActiveOrder.reservableBalance.inverse()
+                    case None => throw new IllegalStateException(s"Can't find order ${remaining.id} during finalization")
+                  }
+
+                case _ =>
+                  activeOrders.put(remaining.id, remaining) match {
+                    case Some(origActiveOrder) => (remaining.reservableBalance |-| origActiveOrder.reservableBalance).filterNot(_._2 == 0)
+                    case None => throw new IllegalStateException(s"Can't find order ${remaining.id}")
+                  }
+              }
+            }
+            .filterNot(_._2 == 0) // Fee could be 0 if an order executed by a small amount
+
+          val (updated, changes) =
+            balances.withExecuted(
+              txResult.toOption.map(_.id()),
+              AddressBalance.NotObservedTxData(ownerRemainingOrders.map(_.id), NegativeMap(cumulativeDiff))
+            )
+          balances = updated
+
+          val reservedAssets = ownerRemainingOrders.flatMap(_.requiredBalance.keys).toSet
+          val newReserved = balances.reserved.filter { case (asset, _) => reservedAssets.contains(asset) }
+          log.info(
+            s"[Balance] 1. 💵: ${format(balances.tradableBalance(cumulativeDiff.keySet).xs)}; e: ${format(cumulativeDiff)}, ov: ${format(newReserved)}"
+          )
+          val currentUpdate = WsOrderExecutedUpdates(ownerRemainingOrders.map(AcceptedOrderWithTx(_, txResult)), changes)
+          acc merge currentUpdate
+      }
+
+      scheduleWs(
+        wsAddressState
+          .putChangedAssets(orderExecutedUpdates.changedAssets.changedAssets)
+          .putTxsUpdate(
+            orderExecutedUpdates.changedAssets.addedNotObservedTxs,
+            orderExecutedUpdates.changedAssets.removedNotObservedTxs,
+            orderExecutedUpdates.changedAssets.addedNotCreatedTxs,
+            orderExecutedUpdates.changedAssets.removedNotCreatedTxs
+          )
       )
-
-      val cumulativeDiff = ownerRemainingOrders
-        .foldMap { remaining =>
-          scheduleOrderWs(remaining, remaining.status, unmatchable = false, maybeMatchTx = txResult.transaction.some)
-
-          remaining.status match {
-            case status: OrderStatus.Final =>
-              expiration.remove(remaining.id).foreach(_.cancel())
-              orderDb.saveOrderInfo(remaining.id, owner, OrderInfo.v6(remaining, status)).onComplete {
-                case Success(_) =>
-                case Failure(th) =>
-                  //TODO probably inconsistent state can be introduced
-                  log.error("error while saving order info", th)
-              }
-              activeOrders.remove(remaining.id) match {
-                case Some(origActiveOrder) => origActiveOrder.reservableBalance.inverse()
-                case None => throw new IllegalStateException(s"Can't find order ${remaining.id} during finalization")
-              }
-
-            case _ =>
-              activeOrders.put(remaining.id, remaining) match {
-                case Some(origActiveOrder) => (remaining.reservableBalance |-| origActiveOrder.reservableBalance).filterNot(_._2 == 0)
-                case None => throw new IllegalStateException(s"Can't find order ${remaining.id}")
-              }
-          }
-        }
-        .filterNot(_._2 == 0) // Fee could be 0 if an order executed by a small amount
-
-      val (updated, changedAssets) = balances.withExecuted(txResult.toOption.map(_.id()), NegativeMap(cumulativeDiff))
-      balances = updated
-      scheduleWs(wsAddressState.putChangedAssets(changedAssets))
-
-      val reservedAssets = ownerRemainingOrders.flatMap(_.requiredBalance.keys).toSet
-      val newReserved = balances.reserved.filter { case (asset, _) => reservedAssets.contains(asset) }
-      log.info(
-        s"[Balance] 1. 💵: ${format(balances.tradableBalance(cumulativeDiff.keySet).xs)}; e: ${format(cumulativeDiff)}, ov: ${format(newReserved)}"
-      )
+      scheduleOrdersWs(orderExecutedUpdates.ownerRemainingOrders)
 
     case command: Command.ApplyOrderBookCanceled =>
       import command.event._
@@ -203,12 +231,11 @@ class AddressActor(
       origActiveOrder match {
         case None => // Can be received twice, because multiple matchers can cancel same order
         case Some(origActiveOrder) =>
-          expiration.remove(acceptedOrder.id).foreach(_.cancel())
-          orderDb.saveOrderInfo(acceptedOrder.id, owner, OrderInfo.v6(acceptedOrder, orderStatus)).onComplete {
-            case Success(_) =>
-            case Failure(th) =>
-              //TODO probably inconsistent state can be introduced
-              log.error("error while saving order info", th)
+          expiration.remove(id).foreach(_.cancel())
+          orderDb.saveOrderInfo(id, owner, OrderInfo.v6(acceptedOrder, orderStatus)).onComplete { t =>
+            //TODO probably inconsistent state can be introduced
+            t.failed.foreach(log.error("error while saving order info", _))
+            processingOrders.remove(id)
           }
 
           val orderReserve = origActiveOrder.reservableBalance
@@ -220,10 +247,11 @@ class AddressActor(
           scheduleOrderWs(acceptedOrder, orderStatus, unmatchable, maybeMatchTx = None)
       }
 
-      if (isWorking) pendingCommands.remove(id).foreach { pc =>
-        log.trace(s"Confirming cancellation for $id")
-        pc.client ! Event.OrderCanceled(id)
-      }
+      if (isWorking)
+        pendingCommands.remove(id).foreach { pc =>
+          log.trace(s"Confirming cancellation for $id")
+          pc.client ! Event.OrderCanceled(id)
+        }
 
     case command: Command.ChangeBalances => changeBalances(command.updates)
 
@@ -237,11 +265,14 @@ class AddressActor(
     case command: Command.MarkTxsObserved => markTxsObserved(command.txsWithSpending)
 
     case command @ OrderCancelFailed(id, reason, _) =>
-      if (isWorking) pendingCommands.remove(id) match {
-        case None => // Ok on secondary matcher
-        case Some(pc) =>
-          log.trace(s"$command, sending a response to a client")
-          pc.client ! reason
+      if (isWorking) {
+        pendingCommands.remove(id) match {
+          case None => // Ok on secondary matcher
+          case Some(pc) =>
+            log.trace(s"$command, sending a response to a client")
+            pc.client ! reason
+        }
+        processingOrders.remove(id)
       }
   }
 
@@ -282,9 +313,10 @@ class AddressActor(
       log.debug(s"$command")
       val orderId = command.order.id()
       if (totalActiveOrders >= settings.maxActiveOrders) sender() ! error.ActiveOrdersLimitReached(settings.maxActiveOrders)
-      else if (failedPlacements.contains(orderId)) sender() ! error.OrderDuplicate(orderId)
+      else if (failedPlacements.contains(orderId) || processingOrders.contains(orderId)) sender() ! error.OrderDuplicate(orderId)
       else {
         val origSender = sender()
+        processingOrders.add(orderId)
         orderDb.containsInfo(orderId).onComplete {
           case Success(containsInfo) =>
             self.tell(Command.PlaceOrderFinalized(command, containsInfo), origSender)
@@ -337,7 +369,7 @@ class AddressActor(
                 case _: OrderStatus.Filled =>
                   error.OrderFull(orderId)
               }.recover { case th =>
-                log.error(s"error while retrieving order status", th)
+                log.error("error while retrieving order status", th)
                 UnexpectedError
               }.pipeTo(sender())
 
@@ -358,26 +390,25 @@ class AddressActor(
       } else {
         log.debug(s"$command, to cancel: ${toCancelIds.mkString(", ")}")
         runWithIgnoredSpan {
-          context.actorOf(BatchOrderCancelActor.props(toCancelIds.toSet, command.source, self, sender(), settings.batchCancelTimeout))
+          context.actorOf(BatchOrderCancelActor.props(
+            toCancelIds.toList,
+            command.source,
+            self,
+            sender(),
+            settings.batchCancelTimeout
+          ))
         }
       }
 
     case command: Command.CancelOrders =>
-      val allActiveOrderIds = getActiveLimitOrders(None).map(_.order.id()).toSet
-      val toCancelIds = allActiveOrderIds.intersect(command.orderIds)
-      val unknownIds = command.orderIds -- allActiveOrderIds
-
-      log.debug(
-        s"$command, total orders: ${allActiveOrderIds.size}, to cancel (${toCancelIds.size}): ${toCancelIds
-          .mkString(", ")}, unknown ids (${unknownIds.size}): ${unknownIds.mkString(", ")}"
-      )
-
-      val initResponse = unknownIds.map(id => id -> error.OrderNotFound(id).asLeft[AddressActor.Event.OrderCanceled]).toMap
-      if (toCancelIds.isEmpty) sender() ! Event.BatchCancelCompleted(initResponse)
-      else
-        runWithIgnoredSpan {
-          context.actorOf(BatchOrderCancelActor.props(toCancelIds, command.source, self, sender(), settings.batchCancelTimeout, initResponse))
-        }
+      log.debug("{}", command)
+      runWithIgnoredSpan(context.actorOf(BatchOrderCancelActor.props(
+        command.orderIds,
+        command.source,
+        self,
+        sender(),
+        settings.batchCancelTimeout
+      )))
 
     case command @ CancelExpiredOrder(id) =>
       expiration.remove(id)
@@ -461,12 +492,15 @@ class AddressActor(
             activeOrders.remove(orderId).foreach { ao =>
               val reservableBalance = ao.reservableBalance
               balances = balances.cancelReservation(PositiveMap(reservableBalance))
-              log.info(s"[Balance] 4. 💵: ${format(balances.tradableBalance(reservableBalance.keySet).xs)}; ov -Δ: ${format(reservableBalance)}")
+              log.info(
+                s"[Balance] 4. 💵: ${format(balances.tradableBalance(reservableBalance.keySet).xs)}; ov -Δ: ${format(reservableBalance)}"
+              )
               scheduleWs(wsAddressState.putChangedAssets(ao.reservableBalance.keySet))
             }
           case _ =>
         }
       }
+      processingOrders.remove(orderId)
 
     case _: Event.StoreSucceeded => if (failedPlacements.nonEmpty) failedPlacements.clear()
 
@@ -481,6 +515,7 @@ class AddressActor(
                 log.trace(s"Confirming command for $orderId")
                 command.client ! reason
               }
+              processingOrders.remove(orderId)
           }
 
           placementQueue = restQueue
@@ -488,13 +523,16 @@ class AddressActor(
         } else log.warn(s"Received stale $event for $orderId")
       }
 
-    case WsCommand.AddWsSubscription(client, options) =>
-      log.trace(s"[c=${client.path.name}] Added WebSocket subscription")
+    case WsCommand.AddWsSubscription(client, flags, isDebug) =>
+      log.trace(s"[c=${client.path.name}] Added WebSocket subscription (debug = $isDebug)")
       wsAddressState = wsAddressState.addSubscription(
         client,
         mkWsBalances(balances.allAssets, includeEmpty = false),
         activeOrders.values.map(WsOrder.fromDomain(_)).to(Seq),
-        options
+        balances.notObservedTxs.view.mapValues(_.orderIds).toMap,
+        balances.notCreatedTxs.view.mapValues(_.orderIds).toMap,
+        flags,
+        isDebug
       )
       context.watch(client)
 
@@ -533,9 +571,12 @@ class AddressActor(
       val after = balances.balanceForAudit(changedAssets)
       val changesForAudit = after.collect { case (asset, v) if before.getOrElse(asset, 0L) > v => asset -> math.max(0, v) }
       val toCancel = getOrdersToCancel(changesForAudit).filterNot(x => isCancelling(x.order.id))
-      if (toCancel.isEmpty) log.info(s"[Balance] 5. 💵: ${format(balances.tradableBalance(updates.changedAssets).xs)}; u: ${format(updates)}")
+      if (toCancel.isEmpty)
+        log.info(s"[Balance] 5. 💵: ${format(balances.tradableBalance(updates.changedAssets).xs)}; u: ${format(updates)}")
       else {
-        log.info(s"[Balance] 6. 💵: ${format(balances.tradableBalance(updates.changedAssets).xs)}; u: ${format(updates)}; au: ${format(after)}")
+        log.info(
+          s"[Balance] 6. 💵: ${format(balances.tradableBalance(updates.changedAssets).xs)}; u: ${format(updates)}; au: ${format(after)}"
+        )
         val cancelledText =
           toCancel.map(x => s"${x.insufficientAmount} ${x.assetId} for ${x.order.id} (r: ${format(x.order.requiredBalance)})").mkString(", ")
         log.debug(s"Canceling ${toCancel.size}/${activeOrders.size}: doesn't have $cancelledText")
@@ -551,24 +592,51 @@ class AddressActor(
     } else log.info(s"[Balance] 7. 💵: ${format(balances.tradableBalance(updates.changedAssets).xs)}; u: ${format(updates)}")
   }
 
-  private def markTxsObserved(txs: Map[ExchangeTransaction.Id, PositiveMap[Asset, Long]]): Unit = {
+  private def markTxsObserved(txs: Map[ExchangeTransaction.Id, ObservedTxData]): Unit = {
     log.info(
-      s"Observed: ${txs.map { case (id, v) => s"$id ${if (balances.notObservedTxs.contains(id)) "(wasn't before) " else ""}-> ${format(v.xs)}" }.mkString(", ")}"
+      s"Observed: ${txs.map { case (id, v) =>
+        s"$id ${if (balances.notObservedTxs.contains(id)) "(wasn't before) " else ""}-> ${format(v.pessimisticChanges.xs)}"
+      }.mkString(", ")}"
     )
-    val (updated, changedAssets) = txs.toList.foldl((balances, Set.empty[Asset])) {
-      case ((r, _), (id, v)) => r.withObserved(id, v)
+    val (updated, changes) = txs.toList.foldl((balances, AddressBalance.Changes.empty)) {
+      case ((r, prevChanges), (id, v)) =>
+        val orderIds = v.orders.filter(_.sender.toAddress == owner).map(_.id())
+        val notCreatedTxData = AddressBalance.NotCreatedTxData(orderIds, v.pessimisticChanges)
+        val (b, changes) = r.withObserved(id, notCreatedTxData)
+        (b, prevChanges |+| changes)
     }
     balances = updated
-    if (changedAssets.isEmpty) log.info(s"[Balance] 8. au 💵: ${format(balances.balanceForAudit(txs.values.flatMap(_.keySet).toSet))}")
-    else {
-      log.info(s"[Balance] 9. otx 💵: ${format(balances.tradableBalance(changedAssets).xs)}")
-      scheduleWs(wsAddressState.putChangedAssets(changedAssets))
+    if (changes.changedAssets.isEmpty) {
+      log.info(s"[Balance] 8. au 💵: ${format(balances.balanceForAudit(txs.values.flatMap(_.pessimisticChanges.keySet).toSet))}")
+      scheduleWs(
+        wsAddressState
+          .putTxsUpdate(
+            changes.addedNotObservedTxs,
+            changes.removedNotObservedTxs,
+            changes.addedNotCreatedTxs,
+            changes.removedNotCreatedTxs
+          )
+      )
+    } else {
+      log.info(s"[Balance] 9. otx 💵: ${format(balances.tradableBalance(changes.changedAssets).xs)}")
+      scheduleWs(
+        wsAddressState
+          .putChangedAssets(changes.changedAssets)
+          .putTxsUpdate(
+            changes.addedNotObservedTxs,
+            changes.removedNotObservedTxs,
+            changes.addedNotCreatedTxs,
+            changes.removedNotCreatedTxs
+          )
+      )
     }
   }
 
   /** Schedules next balances and order changes sending only if it wasn't scheduled before */
   private def scheduleNextDiffSending(): Unit =
-    if (wsSendSchedule.isCancelled) wsSendSchedule = context.system.scheduler.scheduleOnce(settings.wsMessagesInterval, self, WsCommand.SendDiff)
+    if (wsSendSchedule.isCancelled)
+      if (enableRealtimeWs) self ! WsCommand.SendDiff
+      else wsSendSchedule = context.system.scheduler.scheduleOnce(settings.wsMessagesInterval, self, WsCommand.SendDiff)
 
   private def mkWsBalances(forAssets: Set[Asset], includeEmpty: Boolean): Map[Asset, WsAssetInfo] = forAssets
     .flatMap { asset =>
@@ -625,7 +693,9 @@ class AddressActor(
 
   private def scheduleExpiration(order: Order): Unit = if (!expiration.contains(order.id())) {
     val timeToExpiration = (order.expiration - time.correctedTime()).max(0L)
-    log.trace(s"Order ${order.id()} will expire in ${JDuration.ofMillis(timeToExpiration)}, at ${Instant.ofEpochMilli(order.expiration)}")
+    log.trace(
+      s"Order ${order.id()} will expire in ${JDuration.ofMillis(timeToExpiration)}, at ${Instant.ofEpochMilli(order.expiration)}"
+    )
     expiration +=
       order.id() -> context.system.scheduler.scheduleOnce(timeToExpiration.millis, self, CancelExpiredOrder(order.id()))
   }
@@ -638,11 +708,23 @@ class AddressActor(
   ): Unit = scheduleWs {
     status match {
       case OrderStatus.Accepted => wsAddressState.putOrderUpdate(remaining.id, WsOrder.fromDomain(remaining, status))
-      case _: OrderStatus.Cancelled => wsAddressState.putOrderStatusNameUpdate(remaining.id, status)
+      case _: OrderStatus.Cancelled => wsAddressState.putOrderStatusNameUpdate(remaining.order, status)
       case _ =>
         // unmatchable can be only if OrderStatus.Filled
-        if (unmatchable) wsAddressState.putOrderStatusNameUpdate(remaining.id, status)
+        if (unmatchable) wsAddressState.putOrderStatusNameUpdate(remaining.order, status)
         else wsAddressState.putOrderFillingInfoAndStatusNameUpdate(remaining, status, maybeMatchTx)
+    }
+  }
+
+  private def scheduleOrdersWs(
+    orders: List[AcceptedOrderWithTx]
+  ): Unit = scheduleWs {
+    orders.foldLeft(wsAddressState) { case (addressState, aoWtx) =>
+      aoWtx.order.status match {
+        case OrderStatus.Accepted => addressState.putOrderUpdate(aoWtx.order.id, WsOrder.fromDomain(aoWtx.order, aoWtx.order.status))
+        case _: OrderStatus.Cancelled => addressState.putOrderStatusNameUpdate(aoWtx.order.order, aoWtx.order.status)
+        case _ => addressState.putOrderFillingInfoAndStatusNameUpdate(aoWtx.order, aoWtx.order.status, aoWtx.tx.transaction.some)
+      }
     }
   }
 
@@ -682,7 +764,9 @@ class AddressActor(
     val reservableBalance = ao.reservableBalance
 
     balances = balances.reserve(PositiveMap(reservableBalance))
-    log.info(s"[Balance] 10. o=${ao.id}; 💵: ${format(balances.tradableBalance(reservableBalance.keySet).xs)}; ov Δ: ${format(reservableBalance)}")
+    log.info(
+      s"[Balance] 10. o=${ao.id}; 💵: ${format(balances.tradableBalance(reservableBalance.keySet).xs)}; ov Δ: ${format(reservableBalance)}"
+    )
     scheduleWs(wsAddressState.putChangedAssets(reservableBalance.keySet))
 
     storeCommand(ao.id)(
@@ -761,6 +845,7 @@ object AddressActor {
   type Resp = MatcherResponse
 
   private val ExpirationThreshold = 50.millis
+  private val logger = LoggerFacade(LoggerFactory.getLogger(AddressActor.getClass))
 
   def props(
     owner: Address,
@@ -772,7 +857,7 @@ object AddressActor {
     blockchain: BlockchainInteraction,
     settings: AddressActor.Settings = AddressActor.Settings.default,
     getAssetDescription: Asset => BriefAssetDescription
-  )(implicit efc: ErrorFormatterContext): Props = Props(
+  ): Props = Props(
     new AddressActor(
       owner,
       time,
@@ -782,7 +867,8 @@ object AddressActor {
       recovered,
       blockchain,
       settings,
-      getAssetDescription
+      getAssetDescription,
+      logger.copy(prefix = s"AddressActor[$owner]")
     )
   )
 
@@ -802,6 +888,24 @@ object AddressActor {
 
   private case class EnqueuedOrder(orderId: Order.Id, parentSpan: Span) {
     override def toString: String = orderId.toString
+  }
+
+  private case class AcceptedOrderWithTx(order: AcceptedOrder, tx: ExchangeTransactionResult[ExchangeTransactionV2])
+
+  private case class WsOrderExecutedUpdates(
+    ownerRemainingOrders: List[AcceptedOrderWithTx] = List.empty,
+    changedAssets: AddressBalance.Changes = AddressBalance.Changes.empty
+  ) {
+
+    def merge(other: WsOrderExecutedUpdates): WsOrderExecutedUpdates =
+      WsOrderExecutedUpdates(ownerRemainingOrders ++ other.ownerRemainingOrders, changedAssets |+| other.changedAssets)
+
+  }
+
+  case class OrderBookExecutedEvent(event: Events.OrderExecuted, expectedTx: ExchangeTransactionResult[ExchangeTransactionV2])
+      extends HasOrderBookEvents {
+    override def events: Seq[Events.Event] = List(event)
+    override def affectedOrders: List[AcceptedOrder] = List(event.counter, event.submitted)
   }
 
   sealed trait Message
@@ -837,25 +941,34 @@ object AddressActor {
     case class ApplyBatch(markTxsObserved: MarkTxsObserved, changedBalances: ChangeBalances) extends Command
 
     case class ChangeBalances(updates: AddressBalanceUpdates) extends Command
-    case class MarkTxsObserved(txsWithSpending: Map[ExchangeTransaction.Id, PositiveMap[Asset, Long]]) extends Command
 
-    sealed trait HasOrderBookEvent {
-      def event: Events.Event
+    case class ObservedTxData(orders: Seq[Order], pessimisticChanges: PositiveMap[Asset, Long])
+    case class MarkTxsObserved(txsWithSpending: Map[ExchangeTransaction.Id, ObservedTxData]) extends Command
+
+    sealed trait HasOrderBookEvents {
+      def events: Iterable[Events.Event]
       def affectedOrders: List[AcceptedOrder]
     }
 
-    case class ApplyOrderBookAdded(event: Events.OrderAdded) extends Command with HasOrderBookEvent {
+    case class ApplyOrderBookAdded(event: Events.OrderAdded) extends Command with HasOrderBookEvents {
       override def affectedOrders: List[AcceptedOrder] = List(event.order)
+
+      override def events: Seq[Events.Event] = List(event)
     }
 
-    case class ApplyOrderBookExecuted(event: Events.OrderExecuted, expectedTx: ExchangeTransactionResult[ExchangeTransactionV2])
-        extends Command
-        with HasOrderBookEvent {
-      override def affectedOrders: List[AcceptedOrder] = List(event.counter, event.submitted)
+    case class ApplyOrderBookExecuted(nonEmptyEvents: NonEmptyList[OrderBookExecutedEvent]) extends Command with HasOrderBookEvents {
+      override def affectedOrders: List[AcceptedOrder] = nonEmptyEvents.toList.flatMap(_.affectedOrders)
+
+      override def events: Iterable[Events.Event] = nonEmptyEvents.toList.map(_.event)
     }
 
-    case class ApplyOrderBookCanceled(event: Events.OrderCanceled) extends Command with HasOrderBookEvent {
+    object ApplyOrderBookExecuted {
+      def apply(event: OrderBookExecutedEvent): ApplyOrderBookExecuted = ApplyOrderBookExecuted(nonEmptyEvents = NonEmptyList.one(event))
+    }
+
+    case class ApplyOrderBookCanceled(event: Events.OrderCanceled) extends Command with HasOrderBookEvents {
       override def affectedOrders: List[AcceptedOrder] = List(event.acceptedOrder)
+      override def events: Seq[Events.Event] = List(event)
     }
 
     case class PlaceOrder(order: Order, isMarket: Boolean) extends OneOrderCommand {
@@ -878,7 +991,7 @@ object AddressActor {
     }
 
     case class CancelOrder(orderId: Order.Id, source: Source) extends OneOrderCommand
-    case class CancelOrders(orderIds: Set[Order.Id], source: Source) extends Command
+    case class CancelOrders(orderIds: List[Order.Id], source: Source) extends Command
     case class CancelAllOrders(pair: Option[AssetPair], timestamp: Long, source: Source) extends Command
 
     sealed trait Source extends Product with Serializable
@@ -917,7 +1030,10 @@ object AddressActor {
   sealed trait WsCommand extends Message
 
   object WsCommand {
-    case class AddWsSubscription(client: typed.ActorRef[WsAddressChanges], options: Set[WsAddressBalancesFilter] = Set.empty) extends WsCommand
+
+    case class AddWsSubscription(client: typed.ActorRef[WsAddressChanges], flags: Set[WsAddressFlag] = Set.empty, isDebug: Boolean = false)
+        extends WsCommand
+
     case class RemoveWsSubscription(client: typed.ActorRef[WsAddressChanges]) extends WsCommand
     private[AddressActor] case object SendDiff extends WsCommand
   }
@@ -939,11 +1055,14 @@ object AddressActor {
   final case class Settings(
     wsMessagesInterval: FiniteDuration = default.wsMessagesInterval,
     batchCancelTimeout: FiniteDuration = default.batchCancelTimeout,
-    maxActiveOrders: Int = default.maxActiveOrders
-  )
+    maxActiveOrders: Int = default.maxActiveOrders,
+    realtimeWsAccounts: Set[PublicKey] = default.realtimeWsAccounts
+  ) {
+    lazy val realtimeWsAddresses = realtimeWsAccounts.map(_.toAddress)
+  }
 
   object Settings {
-    val default: Settings = Settings(100.milliseconds, 20.seconds, 200)
+    val default: Settings = Settings(100.milliseconds, 20.seconds, 200, Set.empty[PublicKey])
   }
 
   sealed trait OrderRefreshResult extends Product with Serializable

@@ -8,8 +8,9 @@ import akka.http.scaladsl.server.Directives.respondWithHeader
 import akka.pattern.{ask, gracefulStop, CircuitBreaker}
 import akka.stream.Materializer
 import akka.util.Timeout
+import alleycats.std.all.alleyCatsSetTraverse
 import cats.data.EitherT
-import cats.instances.future.catsStdInstancesForFuture
+import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.functor._
@@ -25,8 +26,8 @@ import com.wavesplatform.dex.actors.orderbook.{AggregatedOrderBookActor, OrderBo
 import com.wavesplatform.dex.actors.tx.{ExchangeTransactionBroadcastActor, WriteExchangeTransactionActor}
 import com.wavesplatform.dex.actors.{OrderBookAskAdapter, OrderBookDirectoryActor, RootActorSystem}
 import com.wavesplatform.dex.api.http.headers.{CustomMediaTypes, MatcherHttpServer}
+import com.wavesplatform.dex.api.http.routes.v0._
 import com.wavesplatform.dex.api.http.routes.v1.OrderBookRoute
-import com.wavesplatform.dex.api.http.routes.v0.{BalancesRoute, CancelRoute, DebugRoute, HistoryRoute, MarketsRoute, MatcherInfoRoute, PlaceRoute, RatesRoute, TransactionsRoute}
 import com.wavesplatform.dex.api.http.{CompositeHttpService, MetricHttpFlow, OrderBookHttpInfo}
 import com.wavesplatform.dex.api.routes.ApiRoute
 import com.wavesplatform.dex.api.ws.actors.{WsExternalClientDirectoryActor, WsInternalBroadcastActor}
@@ -47,7 +48,7 @@ import com.wavesplatform.dex.grpc.integration.clients.domain.AddressBalanceUpdat
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import com.wavesplatform.dex.history.HistoryRouterActor
 import com.wavesplatform.dex.logs.SystemInformationReporter
-import com.wavesplatform.dex.model.{AssetPairBuilder, ExchangeTransactionCreator, Fee, OrderValidator, ValidationStages}
+import com.wavesplatform.dex.model.{AcceptedOrder, AssetPairBuilder, ExchangeTransactionCreator, ExecutionParamsInProofs, Fee, MatchTimestamp, OrderValidator, ValidationStages}
 import com.wavesplatform.dex.queue.ValidatedCommandWithMeta.Offset
 import com.wavesplatform.dex.queue._
 import com.wavesplatform.dex.settings.MatcherSettings
@@ -89,7 +90,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
   private val matchingRulesCache = new MatchingRulesCache(settings)
   private val orderFeeSettingsCache = new OrderFeeSettingsCache(settings.orderFee)
 
-  private val maybeApiKeyHash: Option[Array[Byte]] = Option(settings.restApi.apiKeyHash) filter (_.nonEmpty) map Base58.decode
+  private val apiKeyHashes: List[Array[Byte]] = settings.restApi.apiKeyHashes filter (_.nonEmpty) map Base58.decode
   private val processConsumedTimeout = new Timeout(settings.processConsumedTimeout * 2)
 
   private val matcherKeyPair = AccountStorage.load(settings.accountStorage).map(_.keyPair).explicitGet().unsafeTap { x =>
@@ -151,7 +152,9 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     matcherKeyPair,
     settings.exchangeTxBaseFee,
     hasMatcherAccountScript,
-    assetsCache.cached.unsafeGetHasScript // Should be in the cache, because assets decimals are required during an order book creation
+    assetsCache.cached.unsafeGetHasScript, // Should be in the cache, because assets decimals are required during an order book creation
+    (offsetOpt, sender) =>
+      offsetOpt.exists(_ > settings.passExecutionParameters.sinceOffset) && settings.passExecutionParameters.forAccounts.contains(sender)
   )
 
   private val wavesBlockchainAsyncClient = new MatcherExtensionAssetsCachingClient(
@@ -267,7 +270,11 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
   )
 
   private val orderBookDirectoryActorRef: ActorRef = {
-    def mkOrderBookProps(assetPair: AssetPair, orderBookDirectoryActor: ActorRef): Props = {
+    def mkOrderBookProps(
+      assetPair: AssetPair,
+      maybeSnapshot: Option[OrderBookActor.Snapshot],
+      orderBookDirectoryActor: ActorRef
+    ): Props = {
       // Safe here, because we receive this information during OrderBookDirectoryActor starting, placing or consuming
       val amountAssetDecimals = errorContext.unsafeAssetDecimals(assetPair.amountAsset)
       val priceAssetDecimals = errorContext.unsafeAssetDecimals(assetPair.priceAsset)
@@ -279,11 +286,13 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
         orderBookSnapshotStoreRef,
         wsInternalBroadcastRef,
         assetPair,
+        maybeSnapshot,
         time,
         matchingRules = matchingRulesCache.getMatchingRules(assetPair, amountAssetDecimals, priceAssetDecimals),
         updateCurrentMatchingRules = actualMatchingRule => matchingRulesCache.updateCurrentMatchingRule(assetPair, actualMatchingRule),
         normalizeMatchingRule = denormalizedMatchingRule => denormalizedMatchingRule.normalize(amountAssetDecimals, priceAssetDecimals),
         getMakerTakerFeeByOffset = Fee.getMakerTakerFeeByOffset(orderFeeSettingsCache),
+        getOrderExecutedTs = MatchTimestamp.getMatchTimestamp(settings.exchangeTxTsStartOffset),
         restrictions = settings.orderRestrictions.get(assetPair) // TODO Move this and webSocketSettings to OrderBook's settings
       )
     }
@@ -292,6 +301,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       OrderBookDirectoryActor.props(
         settings,
         assetPairsDb,
+        orderBookSnapshotDb,
         {
           case Right(startOffset) => snapshotsRestored.success(startOffset)
           case Left(msg) => snapshotsRestored.failure(RecoveryError(msg))
@@ -323,7 +333,14 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       orderBookAskAdapter = orderBookAskAdapter,
       lastProcessedOffset = lastProcessedOffset,
       blacklistedAddresses = blacklistedAddresses,
-      hasMatcherAccountScript = hasMatcherAccountScript
+      hasMatcherAccountScript = hasMatcherAccountScript,
+      order =>
+        ExecutionParamsInProofs.fillMatchInfoInProofs(
+          order,
+          AcceptedOrder.correctedAmountOfAmountAsset(order.amount, order.price),
+          order.price,
+          settings.passExecutionParameters.forAccounts.contains(order.sender)
+        )
     )(_)
     new PlaceRoute(
       responseTimeout = settings.actorResponseTimeout,
@@ -331,7 +348,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       addressActor = addressDirectoryRef,
       orderValidation,
       () => status,
-      maybeApiKeyHash
+      apiKeyHashes
     )
   }
 
@@ -342,13 +359,13 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       addressActor = addressDirectoryRef,
       matcherStatus = () => status,
       orderDb = orderDb,
-      apiKeyHash = maybeApiKeyHash
+      apiKeyHashes = apiKeyHashes
     )
 
   private val ratesRoute = new RatesRoute(
     assetPairBuilder = pairBuilder,
     matcherStatus = () => status,
-    apiKeyHash = maybeApiKeyHash,
+    apiKeyHashes = apiKeyHashes,
     rateCache = rateCache,
     externalClientDirectoryRef = externalClientDirectoryRef
   )
@@ -359,7 +376,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       assetPairBuilder = pairBuilder,
       addressActor = addressDirectoryRef,
       matcherStatus = () => status,
-      apiKeyHash = maybeApiKeyHash
+      apiKeyHashes = apiKeyHashes
     )
 
   private val balancesRoute =
@@ -368,10 +385,10 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
       assetPairBuilder = pairBuilder,
       addressActor = addressDirectoryRef,
       matcherStatus = () => status,
-      apiKeyHash = maybeApiKeyHash
+      apiKeyHashes = apiKeyHashes
     )
 
-  private val transactionsRoute = new TransactionsRoute(matcherStatus = () => status, orderDb = orderDb, apiKeyHash = maybeApiKeyHash)
+  private val transactionsRoute = new TransactionsRoute(matcherStatus = () => status, orderDb = orderDb, apiKeyHashes = apiKeyHashes)
 
   private val debugRoute = new DebugRoute(
     responseTimeout = settings.actorResponseTimeout,
@@ -382,7 +399,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     matcherStatus = () => status,
     currentOffset = () => lastProcessedOffset,
     lastOffset = () => matcherQueue.lastOffset,
-    maybeApiKeyHash
+    apiKeyHashes
   )
 
   private val marketsRoute = new MarketsRoute(
@@ -404,8 +421,40 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     storeCommand = matcherQueue.store,
     orderBook = p => Option(orderBooks.get()) flatMap (_ get p),
     orderBookHttpInfo = orderBookHttpInfo,
+    isDiscountAsset = asset => {
+      OrderValidator.isDiscountAsset(asset, orderFeeSettingsCache.getSettingsForOffset(lastProcessedOffset + 1))
+    },
+    getValidFeeAssets = (assetPair, orderType) => {
+      OrderValidator.getValidFeeAssetsForSettings(
+        assetPair,
+        orderType,
+        orderFeeSettingsCache.getSettingsForOffset(lastProcessedOffset + 1)
+      )
+    },
+    getMinValidTxFee = orderParams => {
+      def knownAssets: FutureResult[Map[Asset, BriefAssetDescription]] =
+        Set(
+          orderParams.assetPair.amountAsset,
+          orderParams.assetPair.priceAsset,
+          orderParams.feeAsset
+        ).map(asset => getAndCacheDescription(asset).map(asset -> _)).sequence.map(_.toMap)
+
+      def mkGetAssetDescFn(xs: Map[Asset, BriefAssetDescription])(asset: Asset): BriefAssetDescription =
+        xs.getOrElse(asset, throw new IllegalStateException(s"Impossible case. Unknown asset: $asset"))
+
+      (for {
+        getAssetDesc <- knownAssets.map(mkGetAssetDescFn)
+        minTxFee <- OrderValidator.liftAsync(OrderValidator.getMinValidTxFeeForSettings(
+          orderParams,
+          orderFeeSettingsCache.getSettingsForOffset(lastProcessedOffset + 1),
+          hasMatcherAccountScript,
+          getAssetDesc,
+          rateCache
+        ))
+      } yield minTxFee).value
+    },
     matcherStatus = () => status,
-    apiKeyHash = maybeApiKeyHash
+    apiKeyHashes = apiKeyHashes
   )
 
   private val infoRoute = new MatcherInfoRoute(
@@ -413,7 +462,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     matcherSettings = settings,
     matcherStatus = () => status,
     matcherAccountFee = ExchangeTransactionCreator.getAdditionalFeeForScript(hasMatcherAccountScript),
-    apiKeyHash = maybeApiKeyHash,
+    apiKeyHashes = apiKeyHashes,
     rateCache = rateCache,
     validatedAllowedOrderVersions = () => {
       Future
@@ -432,7 +481,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     assetPairBuilder = pairBuilder,
     orderBookHttpInfo = orderBookHttpInfo,
     matcherStatus = () => status,
-    apiKeyHash = maybeApiKeyHash
+    apiKeyHashes = apiKeyHashes
   ))
 
   private val wsApiRoute = new MatcherWebSocketRoute(
@@ -442,7 +491,7 @@ class Application(settings: MatcherSettings, config: Config)(implicit val actorS
     matcher = orderBookDirectoryActorRef,
     time = time,
     assetPairBuilder = pairBuilder,
-    apiKeyHash = maybeApiKeyHash,
+    apiKeyHashes = apiKeyHashes,
     matcherSettings = settings,
     matcherStatus = () => status,
     getRatesSnapshot = () => rateCache.getAllRates

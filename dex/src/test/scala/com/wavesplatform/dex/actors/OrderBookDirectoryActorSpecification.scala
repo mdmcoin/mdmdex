@@ -86,9 +86,10 @@ class OrderBookDirectoryActorSpecification
           OrderBookDirectoryActor.props(
             matcherSettings,
             mkAssetPairsDB,
+            mkOrderBookSnapshotDb,
             doNothingOnRecovery,
             ob,
-            (_, _) => Props(new FailAtStartActor),
+            (_, _, _) => Props(new FailAtStartActor),
             assetsCache,
             _.asRight
           )
@@ -140,9 +141,10 @@ class OrderBookDirectoryActorSpecification
           new OrderBookDirectoryActor(
             matcherSettings,
             mkAssetPairsDB,
+            mkOrderBookSnapshotDb,
             startResult => working = startResult.isRight,
             ob,
-            (_, _) => Props(new FailAtStartActor()),
+            (_, _, _) => Props(new FailAtStartActor()),
             assetsCache,
             _.asRight
           )
@@ -172,9 +174,10 @@ class OrderBookDirectoryActorSpecification
               new OrderBookDirectoryActor(
                 matcherSettings,
                 apdb,
+                obsdb,
                 startResult => stopped = startResult.isLeft,
                 ob,
-                (_, _) => Props(new FailAtStartActor),
+                (_, _, _) => Props(new FailAtStartActor),
                 assetsCache,
                 _.asRight
               )
@@ -201,9 +204,10 @@ class OrderBookDirectoryActorSpecification
               new OrderBookDirectoryActor(
                 matcherSettings,
                 apdb,
+                obsdb,
                 startResult => stopped = startResult.isLeft,
                 ob,
-                (_, _) => Props(new NothingDoActor),
+                (_, _, _) => Props(new NothingDoActor),
                 assetsCache,
                 _.asRight
               )
@@ -217,8 +221,39 @@ class OrderBookDirectoryActorSpecification
       }
     }
 
-    "delete order books" is pending
-    "forward new orders to order books" is pending
+    "delete order books" in {
+      val apdb = mkAssetPairsDB
+      val obsdb = mkOrderBookSnapshotDb
+      val pair = AssetPair(randomAssetId, randomAssetId)
+
+      matcherHadOrderBooksBefore(apdb, obsdb, pair -> 9L)
+      val ob = emptyOrderBookRefs
+      val actor = system.actorOf(
+        OrderBookDirectoryActor.props(
+          matcherSettings,
+          apdb,
+          obsdb,
+          doNothingOnRecovery,
+          ob,
+          (assetPair, _, matcher) => Props(new DeletingActor(matcher, assetPair, Some(9L))),
+          assetsCache,
+          _.asRight
+        )
+      )
+
+      val probe = TestProbe()
+      probe.send(actor, ValidatedCommandWithMeta(10L, 0L, ValidatedCommand.DeleteOrderBook(pair)))
+
+      eventually {
+        probe.send(actor, GetMarkets)
+        probe.expectMsgPF() { case xs @ Seq() =>
+          xs.size shouldBe 0
+        }
+
+        probe.send(actor, OrderBookDirectoryActor.GetSnapshotOffsets)
+        probe.expectMsg(OrderBookDirectoryActor.SnapshotOffsetsResponse(Map.empty))
+      }
+    }
 
     // snapshotOffset == 17
     val pair23 = AssetPair(IssuedAsset(ByteStr(Array(1))), IssuedAsset(ByteStr(Array(2)))) // key = 2-3, snapshot offset = 9: 9, 26, 43, ...
@@ -298,7 +333,7 @@ class OrderBookDirectoryActorSpecification
 
         matcherHadOrderBooksBefore(apdb, obsdb, pair1 -> 9)
         val ob = emptyOrderBookRefs
-        val actor = defaultActor(ob, apdb = apdb, snapshotStoreActor = system.actorOf(OrderBookSnapshotStoreActor.props(obsdb)))
+        val actor = defaultActor(ob, apdb = apdb, obsdb = obsdb, snapshotStoreActor = system.actorOf(OrderBookSnapshotStoreActor.props(obsdb)))
 
         val probe = TestProbe()
         probe.send(actor, OrderBookDirectoryActor.GetSnapshotOffsets)
@@ -322,9 +357,10 @@ class OrderBookDirectoryActorSpecification
           OrderBookDirectoryActor.props(
             matcherSettings,
             apdb,
+            obsdb,
             doNothingOnRecovery,
             ob,
-            (assetPair, matcher) => Props(new DeletingActor(matcher, assetPair, Some(9L))),
+            (assetPair, _, matcher) => Props(new DeletingActor(matcher, assetPair, Some(9L))),
             assetsCache,
             _.asRight
           )
@@ -379,9 +415,10 @@ class OrderBookDirectoryActorSpecification
       OrderBookDirectoryActor.props(
         matcherSettings.copy(snapshotsInterval = 17),
         mkAssetPairsDB,
+        mkOrderBookSnapshotDb,
         doNothingOnRecovery,
         emptyOrderBookRefs,
-        (assetPair, _) => {
+        (assetPair, _, _) => {
           val idx = assetPairs.indexOf(assetPair)
           if (idx < 0) throw new RuntimeException(s"Can't find $assetPair in $assetPairs")
           r(idx)._1
@@ -417,6 +454,7 @@ class OrderBookDirectoryActorSpecification
   private def defaultActor(
     ob: AtomicReference[Map[AssetPair, Either[Unit, ActorRef]]] = emptyOrderBookRefs,
     apdb: AssetPairsDb[Future] = mkAssetPairsDB,
+    obsdb: OrderBookSnapshotDb[Future] = mkOrderBookSnapshotDb,
     addressActor: ActorRef = TestProbe().ref,
     snapshotStoreActor: ActorRef = emptySnapshotStoreActor
   ): ActorRef = {
@@ -425,9 +463,10 @@ class OrderBookDirectoryActorSpecification
       OrderBookDirectoryActor.props(
         matcherSettings,
         apdb,
+        obsdb,
         doNothingOnRecovery,
         ob,
-        (assetPair, matcher) =>
+        (assetPair, maybeSnapshot, matcher) =>
           OrderBookActor.props(
             OrderBookActor.Settings(AggregatedOrderBookActor.Settings(100.millis)),
             matcher,
@@ -435,11 +474,13 @@ class OrderBookDirectoryActorSpecification
             snapshotStoreActor,
             system.toTyped.ignoreRef,
             assetPair,
+            maybeSnapshot,
             time,
             NonEmptyList.one(DenormalizedMatchingRule(0, 0.00000001)),
             _ => {},
             _ => MatchingRule.DefaultRule,
             _ => makerTakerPartialFee,
+            _ => (eventTs, _) => eventTs,
             None
           ),
         assetsCache,
@@ -454,6 +495,7 @@ class OrderBookDirectoryActorSpecification
   private def defaultTestActor(
     ob: AtomicReference[Map[AssetPair, Either[Unit, ActorRef]]],
     apdb: AssetPairsDb[Future] = mkAssetPairsDB,
+    obsdb: OrderBookSnapshotDb[Future] = mkOrderBookSnapshotDb,
     addressActor: ActorRef = TestProbe().ref,
     snapshotStoreActor: ActorRef = emptySnapshotStoreActor
   ): TestActorRef[OrderBookDirectoryActor] = {
@@ -462,9 +504,10 @@ class OrderBookDirectoryActorSpecification
       new OrderBookDirectoryActor(
         matcherSettings,
         apdb,
+        obsdb,
         doNothingOnRecovery,
         ob,
-        (assetPair, matcher) =>
+        (assetPair, maybeSnapshot, matcher) =>
           OrderBookActor.props(
             OrderBookActor.Settings(AggregatedOrderBookActor.Settings(100.millis)),
             matcher,
@@ -472,11 +515,13 @@ class OrderBookDirectoryActorSpecification
             snapshotStoreActor,
             system.toTyped.ignoreRef,
             assetPair,
+            maybeSnapshot,
             time,
             NonEmptyList.one(DenormalizedMatchingRule(0, 0.00000001)),
             _ => {},
             _ => MatchingRule.DefaultRule,
             _ => makerTakerPartialFee,
+            _ => (eventTs, _) => eventTs,
             None
           ),
         assetsCache,

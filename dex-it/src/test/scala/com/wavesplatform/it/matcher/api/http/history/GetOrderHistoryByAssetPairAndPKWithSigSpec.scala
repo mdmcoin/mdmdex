@@ -3,6 +3,7 @@ package com.wavesplatform.it.matcher.api.http.history
 import com.google.common.primitives.Longs
 import sttp.model.StatusCode
 import com.typesafe.config.{Config, ConfigFactory}
+import com.wavesplatform.dex.api.http.entities.HttpOrderBookHistoryItem
 import com.wavesplatform.dex.domain.bytes.codec.Base58
 import com.wavesplatform.dex.domain.crypto
 import com.wavesplatform.dex.domain.order.OrderType.BUY
@@ -43,7 +44,7 @@ class GetOrderHistoryByAssetPairAndPKWithSigSpec extends MatcherSuiteBase with R
       val historyActive = orders.map { order =>
         placeAndAwaitAtDex(order)
         toHttpOrderBookHistoryItem(order, OrderStatus.Accepted)
-      }.reverse
+      }.sorted(HttpOrderBookHistoryItem.httpOrderBookHistoryItemOrdering)
 
       withClue("active only") {
         validate200Json(
@@ -58,7 +59,7 @@ class GetOrderHistoryByAssetPairAndPKWithSigSpec extends MatcherSuiteBase with R
       val historyCancelled = orders.map { order =>
         cancelAndAwait(alice, order)
         toHttpOrderBookHistoryItem(order, OrderStatus.Cancelled(0, 0))
-      }.reverse
+      }.sorted(HttpOrderBookHistoryItem.httpOrderBookHistoryItemOrdering)
 
       withClue("closed only") {
         validate200Json(
@@ -73,7 +74,7 @@ class GetOrderHistoryByAssetPairAndPKWithSigSpec extends MatcherSuiteBase with R
 
       validateMatcherError(
         dex1.rawApi.getOrderHistoryByAssetPairAndPKWithSig("null", "TN", UsdId.toString, ts, sign),
-        StatusCode.BadRequest,
+        StatusCode.Forbidden,
         UserPublicKeyIsNotValid.code,
         "Provided public key is not correct, reason: Unable to decode base58: requirement failed: Wrong char 'l' in Base58 string 'null'"
       )

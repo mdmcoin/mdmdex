@@ -30,6 +30,7 @@ class BaseSettingsSpecification extends AnyFlatSpec {
        |    percent {
        |      asset-type = amount
        |      min-fee = 0.1
+       |      min-fee-in-waves = 300000
        |    }
        |  }
        |}
@@ -98,7 +99,7 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |    rest-api {
          |      address = 127.1.2.3
          |      port = 6880
-         |      api-key-hash = foobarhash
+         |      api-key-hashes = [ foobarhash ]
          |      cors = no
          |      api-key-different-host = no
          |    }
@@ -274,7 +275,7 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |  rest-api {
          |    address = "127.0.0.1"
          |    port = 6886
-         |    api-key-hash = ""
+         |    api-key-hashes = []
          |    cors = yes
          |    api-key-different-host = no
          |  }
@@ -320,18 +321,55 @@ class BaseSettingsSpecification extends AnyFlatSpec {
          |  exchange-tx-base-fee = 4000000
          |  order-fee {
          |    -1: {
-         |      mode = "dynamic" # | "fixed" | "percent"
+         |      mode = "dynamic"
          |      dynamic {
          |        base-maker-fee = 4000000
          |        base-taker-fee = 4000000
          |      }
+         |    }
+         |    -2: {
+         |      mode = "fixed"
          |      fixed {
-         |        asset = "TN" # | "some issued asset (base58)"
+         |        asset = "TN"
          |        min-fee = 4000000
          |      }
+         |    }
+         |    -3: {
+         |      mode = "percent"
          |      percent {
-         |        asset-type = "amount" # | "price" | "spending" | "receiving"
+         |        asset-type = "amount"
          |        min-fee = 0.1
+         |        min-fee-in-waves = 300000
+         |      }
+         |    }
+         |    -4: {
+         |      mode = "composite"
+         |      composite {
+         |        custom {
+         |          DWgwcZTMhSvnyYCoWLRUXXSH1RSkzThXLJhww9gwkqdn-25FEqEjRkqK6yCkiT7Lz6SAYz7gUFCtxfCChnrVFD5AT {
+         |            mode = "percent"
+         |            percent {
+         |              asset-type = "amount"
+         |              min-fee = 0.1
+         |              min-fee-in-waves = 300000
+         |            }
+         |          }
+         |        }
+         |
+         |        default {
+         |          mode = "dynamic"
+         |          dynamic {
+         |            base-maker-fee = 300000
+         |            base-taker-fee = 300000
+         |          }
+         |        }
+         |
+         |        zero-fee-accounts = []
+         |
+         |        discount {
+         |          asset = "FWgwcZTMhSvnyYCoWLRUXXSH1RSkzThXLJhww9gwkqdn"
+         |          value = 0.1
+         |        }
          |      }
          |    }
          |  }

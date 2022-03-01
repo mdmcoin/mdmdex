@@ -104,12 +104,15 @@ class AggregatedOrderBookActorSpec
               system.actorOf(OrderBookSnapshotStoreActor.props(obsdb)),
               system.toTyped.ignoreRef,
               pair,
+              None,
               time,
               NonEmptyList.one(DenormalizedMatchingRule(0L, DenormalizedMatchingRule.DefaultTickSize)),
               _ => (),
               raw => MatchingRule(raw.startOffset, (raw.tickSize * BigDecimal(10).pow(8)).toLongExact),
               _ => (t, m) => m.matcherFee -> t.matcherFee,
-              None
+              _ => (eventTs, _) => eventTs,
+              None,
+              log
             )
           )
         )

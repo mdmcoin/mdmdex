@@ -7,6 +7,7 @@ import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.dex.WavesExtSuiteBase
 import com.wavesplatform.dex.grpc.integration.smart.MatcherScriptRunner
+import com.wavesplatform.dex.grpc.integration.smart.MatcherScriptRunner.deniedBlockchain
 import com.wavesplatform.dex.test.matchers.ProduceError.produce
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.lang.v1.compiler.Terms
@@ -30,18 +31,25 @@ class MatcherScriptRunnerSpecification extends WavesExtSuiteBase {
     matcherFee = 4000000L
   )
 
-  private def run(script: Script, isSynchronousCallsActivated: Boolean): Either[String, Terms.EVALUATED] =
-    MatcherScriptRunner(script, sampleOrder, isSynchronousCallsActivated)
+  private def run(
+    script: Script,
+    isSynchronousCallsActivated: Boolean,
+    useNewPowPrecision: Boolean,
+    correctFunctionCallScope: Boolean
+  ): Either[String, Terms.EVALUATED] =
+    MatcherScriptRunner(script, sampleOrder, deniedBlockchain, isSynchronousCallsActivated, useNewPowPrecision, correctFunctionCallScope)
 
   "dApp sunny day" in {
-    List(false, true).foreach { isSynchronousCallsActivated =>
-      run(dAppScriptSunny, isSynchronousCallsActivated).explicitGet() shouldBe Terms.FALSE
+    List(false, true).combinations(3).foreach { params =>
+      val List(isSynchronousCallsActivated, useNewPowPrecision, correctFunctionCallScope) = params: @unchecked
+      run(dAppScriptSunny, isSynchronousCallsActivated, useNewPowPrecision, correctFunctionCallScope).explicitGet() shouldBe Terms.FALSE
     }
   }
 
   "Blockchain functions are disabled in dApp (isSynchronousCallsActivated = false)" in {
-    List(false, true).foreach { isSynchronousCallsActivated =>
-      run(dAppScriptBlockchain, isSynchronousCallsActivated) should produce(
+    List(false, true).combinations(3).foreach { params =>
+      val List(isSynchronousCallsActivated, useNewPowPrecision, correctFunctionCallScope) = params: @unchecked
+      run(dAppScriptBlockchain, isSynchronousCallsActivated, useNewPowPrecision, correctFunctionCallScope) should produce(
         "An access to <getBoolean(addressOrAlias: Address|Alias, key: String): Boolean|Unit> is denied"
       )
     }

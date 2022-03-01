@@ -3,11 +3,13 @@ package com.wavesplatform.it
 import cats.instances.FutureInstances
 import cats.syntax.either._
 import com.softwaremill.diffx.{Derived, Diff}
+import com.typesafe.config.{Config, ConfigFactory}
 import com.wavesplatform.dex.api.http.entities.HttpV0OrderBook
 import com.wavesplatform.dex.asset.DoubleOps
 import com.wavesplatform.dex.domain.account.KeyPair
 import com.wavesplatform.dex.domain.asset.Asset
 import com.wavesplatform.dex.domain.bytes.ByteStr
+import com.wavesplatform.dex.domain.order.Order
 import com.wavesplatform.dex.domain.order.OrderType.BUY
 import com.wavesplatform.dex.domain.utils.ScorexLogging
 import com.wavesplatform.dex.it.api.BaseContainersKit
@@ -20,12 +22,12 @@ import com.wavesplatform.dex.it.waves.{MkWavesEntities, ToWavesJConversions}
 import com.wavesplatform.dex.test.matchers.DiffMatcherWithImplicits
 import com.wavesplatform.dex.waves.WavesFeeConstants
 import com.wavesplatform.it.api.ApiExtensions
-import im.mak.waves.transactions.ExchangeTransaction
+import com.wavesplatform.transactions.ExchangeTransaction
 import io.qameta.allure.scalatest.AllureScalatestContext
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, OptionValues}
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
@@ -53,6 +55,7 @@ trait MatcherSuiteBase
     with InformativeTestStart
     with FutureInstances
     with ScalaFutures
+    with OptionValues
     with ToWavesJConversions
     with ScorexLogging {
 
@@ -104,11 +107,50 @@ trait MatcherSuiteBase
     account
   }
 
-  protected def placeAndGetIds(count: Int): Set[String] =
+  protected def placeAndGetIds(count: Int): Seq[Order.Id] =
     (1 to count).map { i =>
       val o = mkOrder(alice, wavesUsdPair, BUY, 10.waves, i.usd)
       placeAndAwaitAtDex(o)
-      o.idStr()
-    }.toSet
+      o.id()
+    }
+
+  protected def mkCompositeDynamicFeeSettings(
+    discountAssetId: ByteStr = ByteStr.empty,
+    discountAssetValue: Long = 0L,
+    zeroFeeAccounts: Set[ByteStr] = Set.empty,
+    offset: Long = -1,
+    makerFee: Long = matcherFee,
+    takerFee: Long = matcherFee
+  ): Config = {
+    val discountCfg =
+      if (!discountAssetId.isEmpty)
+        ConfigFactory.parseString(
+          s"""
+             |waves.dex.order-fee.$offset.composite.discount {
+             |  asset = "${discountAssetId.base58}"
+             |  value = $discountAssetValue
+             |}
+             |""".stripMargin
+        )
+      else
+        ConfigFactory.empty()
+
+    ConfigFactory.parseString(
+      s"""waves.dex.order-fee.$offset {
+         |  mode = composite
+         |  composite {
+         |    default {
+         |      mode = "dynamic"
+         |      dynamic {
+         |        base-maker-fee = $makerFee
+         |        base-taker-fee = $takerFee
+         |        zero-fee-accounts = [${zeroFeeAccounts.map(x => s""" "${x.base58}" """.trim).mkString(",")}]
+         |      }
+         |    }
+         |  }
+         |}
+       """.stripMargin
+    ).withFallback(discountCfg)
+  }
 
 }

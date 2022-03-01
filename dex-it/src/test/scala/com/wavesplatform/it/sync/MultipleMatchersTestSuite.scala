@@ -154,6 +154,13 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
     Using.Manager.unsafe { use =>
       val wsau1 = use(mkWsAddressConnection(acc, dex1))
       val wsau2 = use(mkWsAddressConnection(acc, dex2))
+
+      // Wait for connect
+      eventually {
+        wsau1.messages shouldNot be(empty)
+        wsau2.messages shouldNot be(empty)
+      }
+
       val sell = mkOrder(acc, ethWavesPair, SELL, 10.eth, 1.waves, 0.003.waves)
       dex1.api.place(sell)
 
@@ -168,8 +175,9 @@ class MultipleMatchersTestSuite extends MatcherSuiteBase with HasWebSockets with
       eventually {
         val aus1 = wsau1.receiveAtLeastN[WsAddressChanges](1).reduce(mergeAddressChanges)
         val aus2 = wsau2.receiveAtLeastN[WsAddressChanges](1).reduce(mergeAddressChanges)
-
-        aus1 should matchTo(aus2)
+        withClue(s"$aus1 $aus2") {
+          aus1 should matchTo(aus2)
+        }
       }
     }
   }

@@ -6,8 +6,8 @@ import com.wavesplatform.dex.api.http.entities._
 import com.wavesplatform.dex.domain.account.{Address, KeyPair, PublicKey}
 import com.wavesplatform.dex.domain.asset.{Asset, AssetPair}
 import com.wavesplatform.dex.domain.bytes.ByteStr
-import com.wavesplatform.dex.domain.order.Order
-import im.mak.waves.transactions.ExchangeTransaction
+import com.wavesplatform.dex.domain.order.{Order, OrderType}
+import com.wavesplatform.transactions.ExchangeTransaction
 import play.api.libs.json.JsObject
 
 @finalAlg
@@ -59,13 +59,15 @@ trait DexApi[F[_]] {
     timestamp: Long = System.currentTimeMillis
   ): F[HttpSuccessfulBatchCancel]
 
-  def cancelOrdersByIdsWithKey(address: String, ids: Set[String]): F[HttpSuccessfulBatchCancel]
+  def cancelOrdersByIdsWithKey(ids: Seq[String], address: String): F[HttpSuccessfulBatchCancel]
 
-  def cancelOrdersByIdsWithKey(address: String, ids: Set[String], headers: Map[String, String]): F[HttpSuccessfulBatchCancel]
+  def cancelOrdersByIdsWithKey(address: Address, ids: Seq[Order.Id]): F[HttpSuccessfulBatchCancel]
 
-  def cancelOrdersByIdsWithKey(
+  def cancelOrdersByIdsWithKey(address: Address, ids: Seq[Order.Id], headers: Map[String, String]): F[HttpSuccessfulBatchCancel]
+
+  def cancelOrdersByIdsWithKeyOrSignature(
     owner: Address,
-    orderIds: Set[Order.Id],
+    orderIds: Seq[Order.Id],
     xUserPublicKey: Option[PublicKey] = None
   ): F[HttpSuccessfulBatchCancel]
 
@@ -181,6 +183,9 @@ trait DexApi[F[_]] {
   def getOrderBook(assetPair: AssetPair, depth: String): F[HttpV0OrderBook]
   def getOrderBook(assetPair: AssetPair, depth: Int): F[HttpV0OrderBook]
 
+  def calculateFee(amountAsset: String, priceAsset: String, orderType: OrderType, amount: Long, price: Long): F[HttpCalculatedFeeResponse]
+  def calculateFee(assetPair: AssetPair, orderType: OrderType, amount: Long, price: Long): F[HttpCalculatedFeeResponse]
+
   def getOrderBookRestrictions(assetPair: AssetPair): F[HttpOrderBookInfo]
   def getOrderBookRestrictions(amountAsset: String, priceAsset: String): F[HttpOrderBookInfo]
 
@@ -189,6 +194,8 @@ trait DexApi[F[_]] {
 
   def deleteOrderBookWithKey(amountAsset: String, priceAsset: String, headers: Map[String, String]): F[HttpMessage]
   def deleteOrderBookWithKey(assetPair: AssetPair): F[HttpMessage]
+  def cancelAllInOrderBookWithKey(amountAsset: String, priceAsset: String, headers: Map[String, String]): F[HttpMessage]
+  def cancelAllInOrderBookWithKey(assetPair: AssetPair): F[HttpMessage]
 
   def upsertAssetRate(assetId: String, rate: Double, headers: Map[String, String] = Map.empty): F[HttpMessage]
   def upsertAssetRate(asset: Asset, rate: Double): F[HttpMessage]

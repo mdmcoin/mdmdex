@@ -15,13 +15,14 @@ import com.wavesplatform.dex.actors.{orderbook, OrderBookDirectoryActor}
 import com.wavesplatform.dex.api.ws.actors.WsInternalBroadcastActor
 import com.wavesplatform.dex.api.ws.protocol.WsOrdersUpdate
 import com.wavesplatform.dex.domain.asset.AssetPair
-import com.wavesplatform.dex.domain.utils.{LoggerFacade, ScorexLogging}
+import com.wavesplatform.dex.domain.utils.LoggerFacade
 import com.wavesplatform.dex.error
 import com.wavesplatform.dex.error.ErrorFormatterContext
 import com.wavesplatform.dex.metrics.TimerExt
 import com.wavesplatform.dex.model.Events._
 import com.wavesplatform.dex.model.OrderBook.OrderBookUpdates
 import com.wavesplatform.dex.model._
+import com.wavesplatform.dex.queue.ValidatedCommandWithMeta.Offset
 import com.wavesplatform.dex.queue.{ValidatedCommand, ValidatedCommandWithMeta}
 import com.wavesplatform.dex.settings.{DenormalizedMatchingRule, MatchingRule, OrderRestrictionsSettings}
 import com.wavesplatform.dex.time.Time
@@ -37,18 +38,18 @@ class OrderBookActor(
   snapshotStore: classic.ActorRef,
   wsInternalHandlerDirectoryRef: typed.ActorRef[WsInternalBroadcastActor.Command],
   assetPair: AssetPair,
+  maybeSnapshot: Option[OrderBookActor.Snapshot],
   time: Time,
   var matchingRules: NonEmptyList[DenormalizedMatchingRule],
   updateCurrentMatchingRules: DenormalizedMatchingRule => Unit,
   normalizeMatchingRule: DenormalizedMatchingRule => MatchingRule,
   getMakerTakerFeeByOffset: Long => (AcceptedOrder, LimitOrder) => (Long, Long),
-  restrictions: Option[OrderRestrictionsSettings]
+  getOrderExecutedTs: Long => (Long, Long) => Long,
+  restrictions: Option[OrderRestrictionsSettings],
+  log: LoggerFacade
 )(implicit ec: ExecutionContext, efc: ErrorFormatterContext)
     extends classic.Actor
-    with Stash
-    with ScorexLogging {
-
-  override protected lazy val log = LoggerFacade(LoggerFactory.getLogger(s"OrderBookActor[$assetPair]"))
+    with Stash {
 
   private var aggregatedRef: typed.ActorRef[AggregatedOrderBookActor.InputMessage] = _
 
@@ -89,12 +90,10 @@ class OrderBookActor(
       lastSavedSnapshotOffset = result.map(_._1)
       lastProcessedOffset = lastSavedSnapshotOffset
 
-      log.debug(
-        lastSavedSnapshotOffset match {
-          case None => "Recovery completed"
-          case Some(x) => s"Recovery completed at $x: $orderBook"
-        }
-      )
+      log.debug(lastSavedSnapshotOffset match {
+        case None => "Recovery completed"
+        case Some(x) => s"Recovery completed at $x: $orderBook"
+      })
 
       lastProcessedOffset foreach actualizeRules
 
@@ -114,7 +113,10 @@ class OrderBookActor(
       context.watch(aggregatedRef)
 
       // Timestamp here doesn't matter
-      processEvents(time.getTimestamp(), orderBook.allOrders.map(lo => OrderAdded(lo, OrderAddedReason.OrderBookRecovered, lo.order.timestamp)))
+      processEvents(
+        time.getTimestamp(),
+        orderBook.allOrders.map(lo => OrderAdded(lo, OrderAddedReason.OrderBookRecovered, lo.order.timestamp)).toList
+      )
 
       owner ! OrderBookRecovered(assetPair, lastSavedSnapshotOffset)
       context.become(working)
@@ -137,9 +139,11 @@ class OrderBookActor(
             case x: ValidatedCommand.CancelOrder => onCancelOrder(request, x)
             case _: ValidatedCommand.DeleteOrderBook =>
               process(request.timestamp, orderBook.cancelAll(request.timestamp, OrderCanceledReason.OrderBookDeleted))
-              // We don't delete the snapshot, because it could be required after restart
-              // snapshotStore ! OrderBookSnapshotStoreActor.Message.Delete(assetPair)
+              saveSnapshotAt(request.offset - 1)
               aggregatedRef ! AggregatedOrderBookActor.Command.Stop(self, error.OrderBookStopped(assetPair))
+            case _: ValidatedCommand.CancelAllOrders =>
+              log.trace(s"Applied $request")
+              process(request.timestamp, orderBook.cancelAll(request.timestamp, OrderCanceledReason.RequestExecuted))
           }
       }
 
@@ -164,28 +168,29 @@ class OrderBookActor(
     case classic.Terminated(ref) =>
       log.error(s"Terminated actor: $ref")
       // If this happens the issue is critical and should not be handled. The order book will be stopped, see OrderBookDirectoryActor
-      if (ref == aggregatedRef) throw new RuntimeException("Aggregated order book was terminated")
+      if (ref.path == aggregatedRef.path) throw new RuntimeException("Aggregated order book was terminated")
   }
 
   private def process(timestamp: Long, result: OrderBookUpdates): Unit = {
     orderBook = result.orderBook
     aggregatedRef ! AggregatedOrderBookActor.Command.ApplyChanges(result.levelChanges, result.lastTrade, None, timestamp)
-    processEvents(timestamp, result.events)
+    processEvents(timestamp, result.events.toList)
   }
 
-  private def processEvents(timestamp: Long, events: IterableOnce[Event]): Unit =
-    events.iterator.foreach { event =>
+  private def processEvents(timestamp: Long, events: List[Event]): Unit = {
+    val changes = events.flatMap { event =>
       logEvent(event)
       // DEX-1192 docs/places-and-cancels.md
-      eventsCoordinatorRef ! OrderEventsCoordinatorActor.Command.Process(event)
-
-      val changes = event match {
+      event match {
         case event: Events.OrderExecuted => WsOrdersUpdate.from(event, timestamp).some
         case event: Events.OrderCanceled => WsOrdersUpdate.from(event).some
         case _ => none
       }
-      changes.map(WsInternalBroadcastActor.Command.Collect).foreach(wsInternalHandlerDirectoryRef ! _)
     }
+    NonEmptyList.fromList(events).foreach(eventsCoordinatorRef ! OrderEventsCoordinatorActor.Command.Process(_))
+
+    changes.map(WsInternalBroadcastActor.Command.Collect).foreach(wsInternalHandlerDirectoryRef ! _)
+  }
 
   private def logEvent(e: Event): Unit = log.info {
     import Events._
@@ -227,7 +232,14 @@ class OrderBookActor(
     log.trace(s"Applied $command, trying to match ...")
     process(
       command.timestamp,
-      orderBook.add(acceptedOrder, command.timestamp, getMakerTakerFeeByOffset(command.offset), actualRule.tickSize)
+      orderBook.add(
+        acceptedOrder,
+        command.timestamp,
+        getMakerTakerFeeByOffset(command.offset),
+        getOrderExecutedTs(command.offset),
+        command.offset,
+        actualRule.tickSize
+      )
     )
   }
 
@@ -251,12 +263,21 @@ class OrderBookActor(
     snapshotStore ! OrderBookSnapshotStoreActor.Message.Update(assetPair, globalEventNr, toSave)
   }
 
-  snapshotStore ! OrderBookSnapshotStoreActor.Message.GetSnapshot(assetPair)
+  maybeSnapshot match {
+    case Some(snapshot) =>
+      self ! OrderBookSnapshotStoreActor.Response.GetSnapshot(snapshot)
+    case None =>
+      snapshotStore ! OrderBookSnapshotStoreActor.Message.GetSnapshot(assetPair)
+  }
 }
 
 object OrderBookActor {
 
+  type Snapshot = Option[(Offset, OrderBookSnapshot)]
+
   case class Settings(aggregated: AggregatedOrderBookActor.Settings)
+
+  private val logger = LoggerFacade(LoggerFactory.getLogger(OrderBookActor.getClass))
 
   def props(
     settings: Settings,
@@ -265,11 +286,13 @@ object OrderBookActor {
     snapshotStore: classic.ActorRef,
     wsInternalHandlerDirectoryRef: typed.ActorRef[WsInternalBroadcastActor.Command],
     assetPair: AssetPair,
+    maybeSnapshot: Option[Snapshot],
     time: Time,
     matchingRules: NonEmptyList[DenormalizedMatchingRule],
     updateCurrentMatchingRules: DenormalizedMatchingRule => Unit,
     normalizeMatchingRule: DenormalizedMatchingRule => MatchingRule,
     getMakerTakerFeeByOffset: Long => (AcceptedOrder, LimitOrder) => (Long, Long),
+    getOrderExecutedTs: Long => (Long, Long) => Long,
     restrictions: Option[OrderRestrictionsSettings]
   )(implicit ec: ExecutionContext, efc: ErrorFormatterContext): classic.Props =
     classic.Props(
@@ -280,18 +303,19 @@ object OrderBookActor {
         snapshotStore,
         wsInternalHandlerDirectoryRef,
         assetPair,
+        maybeSnapshot,
         time,
         matchingRules,
         updateCurrentMatchingRules,
         normalizeMatchingRule,
         getMakerTakerFeeByOffset,
-        restrictions
+        getOrderExecutedTs,
+        restrictions,
+        logger.copy(prefix = s"OrderBookActor[$assetPair]")
       )
     )
 
   def name(assetPair: AssetPair): String = assetPair.toString
-
-  case class Snapshot(eventNr: Option[Long], orderBook: OrderBookSnapshot)
 
   // Internal messages
   case class OrderBookRecovered(assetPair: AssetPair, eventNr: Option[Long])

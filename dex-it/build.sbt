@@ -49,8 +49,15 @@ inTask(docker)(
         case (src, dest) => add(src, dest, chown = "tn-dex:tn-dex")
       }
 
-      runShell("chmod", "+x", entryPointSh)
+      runShell(
+        List(
+          List("apt", "update", "&&"),
+          List("apt", "install", "iptables", "--yes", "&&"),
+          List("chmod", "+x", entryPointSh)
+        ).flatten: _*
+      )
       entryPoint(entryPointSh)
+      expose(9095) // prometheus metrics
       expose(10001) // Profiler
     },
     buildOptions := BuildOptions(removeIntermediateContainers = BuildOptions.Remove.OnSuccess)

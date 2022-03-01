@@ -68,20 +68,18 @@ class ActorsWebSocketInteractionsSpecification
     }
 
     def createAddressActor(address: Address, recovered: Boolean): Props =
-      Props(
-        new AddressActor(
-          address,
-          Time.system,
-          EmptyOrderDb(),
-          (_, _) => Future.successful(Right(())),
-          command => {
-            commandsProbe.ref ! command
-            Future.successful(Some(ValidatedCommandWithMeta(0L, 0L, command)))
-          },
-          recovered,
-          blockchainInteraction,
-          getAssetDescription = getDefaultAssetDescriptions
-        )
+      AddressActor.props(
+        address,
+        Time.system,
+        EmptyOrderDb(),
+        (_, _) => Future.successful(Right(())),
+        command => {
+          commandsProbe.ref ! command
+          Future.successful(Some(ValidatedCommandWithMeta(0L, 0L, command)))
+        },
+        recovered,
+        blockchainInteraction,
+        getAssetDescription = getDefaultAssetDescriptions
       )
 
     val addressDir = system.actorOf(Props(new AddressDirectoryActor(EmptyOrderDb(), createAddressActor, None, recovered = true)))
@@ -129,8 +127,13 @@ class ActorsWebSocketInteractionsSpecification
     }
 
     def executeOrder(s: AcceptedOrder, c: LimitOrder): OrderExecuted = {
+<<<<<<< HEAD
       val (counterExecutedFee, submittedExecutedFee) = Fee.getMakerTakerFee(DynamicSettings.symmetric(0.04.waves))(s, c)
       val oe = OrderExecuted(s, c, System.currentTimeMillis, counterExecutedFee, submittedExecutedFee)
+=======
+      val (counterExecutedFee, submittedExecutedFee) = Fee.getMakerTakerFee(DynamicSettings.symmetric(0.003.waves))(s, c)
+      val oe = OrderExecuted(s, c, System.currentTimeMillis, counterExecutedFee, submittedExecutedFee, 0L)
+>>>>>>> 09ad80e4504ebe895c1721c8bc1709043719926b
       val (sellOrder, buyOrder) = if (oe.counter.isSellOrder) (oe.counter, oe.submitted) else (oe.submitted, oe.counter)
       val tx = ExchangeTransactionV2
         .create(
@@ -144,7 +147,7 @@ class ActorsWebSocketInteractionsSpecification
           timestamp = nowTs,
           proofs = Proofs.empty
         ).copy(error = ValidationError.GenericError("Some error").some)
-      addressDir ! AddressActor.Command.ApplyOrderBookExecuted(oe, tx) // TODO
+      addressDir ! AddressActor.Command.ApplyOrderBookExecuted(AddressActor.OrderBookExecutedEvent(oe, tx))
       oe
     }
 
@@ -208,10 +211,10 @@ class ActorsWebSocketInteractionsSpecification
             Seq(WsOrder.fromDomain(lo)),
             1
           )
-          .cancelOrder(lo, false)
+          .cancelOrder(lo, unmatchable = false)
           .expectWsBalancesAndOrders(
             Map(usd -> WsBalances(300, 0), Waves -> WsBalances(100, 0)),
-            Seq(WsOrder(lo.id, status = OrderStatus.Cancelled.name.some)),
+            Seq(WsOrder.fromOrder(lo.order, status = OrderStatus.Cancelled.name.some)),
             2
           )
           .kill()
@@ -264,8 +267,8 @@ class ActorsWebSocketInteractionsSpecification
               // The half of order is still available
               Map(usd -> WsBalances(285, 15), Waves -> WsBalances(99.98, 0.02)),
               Seq(
-                WsOrder(
-                  id = buyOrder.id,
+                WsOrder.fromOrder(
+                  buyOrder.order,
                   status = OrderStatus.PartiallyFilled.name.some,
                   filledAmount = 5.0.some,
                   filledFee = 0.02.some,
@@ -298,8 +301,8 @@ class ActorsWebSocketInteractionsSpecification
                 Waves -> WsBalances(104.98, 0)
               ),
               Seq(
-                WsOrder(
-                  id = buyOrder.id,
+                WsOrder.fromOrder(
+                  buyOrder.order,
                   status = OrderStatus.Cancelled.name.some
                 )
               ),
@@ -348,8 +351,8 @@ class ActorsWebSocketInteractionsSpecification
               // tradable = total - reserved, so 180 = 300 - 120 USD, 2.2 = 3 - 0.8 ETH
               Map(usd -> WsBalances(180, 120), eth -> WsBalances(2.2, 0.8)),
               Seq(
-                WsOrder(
-                  id = mo.id,
+                WsOrder.fromOrder(
+                  mo.order,
                   status = OrderStatus.PartiallyFilled.name.some,
                   filledAmount = 10.0.some,
                   filledFee = 0.2.some,
@@ -368,8 +371,8 @@ class ActorsWebSocketInteractionsSpecification
             .expectWsBalancesAndOrders(
               Map(usd -> WsBalances(225, 75), eth -> WsBalances(2.5, 0.5)),
               Seq(
-                WsOrder(
-                  id = mo.id,
+                WsOrder.fromOrder(
+                  mo.order,
                   status = OrderStatus.PartiallyFilled.name.some,
                   filledAmount = 25.0.some,
                   filledFee = 0.5.some,
@@ -388,8 +391,8 @@ class ActorsWebSocketInteractionsSpecification
             .expectWsBalancesAndOrders(
               Map(usd -> WsBalances(240, 60), eth -> WsBalances(2.6, 0.4)),
               Seq(
-                WsOrder(
-                  id = mo.id,
+                WsOrder.fromOrder(
+                  mo.order,
                   status = OrderStatus.PartiallyFilled.name.some,
                   filledAmount = 30.0.some,
                   filledFee = 0.6.some,
@@ -408,8 +411,8 @@ class ActorsWebSocketInteractionsSpecification
             .expectWsBalancesAndOrders(
               Map(usd -> WsBalances(300, 0), eth -> WsBalances(3, 0)),
               Seq(
-                WsOrder(
-                  id = mo.id,
+                WsOrder.fromOrder(
+                  mo.order,
                   status = OrderStatus.Filled.name.some
                 )
               ),
@@ -535,7 +538,7 @@ class ActorsWebSocketInteractionsSpecification
         env.commandsProbe.expectMsg(ValidatedCommand.PlaceOrder(submitted))
         env.addressDir ! OrderAdded(submitted, OrderAddedReason.RequestExecuted, now)
 
-        val oe = OrderExecuted(submitted, counter, System.currentTimeMillis, submitted.matcherFee, counter.matcherFee)
+        val oe = OrderExecuted(submitted, counter, System.currentTimeMillis, submitted.matcherFee, counter.matcherFee, 0L)
 
         env.addressDir ! oe
 
@@ -572,8 +575,11 @@ class ActorsWebSocketInteractionsSpecification
         env.commandsProbe.expectMsg(ValidatedCommand.PlaceOrder(submitted))
         env.addressDir ! AddressActor.Command.ApplyOrderBookAdded(OrderAdded(submitted, OrderAddedReason.RequestExecuted, now))
 
-        val oe = OrderExecuted(submitted, counter, System.currentTimeMillis, counter.matcherFee, submitted.matcherFee)
-        env.addressDir ! AddressActor.Command.ApplyOrderBookExecuted(oe, mkExchangeTx(oe).copy(error = ValidationError.GenericError("test").some))
+        val oe = OrderExecuted(submitted, counter, System.currentTimeMillis, counter.matcherFee, submitted.matcherFee, 0L)
+        env.addressDir ! AddressActor.Command.ApplyOrderBookExecuted(AddressActor.OrderBookExecutedEvent(
+          oe,
+          mkExchangeTx(oe).copy(error = ValidationError.GenericError("test").some)
+        ))
 
         env
           .expectWsBalancesAndOrders(
@@ -624,8 +630,8 @@ class ActorsWebSocketInteractionsSpecification
               Waves -> WsBalances(99.92, 0.08) // 0.006 is a commission for counter2 + counter3, 99.994 = 100 - 0.006
             ),
             Seq(
-              WsOrder(
-                id = counter1.id,
+              WsOrder.fromOrder(
+                counter1.order,
                 status = OrderStatus.Filled.name.some,
                 filledAmount = 5.0.some,
                 filledFee = 0.04.some,
@@ -646,8 +652,8 @@ class ActorsWebSocketInteractionsSpecification
               Waves -> WsBalances(99.96, 0.04)
             ),
             Seq(
-              WsOrder(
-                id = counter2.id,
+              WsOrder.fromOrder(
+                counter2.order,
                 status = OrderStatus.Filled.name.some,
                 filledAmount = 5.0.some,
                 filledFee = 0.04.some,
@@ -669,8 +675,8 @@ class ActorsWebSocketInteractionsSpecification
               Waves -> WsBalances(99.976, 0.024) // executed_fee = 0.0012 = 0.003 * 2 / 5
             ),
             Seq(
-              WsOrder(
-                id = counter3.id,
+              WsOrder.fromOrder(
+                counter3.order,
                 status = OrderStatus.PartiallyFilled.name.some,
                 filledAmount = 2.0.some,
                 filledFee = 0.016.some,
@@ -684,7 +690,7 @@ class ActorsWebSocketInteractionsSpecification
           .cancelOrder(counter3Remaining, unmatchable = false)
           .expectWsBalancesAndOrders(
             Map(usd -> WsBalances(70, 0), Waves -> WsBalances(100, 0)),
-            Seq(WsOrder(id = counter3.id, status = OrderStatus.Cancelled.name.some)),
+            Seq(WsOrder.fromOrder(counter3.order, status = OrderStatus.Cancelled.name.some)),
             7
           )
           .updateBalances(Map(usd -> 33.1.usd, Waves -> 111.9928.waves))
@@ -729,8 +735,8 @@ class ActorsWebSocketInteractionsSpecification
             // executed = 5, executed_fee = 0.003 * 5 / 12 = 0.00125, reserved = 7.00175 = 12.003 - 5 - 0.00125, tradable = 92.99825 = 100 - 7.00175
             Map(Waves -> WsBalances(92.97666666, 7.02333334)),
             Seq(
-              WsOrder(
-                id = mo.id,
+              WsOrder.fromOrder(
+                mo.order,
                 status = OrderStatus.PartiallyFilled.name.some,
                 filledAmount = 5.0.some,
                 filledFee = 0.01666666.some,
@@ -749,8 +755,8 @@ class ActorsWebSocketInteractionsSpecification
             // executed = 5, executed_fee = 0.003 * 5 / 12 = 0.00125, reserved = 2.0005 = 7.00175 - 5 - 0.00125, tradable = 97.9995 = 100 - 2.0005
             Map(Waves -> WsBalances(97.99333332, 2.00666668)),
             Seq(
-              WsOrder(
-                id = mo.id,
+              WsOrder.fromOrder(
+                mo.order,
                 status = OrderStatus.PartiallyFilled.name.some,
                 filledAmount = 10.0.some,
                 filledFee = 0.03333332.some,
@@ -769,8 +775,8 @@ class ActorsWebSocketInteractionsSpecification
             // executed = 2, executed_fee = 0.003 * 2 / 12 = 0.0005, reserved = 0 = 2.0005 - 2 - 0.0005, tradable = 100
             Map(Waves -> WsBalances(100, 0)),
             Seq(
-              WsOrder(
-                id = mo.id,
+              WsOrder.fromOrder(
+                mo.order,
                 status = OrderStatus.Filled.name.some,
                 filledAmount = 12.0.some,
                 filledFee = 0.03999998.some,
@@ -816,14 +822,14 @@ class ActorsWebSocketInteractionsSpecification
         .expectWsBalancesAndOrders(
           Map(usd -> WsBalances(5, 5), Waves -> WsBalances(9.98, 0.02)),
           Seq(
-            WsOrder(
-              id = bo.id,
-              status = OrderStatus.PartiallyFilled.name,
-              filledAmount = 5.0,
-              filledFee = 0.02,
-              avgWeighedPrice = 1.0,
-              totalExecutedPriceAssets = 5.0,
-              mkWsMatchTxInfo(1.0, 5.0)
+            WsOrder.fromOrder(
+              bo.order,
+              status = OrderStatus.PartiallyFilled.name.some,
+              filledAmount = 5.0.some,
+              filledFee = 0.02.some,
+              avgWeighedPrice = 1.0.some,
+              totalExecutedPriceAssets = 5.0.some,
+              matchInfo = Seq(mkWsMatchTxInfo(1.0, 5.0))
             )
           ),
           2
@@ -837,7 +843,7 @@ class ActorsWebSocketInteractionsSpecification
         .cancelOrder(oe.counterRemaining, unmatchable = false)
         .expectWsBalancesAndOrders(
           Map(usd -> WsBalances(5, 0), Waves -> WsBalances(14.98, 0)),
-          Seq(WsOrder(id = bo.id, status = OrderStatus.Cancelled.name.some)),
+          Seq(WsOrder.fromOrder(bo.order, status = OrderStatus.Cancelled.name.some)),
           4
         )
         .kill()

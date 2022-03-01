@@ -8,6 +8,7 @@ import cats.syntax.option._
 import com.wavesplatform.dex.MatcherSpecBase
 import com.wavesplatform.dex.actors.OrderBookDirectoryActor.SaveSnapshot
 import com.wavesplatform.dex.actors.address.AddressActor.Command.Source
+import com.wavesplatform.dex.actors.events.OrderEventsCoordinatorActor.Command.Process
 import com.wavesplatform.dex.actors.orderbook.AggregatedOrderBookActor.MarketStatus
 import com.wavesplatform.dex.actors.orderbook.OrderBookActor.{OrderBookRecovered, OrderBookSnapshotUpdateCompleted}
 import com.wavesplatform.dex.actors.{HasOecInteraction, MatcherSpec, OrderBookAskAdapter}
@@ -30,6 +31,7 @@ import com.wavesplatform.dex.settings.OrderFeeSettings.DynamicSettings
 import com.wavesplatform.dex.settings.{DenormalizedMatchingRule, MatchingRule}
 import com.wavesplatform.dex.time.SystemTime
 import org.scalamock.scalatest.PathMockFactory
+import org.scalatest.OptionValues
 import org.scalatest.concurrent.Eventually
 
 import java.util.concurrent.ConcurrentHashMap
@@ -45,7 +47,8 @@ class OrderBookActorSpecification
     with ImplicitSender
     with MatcherSpecBase
     with PathMockFactory
-    with Eventually {
+    with Eventually
+    with OptionValues {
 
   private val md = new ConcurrentHashMap[AssetPair, MarketStatus]
 
@@ -74,7 +77,8 @@ class OrderBookActorSpecification
   private def obcTestWithPrepare(
     prepare: (OrderBookSnapshotDb[Future], AssetPair) => Unit,
     matchingRules: NonEmptyList[DenormalizedMatchingRule] = NonEmptyList.one(DenormalizedMatchingRule(0, 0.00000001)),
-    makerTakerFeeAtOffset: Long => (AcceptedOrder, LimitOrder) => (Long, Long) = _ => makerTakerPartialFee
+    makerTakerFeeAtOffset: Long => (AcceptedOrder, LimitOrder) => (Long, Long) = _ => makerTakerPartialFee,
+    snapshot: Option[OrderBookActor.Snapshot] = None
   )(f: (AssetPair, ActorRef, TestProbe) => Unit): Unit = {
 
     md.clear()
@@ -95,12 +99,15 @@ class OrderBookActorSpecification
         system.actorOf(OrderBookSnapshotStoreActor.props(obsdb)),
         system.toTyped.ignoreRef,
         pair,
+        snapshot,
         time,
         matchingRules,
         _ => (),
         raw => MatchingRule(raw.startOffset, (raw.tickSize * BigDecimal(10).pow(8)).toLongExact),
         makerTakerFeeAtOffset,
-        None
+        _ => (eventTs, _) => eventTs,
+        None,
+        log
       ) with RestartableActor
     })
 
@@ -119,6 +126,13 @@ class OrderBookActorSpecification
       tp.expectMsg(OrderBookRecovered(pair, Some(50)))
     }
 
+    "recover from snapshot - 3 (without interaction with obsdb, just using initial snapshot)" in obcTestWithPrepare(
+      (_, _) => (),
+      snapshot = Some(Some((50L, OrderBookSnapshot.empty)))
+    ) { (pair, _, tp) =>
+      tp.expectMsg(OrderBookRecovered(pair, Some(50)))
+    }
+
     "recovery - if there is a matching rule - DEX-775" in obcTestWithPrepare(
       prepare = (obsdb, p) => obsdb.update(p, 50L, Some(OrderBookSnapshot.empty)),
       matchingRules = NonEmptyList.of(DenormalizedMatchingRule(0, 0.00000001), DenormalizedMatchingRule(40, 0.0000001))
@@ -129,7 +143,7 @@ class OrderBookActorSpecification
     "recovery - notify address actor about orders" in obcTestWithPrepare { (obsdb, p) =>
       val ord = buy(p, 10 * Order.PriceConstant, 100)
       val ob = OrderBook.empty
-      val OrderBookUpdates(updatedOb, _, _, _) = ob.add(LimitOrder(ord), ord.timestamp, makerTakerPartialFee)
+      val OrderBookUpdates(updatedOb, _, _, _) = ob.add(LimitOrder(ord), ord.timestamp, makerTakerPartialFee, (eventTs, _) => eventTs, 0L)
       obsdb.update(p, 50L, Some(updatedOb.snapshot))
     } { (pair, _, tp) =>
       tp.expectOecProcess[OrderAdded]
@@ -148,8 +162,10 @@ class OrderBookActorSpecification
       tp.expectMsgType[OrderBookSnapshotUpdateCompleted]
       orderBook ! RestartActor
 
-      tp.expectOecProcess[OrderAdded] should matchTo(OrderAdded(LimitOrder(ord1), OrderAddedReason.OrderBookRecovered, ord1.timestamp))
-      tp.expectOecProcess[OrderAdded] should matchTo(OrderAdded(LimitOrder(ord2), OrderAddedReason.OrderBookRecovered, ord2.timestamp))
+      val events = tp.expectMsgType[Process].events.toList
+      events.size shouldBe 2
+      events.head should be(OrderAdded(LimitOrder(ord1), OrderAddedReason.OrderBookRecovered, ord1.timestamp))
+      events.last should be(OrderAdded(LimitOrder(ord2), OrderAddedReason.OrderBookRecovered, ord2.timestamp))
       tp.expectMsgType[OrderBookRecovered]
     }
 
@@ -158,17 +174,19 @@ class OrderBookActorSpecification
       val ord2 = sell(pair, 15 * Order.PriceConstant, 100)
 
       actor ! wrapLimitOrder(ord1)
-      tp.expectOecProcess[OrderAdded]
+      tp.expectFirstOec[OrderAdded]
 
       actor ! wrapLimitOrder(ord2)
-      tp.expectOecProcess[OrderAdded]
-      tp.expectOecProcess[OrderExecuted]
+      val events = tp.expectMsgType[Process].events.toList
+      events.size shouldBe 2
+      events.head shouldBe a[OrderAdded]
+      events.last shouldBe a[OrderExecuted]
 
       actor ! SaveSnapshot(Long.MaxValue)
       tp.expectMsgType[OrderBookSnapshotUpdateCompleted]
 
       actor ! RestartActor
-      tp.expectOecProcess[OrderAdded] should matchTo(
+      tp.expectFirstOec[OrderAdded] should matchTo(
         OrderAdded(
           SellLimitOrder(
             ord2.amount - ord1.amount,
@@ -191,14 +209,14 @@ class OrderBookActorSpecification
       actor ! wrapLimitOrder(ord1)
       actor ! wrapLimitOrder(ord2)
       actor ! wrapLimitOrder(ord3)
-      tp.receiveN(5)
+      tp.receiveN(3)
 
       actor ! SaveSnapshot(Long.MaxValue)
       tp.expectMsgType[OrderBookSnapshotUpdateCompleted]
       actor ! RestartActor
 
       val restAmount = ord1.amount + ord2.amount - ord3.amount
-      tp.expectOecProcess[OrderAdded] should matchTo(
+      tp.expectFirstOec[OrderAdded] should matchTo(
         OrderAdded(
           BuyLimitOrder(
             restAmount,
@@ -223,14 +241,14 @@ class OrderBookActorSpecification
       actor ! wrapLimitOrder(ord2)
       actor ! wrapLimitOrder(ord3)
       actor ! wrapLimitOrder(ord4)
-      tp.receiveN(7)
+      tp.receiveN(4)
 
       actor ! SaveSnapshot(Long.MaxValue)
       tp.expectMsgType[OrderBookSnapshotUpdateCompleted]
       actor ! RestartActor
 
       val restAmount = ord1.amount + ord2.amount + ord3.amount - ord4.amount
-      tp.expectOecProcess[OrderAdded] should matchTo(
+      tp.expectFirstOec[OrderAdded] should matchTo(
         OrderAdded(
           SellLimitOrder(
             restAmount,
@@ -262,7 +280,7 @@ class OrderBookActorSpecification
       orderBook ! RestartActor
 
       within(10.seconds) {
-        tp.receiveN(100)
+        tp.receiveN(1)
       }
       tp.expectMsgType[OrderBookRecovered]
     }
@@ -449,11 +467,15 @@ class OrderBookActorSpecification
         // place when order fee settings is DynamicSettings(0.001.waves, 0.005.waves)
         val taker1 = buy(wavesUsdPair, 10.waves, 3.00, matcherFee = 0.005.waves.some, ts = now.some)
         orderBook ! wrapLimitOrder(1, taker1)
-        tp.expectOecProcess[OrderAdded]
-
-        val oe = tp.expectOecProcess[OrderExecuted]
-        oe.counterExecutedFee shouldBe 0.024.waves
-        oe.submittedExecutedFee shouldBe 0.005.waves
+        val events = tp.expectMsgType[Process].events
+        events.size shouldBe 2
+        events.head shouldBe a[OrderAdded]
+        events.last match {
+          case oe: OrderExecuted =>
+            oe.counterExecutedFee shouldBe 0.024.waves
+            oe.submittedExecutedFee shouldBe 0.005.waves
+          case e => fail(s"Last OrderEvent is $e, but expected OrderExecuted")
+        }
       }
     }
 
@@ -493,19 +515,21 @@ class OrderBookActorSpecification
         }
 
         orderBook ! wrapMarketOrder(marketOrder)
-        tp.expectOecProcess[OrderAdded]
-        val oe1 = tp.expectOecProcess[OrderExecuted]
+        val events = tp.expectMsgType[Process].events.toList
+        events.size shouldBe 4
+        events.head shouldBe a[OrderAdded]
+        val oe1 = events(1).asInstanceOf[OrderExecuted]
         oe1.submitted shouldBe marketOrder
         oe1.counter shouldBe LimitOrder(counterOrder1)
         oe1.executedAmount shouldBe counterOrder1.amount
 
-        val oe2 = tp.expectOecProcess[OrderExecuted]
+        val oe2 = events(2).asInstanceOf[OrderExecuted]
         val marketOrderRemaining1 = oe1.submittedMarketRemaining(marketOrder)
         oe2.submitted shouldBe marketOrderRemaining1
         oe2.counter shouldBe LimitOrder(counterOrder2)
         oe2.executedAmount shouldBe counterOrder2.amount
 
-        val oe3 = tp.expectOecProcess[OrderExecuted]
+        val oe3 = events(3).asInstanceOf[OrderExecuted]
         val marketOrderRemaining2 = oe2.submittedMarketRemaining(marketOrderRemaining1)
         oe3.submitted shouldBe marketOrderRemaining2
         oe3.counter shouldBe LimitOrder(counterOrder3)
@@ -554,8 +578,10 @@ class OrderBookActorSpecification
 
         withClue("Stop condition - no counter orders:") {
           orderBook ! wrapMarketOrder(marketOrder)
-          tp.expectOecProcess[OrderAdded]
-          val oc = tp.expectOecProcess[OrderCanceled]
+          val events = tp.expectMsgType[Process].events
+          events.size shouldBe 2
+          events.head shouldBe a[OrderAdded]
+          val oc = events.last.asInstanceOf[OrderCanceled]
 
           oc.acceptedOrder shouldBe marketOrder
           oc.reason shouldBe Events.OrderCanceledReason.BecameUnmatchable
@@ -569,13 +595,15 @@ class OrderBookActorSpecification
           tp.expectOecProcess[OrderAdded]
 
           orderBook ! wrapMarketOrder(marketOrder)
-          tp.expectOecProcess[OrderAdded]
-          val oe = tp.expectOecProcess[OrderExecuted]
+          val events = tp.expectMsgType[Process].events.toList
+          events.size shouldBe 3
+          events.head shouldBe a[OrderAdded]
+          val oe = events(1).asInstanceOf[OrderExecuted]
           oe.submitted shouldBe marketOrder
           oe.counter shouldBe LimitOrder(counterOrder)
           oe.executedAmount shouldBe counterOrder.amount
 
-          val oc2 = tp.expectOecProcess[OrderCanceled]
+          val oc2 = events.last.asInstanceOf[OrderCanceled]
 
           oc2.acceptedOrder shouldBe oe.submittedMarketRemaining(marketOrder)
           oc2.reason shouldBe Events.OrderCanceledReason.BecameUnmatchable
@@ -626,12 +654,14 @@ class OrderBookActorSpecification
           }
 
           orderBook ! wrapLimitOrder(counterOrder)
-          tp.expectOecProcess[OrderAdded]
+          tp.expectFirstOec[OrderAdded]
 
           orderBook ! wrapMarketOrder(marketOrder)
 
-          tp.expectOecProcess[OrderAdded]
-          val oe = tp.expectOecProcess[OrderExecuted]
+          val events = tp.expectMsgType[Process].events.toList
+          events.size shouldBe 3
+          events.head shouldBe a[OrderAdded]
+          val oe = events(1).asInstanceOf[OrderExecuted]
           oe.submitted shouldBe marketOrder
           oe.counter shouldBe LimitOrder(counterOrder)
 
@@ -651,7 +681,7 @@ class OrderBookActorSpecification
               MatcherModel.getCost(oe.executedAmount + 1, marketOrder.price) should be > marketOrder.availableForSpending
           }
 
-          val oc = tp.expectOecProcess[OrderCanceled]
+          val oc = events.last.asInstanceOf[OrderCanceled]
 
           oc.acceptedOrder shouldBe oe.submittedMarketRemaining(marketOrder)
           oc.reason shouldBe Events.OrderCanceledReason.BecameUnmatchable
@@ -695,9 +725,12 @@ class OrderBookActorSpecification
       tp.expectOecProcess[OrderAdded]
 
       orderBook ! wrapLimitOrder(submittedOrder)
-      tp.expectOecProcess[OrderAdded]
+      val events = tp.expectMsgType[Process].events
+      events.size shouldBe 2
+      events.head shouldBe a[OrderAdded]
+      events.last shouldBe a[OrderCanceled]
       // The amount=1000 should >= ceil(10^8 / 90000) = 1112
-      tp.expectOecProcess[OrderCanceled].reason shouldBe Events.OrderCanceledReason.BecameUnmatchable
+      events.last.reason shouldBe Events.OrderCanceledReason.BecameUnmatchable
     }
 
     "orders are cancelling after during an order book deletion" in obcTest { (wctWavesPair, orderBook, tp) =>
@@ -713,7 +746,7 @@ class OrderBookActorSpecification
       tp.expectOecProcess[OrderAdded]
 
       orderBook ! wrapCommand(ValidatedCommand.DeleteOrderBook(wctWavesPair))
-      tp.expectOecProcess[OrderCanceled].reason shouldBe Events.OrderCanceledReason.OrderBookDeleted
+      tp.expectFirstOec[OrderCanceled].reason shouldBe Events.OrderCanceledReason.OrderBookDeleted
     }
   }
 

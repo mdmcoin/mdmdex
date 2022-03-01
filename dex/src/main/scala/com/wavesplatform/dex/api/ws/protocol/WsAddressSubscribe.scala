@@ -3,7 +3,7 @@ package com.wavesplatform.dex.api.ws.protocol
 import java.nio.charset.StandardCharsets
 import cats.syntax.either._
 import cats.syntax.option._
-import com.wavesplatform.dex.api.ws.entities.WsAddressBalancesFilter
+import com.wavesplatform.dex.api.ws.entities.WsAddressFlag
 import com.wavesplatform.dex.api.ws.protocol.WsAddressSubscribe._
 import com.wavesplatform.dex.domain.account.{Address, PrivateKey, PublicKey}
 import com.wavesplatform.dex.domain.bytes.ByteStr
@@ -15,8 +15,7 @@ import pdi.jwt.{JwtAlgorithm, JwtJson, JwtOptions}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
-final case class WsAddressSubscribe(key: Address, authType: String, jwt: String, filters: Set[WsAddressBalancesFilter] = Set.empty)
-    extends WsClientMessage {
+final case class WsAddressSubscribe(key: Address, authType: String, jwt: String, flags: Set[WsAddressFlag] = Set.empty) extends WsClientMessage {
   override val tpe: String = WsAddressSubscribe.tpe
 
   def validate(jwtPublicKey: String, networkByte: Byte): Either[MatcherError, JwtPayload] =
@@ -37,8 +36,11 @@ final case class WsAddressSubscribe(key: Address, authType: String, jwt: String,
         val given = payload.networkByte.head.toByte
         Either.cond(given == networkByte, (), error.TokenNetworkUnexpected(networkByte, given))
       }
-      _ <- Either.cond(crypto.verify(payload.signature, ByteStr(payload.toSign), payload.publicKey), (), error.InvalidJwtPayloadSignature)
-      _ <- Either.cond(payload.publicKey.toAddress == key, (), error.AddressAndPublicKeyAreIncompatible(key, payload.publicKey))
+      _ <- Either.cond(
+        payload.publicKey.toAddress == key,
+        (),
+        error.AddressAndPublicKeyAreIncompatible(key, payload.publicKey)
+      )
     } yield payload
 
 }
@@ -50,9 +52,9 @@ object WsAddressSubscribe {
   val supportedAuthTypes = Set(defaultAuthType)
   val leewayInSeconds = 10
 
-  private def wsUnapply(arg: WsAddressSubscribe): Option[(String, Address, String, String, Option[Option[Set[WsAddressBalancesFilter]]])] = {
-    val filtersOpt = if (arg.filters.isEmpty) None else Some(Some(arg.filters))
-    (arg.tpe, arg.key, arg.authType, arg.jwt, filtersOpt).some
+  private def wsUnapply(arg: WsAddressSubscribe): Option[(String, Address, String, String, Option[Option[Set[WsAddressFlag]]])] = {
+    val flagsOpt = if (arg.flags.isEmpty) None else Some(Some(arg.flags))
+    (arg.tpe, arg.key, arg.authType, arg.jwt, flagsOpt).some
   }
 
   implicit val wsAddressSubscribeFormat: Format[WsAddressSubscribe] = (
@@ -60,9 +62,9 @@ object WsAddressSubscribe {
       (__ \ "S").format[Address] and
       (__ \ "t").format[String] and
       (__ \ "j").format[String] and
-      (__ \ "b").formatNullable((__ \ "f").formatNullable[Set[WsAddressBalancesFilter]])
+      (__ \ "b").formatNullable((__ \ "f").formatNullable[Set[WsAddressFlag]])
   )(
-    (_, key, authType, jwt, filters) => WsAddressSubscribe(key, authType, jwt, filters.flatten.getOrElse(Set.empty)),
+    (_, key, authType, jwt, flags) => WsAddressSubscribe(key, authType, jwt, flags.flatten.getOrElse(Set.empty)),
     unlift(WsAddressSubscribe.wsUnapply)
   )
 
@@ -78,6 +80,8 @@ object WsAddressSubscribe {
     def toSign: Array[Byte] = JwtPayload.toSignPrefix ++ s"$networkByte:$clientId:$firstTokenExpirationInSeconds".getBytes(StandardCharsets.UTF_8)
 
     def signed(privateKey: PrivateKey): JwtPayload = copy(signature = crypto.sign(privateKey, toSign))
+
+    val isDebug: Boolean = !crypto.verify(signature, ByteStr(toSign), publicKey)
   }
 
   object JwtPayload {

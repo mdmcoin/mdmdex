@@ -23,7 +23,7 @@ import com.wavesplatform.dex.error.ErrorFormatterContext
 import com.wavesplatform.dex.grpc.integration.clients.{RunScriptResult, WavesBlockchainClient}
 import com.wavesplatform.dex.grpc.integration.dto.BriefAssetDescription
 import com.wavesplatform.dex.model.OrderValidator.Result
-import com.wavesplatform.dex.settings.OrderFeeSettings.{DynamicSettings, FixedSettings, PercentSettings}
+import com.wavesplatform.dex.settings.OrderFeeSettings.{CompositeSettings, DynamicSettings, FixedSettings, PercentSettings}
 import com.wavesplatform.dex.settings.{AssetType, DeviationsSettings, OrderFeeSettings, OrderRestrictionsSettings}
 import com.wavesplatform.dex.test.matchers.ProduceError.produce
 import com.wavesplatform.dex.time.TestTime
@@ -35,6 +35,7 @@ import org.scalatest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.libs.json.Json
 
@@ -50,6 +51,7 @@ class OrderValidatorSpecification
     with NoShrink {
 
   private val defaultPortfolio = Portfolio(0, LeaseBalance.empty, Map(btc -> 10.btc))
+  private val defaultWavesFee = 300000L
 
   implicit private val errorContext: ErrorFormatterContext = ErrorFormatterContext.from(_ => defaultAssetDescription.decimals)
 
@@ -219,7 +221,7 @@ class OrderValidatorSpecification
 
       "matcherFee is not enough (percent mode)" in {
         def validateByPercentSettings(assetType: AssetType): Order => Result[Order] =
-          validateByMatcherSettings(PercentSettings(assetType, 0.3))
+          validateByMatcherSettings(PercentSettings(assetType, 0.3, defaultWavesFee))
 
         withClue("AMOUNT/RECEIVING asset type, min fee = 0.3%, fee should be >= 1.5.waves\n") {
           val order = createOrder(wavesBtcPair, OrderType.BUY, 500.waves, price = 0.0011162, matcherFee = 1.5.waves, feeAsset = Waves)
@@ -248,8 +250,11 @@ class OrderValidatorSpecification
       }
 
       "matcherFee is not enough (dynamic mode)" in {
-        val validateByDynamicSettings: Order => Result[Order] =
-          validateByMatcherSettings(DynamicSettings.symmetric(0.04.waves), rateCache = rateCache)
+        val validateByDynamicSettings: Asset => Order => Result[Order] = asset => {
+          val cs =
+            CompositeSettings(DynamicSettings.symmetric(0.04.waves), discount = Some(CompositeSettings.DiscountAssetSettings(asset, 0.0)))
+          validateByMatcherSettings(cs, rateCache = rateCache)
+        }
 
         /**
          * asset rate = price of 1 Waves in that asset;
@@ -257,14 +262,14 @@ class OrderValidatorSpecification
          */
         withClue("Fee in USD (2 decimals) should be >= 0.02.usd\n") {
           val order = createOrder(wavesUsdPair, OrderType.BUY, 100.waves, price = 3, matcherFee = 0.15.usd, feeAsset = usd)
-          validateByDynamicSettings(order) shouldBe Symbol("right")
-          validateByDynamicSettings(order.updateFee(0.14.usd)) should produce("FeeNotEnough")
+          validateByDynamicSettings(usd)(order) shouldBe Symbol("right")
+          validateByDynamicSettings(usd)(order.updateFee(0.14.usd)) should produce("FeeNotEnough")
         }
 
-        withClue("Fee in BTC (8 decimals) should be >= 0.0000034.btc\n") {
-          val order = createOrder(wavesBtcPair, OrderType.BUY, 100.waves, price = 0.0011162, matcherFee = 0.0000447.btc, feeAsset = btc)
-          validateByDynamicSettings(order) shouldBe Symbol("right")
-          validateByDynamicSettings(order.updateFee(0.0000010.btc)) should produce("FeeNotEnough")
+        withClue("Fee in BTC (8 decimals) should be >= 0.00000034.btc\n") {
+          val order = createOrder(wavesBtcPair, OrderType.BUY, 100.waves, price = 0.00011162, matcherFee = 0.0000447.btc, feeAsset = btc)
+          validateByDynamicSettings(btc)(order) shouldBe Symbol("right")
+          validateByDynamicSettings(btc)(order.updateFee(0.0000010.btc)) should produce("FeeNotEnough")
         }
       }
 
@@ -323,8 +328,19 @@ class OrderValidatorSpecification
           validateByMatcherSettings(FixedSettings(usd, 0.01.usd))(orderOfVersion(version)) should produce("UnexpectedFeeAsset")
           validateByMatcherSettings(FixedSettings(Waves, 0.04.waves))(orderOfVersion(version)) shouldBe Symbol("right")
 
+<<<<<<< HEAD
           validateByMatcherSettings(PercentSettings(AssetType.Price, 0.04))(orderOfVersion(version)) should produce("UnexpectedFeeAsset")
           validateByMatcherSettings(PercentSettings(AssetType.Amount, 0.04))(orderOfVersion(version)) shouldBe Symbol("right")
+=======
+          validateByMatcherSettings(PercentSettings(AssetType.Price, 0.003, defaultWavesFee))(orderOfVersion(version)) should produce(
+            "UnexpectedFeeAsset"
+          )
+          validateByMatcherSettings(PercentSettings(AssetType.Price, 0.003, defaultWavesFee))(orderOfVersion(version)) should produce(
+            "UnexpectedFeeAsset"
+          )
+          validateByMatcherSettings(PercentSettings(AssetType.Amount, 0.003, defaultWavesFee))(orderOfVersion(version)) shouldBe Symbol("right")
+          validateByMatcherSettings(PercentSettings(AssetType.Amount, 0.003, defaultWavesFee))(orderOfVersion(version)) shouldBe Symbol("right")
+>>>>>>> 09ad80e4504ebe895c1721c8bc1709043719926b
         }
       }
 
@@ -332,12 +348,27 @@ class OrderValidatorSpecification
         case (order, _, orderFeeSettings) =>
           val trueScript = RunScriptResult.Allowed
 
+          val maybePsAsset = orderFeeSettings match {
+            case s: PercentSettings => Some(s.getFeeAsset(order))
+            case _ => None
+          }
+
+          val rateCache = RateCache(TestRateDb()).futureValue
+            .unsafeTap(_.upsertRate(order.feeAsset, 1.0))
+            .unsafeTap(rc => maybePsAsset.foreach(rc.upsertRate(_, 1.0)))
+
           def setAssetsAndMatcherAccountScriptsAndValidate(
             amountAssetScript: Option[RunScriptResult],
             priceAssetScript: Option[RunScriptResult],
             matcherAccountScript: Option[RunScriptResult]
           ): Result[Order] =
-            validateByBlockchain(orderFeeSettings)(amountAssetScript, priceAssetScript, None, matcherAccountScript)(order).value.futureValue
+            validateByBlockchain(orderFeeSettings)(
+              amountAssetScript,
+              priceAssetScript,
+              None,
+              matcherAccountScript,
+              rateCache = rateCache
+            )(order).value.futureValue
 
           orderFeeSettings match {
             case _: DynamicSettings =>
@@ -483,7 +514,7 @@ class OrderValidatorSpecification
         val bestAsk = LevelAgg(amount = 800.waves, price = 0.0011082.btc)
         val bestBid = LevelAgg(amount = 600.waves, price = 0.0011080.btc)
 
-        val percentSettings = PercentSettings(AssetType.Price, 1) // matcher fee = 1% of the deal
+        val percentSettings = PercentSettings(AssetType.Price, 1, defaultWavesFee) // matcher fee = 1% of the deal
         val deviationSettings = DeviationsSettings(enable = true, 100, 100, maxFeeDeviation = 10) // fee deviation = 10%
 
         val nonEmptyMarketStatus = MarketStatus(None, Some(bestBid), Some(bestAsk))
@@ -616,24 +647,31 @@ class OrderValidatorSpecification
       "matcherFee is too small according to rate of fee asset" in {
 
         val rateCache: RateCache = RateCache(TestRateDb()).futureValue
-        val validateByRate: Order => Result[Order] = validateByMatcherSettings(DynamicSettings.symmetric(0.04.waves), rateCache = rateCache)
+        val validateByRate: Asset => Order => Result[Order] = asset => {
+          val cs =
+            CompositeSettings(DynamicSettings.symmetric(0.04.waves), discount = Some(CompositeSettings.DiscountAssetSettings(asset, 0.0)))
+          validateByMatcherSettings(cs, rateCache = rateCache)
+        }
         val order: Order = createOrder(wavesUsdPair, BUY, 1.waves, 3.00, 0.14.usd, feeAsset = usd)
 
         withClue("USD rate = 3.34, fee should be >= 0.02 usd\n") {
-          rateCache.upsertRate(usd, 8.00)
-          validateByRate(order) should produce("FeeNotEnough")
+          rateCache.upsertRate(usd, 8)
+          validateByRate(usd)(order) should produce("FeeNotEnough")
         }
       }
 
       "matcherFee is too small according to two latest rates of fee asset" in {
         val rateCache: RateCache = RateCache(TestRateDb()).futureValue
-        val validateByRate: Order => Result[Order] = validateByMatcherSettings(DynamicSettings.symmetric(0.03.waves), rateCache = rateCache)
+        val validateByRate: Asset => Order => Result[Order] = asset => {
+          val cs = CompositeSettings(DynamicSettings.symmetric(0.03.waves), discount = Some(CompositeSettings.DiscountAssetSettings(asset, 0.0)))
+          validateByMatcherSettings(cs, rateCache = rateCache)
+        }
         val order: Order = createOrder(wavesUsdPair, BUY, 1.waves, 3.00, 0.01.usd, feeAsset = usd)
 
         def feeNotEnoughChecks(): Unit = List(5d, 4d, 10d).foreach { rate =>
           withClue(s"USD rate = $rate\n") {
             rateCache.upsertRate(usd, rate)
-            validateByRate(order) should produce("FeeNotEnough")
+            validateByRate(usd)(order) should produce("FeeNotEnough")
           }
         }
 
@@ -645,24 +683,30 @@ class OrderValidatorSpecification
       "matcherFee is enough according to rate of fee asset" in {
 
         val rateCache: RateCache = RateCache(TestRateDb()).futureValue
-        val validateByRate: Order => Result[Order] = validateByMatcherSettings(DynamicSettings.symmetric(0.03.waves), rateCache = rateCache)
+        val validateByRate: Asset => Order => Result[Order] = asset => {
+          val cs = CompositeSettings(DynamicSettings.symmetric(0.03.waves), discount = Some(CompositeSettings.DiscountAssetSettings(asset, 0.0)))
+          validateByMatcherSettings(cs, rateCache = rateCache)
+        }
         val order: Order = createOrder(wavesUsdPair, BUY, 1.waves, 3.00, 0.1.usd, feeAsset = usd)
 
         withClue("USD rate = 3.33, fee should be >= 0.01 usd\n") {
           rateCache.upsertRate(usd, 3.33)
-          validateByRate(order) shouldBe Symbol("right")
+          validateByRate(usd)(order) shouldBe Symbol("right")
         }
       }
       
       "matcherFee is enough according to two latest rates of fee asset" in {
         val rateCache: RateCache = RateCache(TestRateDb()).futureValue
-        val validateByRate: Order => Result[Order] = validateByMatcherSettings(DynamicSettings.symmetric(0.04.waves), rateCache = rateCache)
+        val validateByRate: Asset => Order => Result[Order] = asset => {
+          val cs = CompositeSettings(DynamicSettings.symmetric(0.04.waves), discount = Some(CompositeSettings.DiscountAssetSettings(asset, 0.0)))
+          validateByMatcherSettings(cs, rateCache = rateCache)
+        }
         val order: Order = createOrder(wavesUsdPair, BUY, 1.waves, 3.00, 0.14.usd, feeAsset = usd)
 
         List(3d, 3.33d, 10d, 3.2d).foreach { rate =>
           withClue(s"USD rate = $rate\n") {
             rateCache.upsertRate(usd, rate)
-            validateByRate(order) shouldBe Symbol("right")
+            validateByRate(usd)(order) shouldBe Symbol("right")
           }
         }
       }
@@ -772,11 +816,14 @@ class OrderValidatorSpecification
         def orderWithFee(fee: Long, feeAsset: Asset = Waves): Order =
           createOrder(wavesUsdPair, BUY, 1.waves, 3.0, matcherFee = fee, feeAsset = feeAsset)
 
-        def validateByFee(makerFee: Long, takerFee: Long)(order: Order): Result[Order] =
-          validateByMatcherSettings(DynamicSettings(makerFee, takerFee), rateCache = rateCache)(order)
+        def validateByFee(makerFee: Long, takerFee: Long)(order: Order, asset: Asset): Result[Order] = {
+          val cs = CompositeSettings(DynamicSettings(makerFee, takerFee), discount = Some(CompositeSettings.DiscountAssetSettings(asset, 0.0)))
+          validateByMatcherSettings(cs, rateCache = rateCache)(order)
+        }
 
-        def validateByFeeWithScript(makerFee: Long, takerFee: Long)(order: Order): Result[Order] =
-          validateByBlockchain(DynamicSettings(makerFee, takerFee))(
+        def validateByFeeWithScript(makerFee: Long, takerFee: Long)(order: Order, asset: Asset): Result[Order] = {
+          val cs = CompositeSettings(DynamicSettings(makerFee, takerFee), discount = Some(CompositeSettings.DiscountAssetSettings(asset, 0.0)))
+          validateByBlockchain(cs)(
             matcherAccountScript = Some(RunScriptResult.Allowed),
             rateCache = rateCache
           )(order).value.futureValue
@@ -805,8 +852,15 @@ class OrderValidatorSpecification
 
     "verify script of feeAsset" in {
       forAll(orderV3WithFeeSettingsGenerator) { case (order, orderFeeSettings) =>
-        def setFeeAssetScriptAndValidate(matcherFeeAssetScript: Option[RunScriptResult]): Result[Order] =
-          validateByBlockchain(orderFeeSettings)(None, None, matcherFeeAssetScript, None)(order).value.futureValue
+        def setFeeAssetScriptAndValidate(matcherFeeAssetScript: Option[RunScriptResult]): Result[Order] = {
+          rateCache.upsertRate(order.feeAsset, 1.0)
+          validateByBlockchain(orderFeeSettings)(
+            None,
+            None,
+            matcherFeeAssetScript,
+            None
+          )(order).value.futureValue
+        }
 
         if (order.feeAsset != Waves) {
           setFeeAssetScriptAndValidate(Some(RunScriptResult.ScriptError("Some error"))) should produce("AssetScriptReturnedError")
@@ -1000,7 +1054,8 @@ class OrderValidatorSpecification
       matcherSettings.orderRestrictions.get(order.assetPair),
       assetDescriptions,
       rateCache,
-      hasMatcherAccountScript = false
+      hasMatcherAccountScript = false,
+      order => order
     )(order)
   }
 
@@ -1010,7 +1065,7 @@ class OrderValidatorSpecification
     hasMatcherAccountScript: Boolean = false,
     hasAssetScript: Asset => Boolean = getDefaultAssetDescriptions(_).hasScript
   ) =
-    new ExchangeTransactionCreator(MatcherAccount, matcherSettings.exchangeTxBaseFee, hasMatcherAccountScript, hasAssetScript)
+    new ExchangeTransactionCreator(MatcherAccount, matcherSettings.exchangeTxBaseFee, hasMatcherAccountScript, hasAssetScript, (_, _) => false)
 
   private def asa[A](
     p: Portfolio = defaultPortfolio,
@@ -1034,7 +1089,7 @@ class OrderValidatorSpecification
       o.matcherPublicKey,
       ba,
       matcherSettings,
-      getDefaultAssetDescriptions(o.feeAsset).decimals,
+      getDefaultAssetDescriptions(_).decimals,
       rateCache,
       DynamicSettings.symmetric(matcherFee)
     )
@@ -1053,7 +1108,7 @@ class OrderValidatorSpecification
         Set.empty,
         matcherSettings
           .copy(allowedAssetPairs = allowedAssetPairs, allowedOrderVersions = allowedOrderVersions, blacklistedAssets = blacklistedAssets),
-        assetDecimals(order.feeAsset),
+        assetDecimals,
         rateCache,
         orderFeeSettings
       )(order)
@@ -1107,7 +1162,7 @@ class OrderValidatorSpecification
         order.feeAsset -> matcherFeeAssetScript
       )
         .foldLeft(defaultAssetDescriptionsMap) { case (descMap, (asset, maybeScript)) =>
-          descMap.updated(asset, descMap(asset).copy(hasScript = maybeScript.nonEmpty))
+          descMap.updated(asset, descMap(asset).copy(hasScript = descMap.get(asset).exists(_.hasScript) || maybeScript.nonEmpty))
         }
 
     OrderValidator
@@ -1119,7 +1174,8 @@ class OrderValidatorSpecification
         orderRestrictions.get(order.assetPair),
         assetDescriptions = assetsDescriptions,
         rateCache,
-        matcherAccountScript.nonEmpty
+        matcherAccountScript.nonEmpty,
+        order => order
       )(order)
   }
 

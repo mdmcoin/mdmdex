@@ -94,7 +94,7 @@ class GetTradableBalanceByAssetPairAndAddressSpec extends MatcherSuiteBase with 
       val incorrectAsset = "3Q6ndEq2z5UJwF4SF24ySRj9guPoFWaSeXP"
       validateMatcherError(
         dex1.rawApi.getTradableBalanceByAssetPairAndAddress(alice.toAddress.stringRepr, "TN", incorrectAsset),
-        StatusCode.NotFound,
+        StatusCode.BadRequest,
         OrderAssetPairReversed.code,
         s"The TN-$incorrectAsset asset pair should be reversed"
       )
@@ -109,7 +109,7 @@ class GetTradableBalanceByAssetPairAndAddressSpec extends MatcherSuiteBase with 
         dex1.rawApi.getTradableBalanceByAssetPairAndAddress("3Q6ndEq2z5UJwFaSF24ySRj9guPoFWaSeXX", "TN", UsdId.toString),
         StatusCode.BadRequest,
         InvalidAddress.code,
-        "Provided address in not correct, reason: Bad address checksum"
+        "Provided address is not correct, reason: Bad address checksum"
       )
     }
 
@@ -118,7 +118,7 @@ class GetTradableBalanceByAssetPairAndAddressSpec extends MatcherSuiteBase with 
         dex1.rawApi.getTradableBalanceByAssetPairAndAddress("AAAAA", "TN", UsdId.toString),
         StatusCode.BadRequest,
         InvalidAddress.code,
-        "Provided address in not correct, reason: Wrong addressBytes length: expected: 26, actual: 4"
+        "Provided address is not correct, reason: Wrong addressBytes length: expected: 26, actual: 4"
       )
     }
 
@@ -127,7 +127,7 @@ class GetTradableBalanceByAssetPairAndAddressSpec extends MatcherSuiteBase with 
         dex1.rawApi.getTradableBalanceByAssetPairAndAddress("null", "TN", UsdId.toString),
         StatusCode.BadRequest,
         InvalidAddress.code,
-        "Provided address in not correct, reason: Unable to decode base58: requirement failed: Wrong char 'l' in Base58 string 'null'"
+        "Provided address is not correct, reason: Unable to decode base58: requirement failed: Wrong char 'l' in Base58 string 'null'"
       )
     }
   }

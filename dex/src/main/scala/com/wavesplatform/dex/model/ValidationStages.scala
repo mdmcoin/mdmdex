@@ -34,7 +34,8 @@ object ValidationStages {
     orderBookAskAdapter: OrderBookAskAdapter,
     lastProcessedOffset: => Long,
     blacklistedAddresses: Set[Address],
-    hasMatcherAccountScript: Boolean
+    hasMatcherAccountScript: Boolean,
+    handleProofs: Order => Order
   )(o: Order)(implicit efc: ErrorFormatterContext, ec: ExecutionContext): FutureResult[Order] = {
     import OrderValidator._
 
@@ -57,7 +58,7 @@ object ValidationStages {
           matcherPublicKey,
           blacklistedAddresses,
           settings,
-          orderAssetsDecimals(o.feeAsset),
+          orderAssetsDecimals,
           rateCache,
           actualOrderFeeSettings
         )(o)
@@ -78,13 +79,12 @@ object ValidationStages {
         settings.orderRestrictions.get(o.assetPair),
         orderAssetsDescriptions,
         rateCache,
-        hasMatcherAccountScript
+        hasMatcherAccountScript,
+        handleProofs
       )(o)
 
     def knownAssets: FutureResult[Map[Asset, BriefAssetDescription]] = o.assets
-      .map(asset => assetsDescription(asset).map(x => asset -> x))
-      .sequence
-      .map(_.toMap)
+      .map(asset => assetsDescription(asset).map(asset -> _)).sequence.map(_.toMap)
 
     def mkGetAssetDescFn(xs: Map[Asset, BriefAssetDescription])(asset: Asset): BriefAssetDescription =
       xs.getOrElse(asset, throw new IllegalStateException(s"Impossible case. Unknown asset: $asset"))

@@ -40,7 +40,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
     settings.restApi shouldBe RestAPISettings(
       address = "127.1.2.3",
       port = 6880,
-      apiKeyHash = "foobarhash",
+      apiKeyHashes = List("foobarhash"),
       cors = false,
       apiKeyDifferentHost = false
     )
@@ -120,7 +120,7 @@ class MatcherSettingsSpecification extends BaseSettingsSpecification with Matche
       )
     )
     settings.processConsumedTimeout shouldBe 663.seconds
-    settings.orderFee should matchTo(Map[Long, OrderFeeSettings](-1L -> PercentSettings(AssetType.Amount, 0.1)))
+    settings.orderFee should matchTo(Map[Long, OrderFeeSettings](-1L -> PercentSettings(AssetType.Amount, 0.1, 300000)))
     settings.maxPriceDeviations shouldBe DeviationsSettings(enable = true, 1000000, 1000000, 1000000)
     settings.allowedAssetPairs shouldBe Set.empty[AssetPair]
     settings.allowedOrderVersions shouldBe Set(11, 22)

@@ -10,6 +10,7 @@ import com.google.common.primitives.Longs
 import com.wavesplatform.dex._
 import com.wavesplatform.dex.actors.address.{AddressActor, AddressDirectoryActor}
 import com.wavesplatform.dex.api.http.entities.{InfoNotFound, InvalidAddress, InvalidAsset, InvalidBase58String, InvalidPublicKey, InvalidSignature, MatcherResponse, TimedOut, _}
+import com.wavesplatform.dex.api.http.headers.`X-User-Public-Key`
 import com.wavesplatform.dex.api.http.protocol.HttpCancelOrder
 import com.wavesplatform.dex.api.http.{entities, ApiMarshallers}
 import com.wavesplatform.dex.domain.account.{Address, PublicKey}
@@ -19,7 +20,7 @@ import com.wavesplatform.dex.domain.bytes.codec.Base58
 import com.wavesplatform.dex.domain.crypto
 import com.wavesplatform.dex.domain.error.ValidationError
 import com.wavesplatform.dex.domain.utils.ScorexLogging
-import com.wavesplatform.dex.error.MatcherError
+import com.wavesplatform.dex.error.{MatcherError, OrderAssetPairReversed}
 import com.wavesplatform.dex.model.AssetPairBuilder
 import kamon.Kamon
 
@@ -38,7 +39,16 @@ trait ApiRoute extends Directives with ApiMarshallers with ScorexLogging {
 
   def route: Route
 
-  protected val invalidUserPublicKey: StandardRoute = complete(SimpleErrorResponse(StatusCodes.Forbidden, error.UserPublicKeyIsNotValid()))
+  protected val invalidUserPublicKey: StandardRoute = complete(SimpleErrorResponse(error.UserPublicKeyIsNotValid()))
+
+  protected def signedGetByAddress(addressOrError: Either[ValidationError.InvalidAddress, Address]): Directive0 =
+    addressOrError match {
+      case Left(ia) => complete(SimpleErrorResponse(error.InvalidAddress(ia.reason)))
+      case _ =>
+        headerValueByName(`X-User-Public-Key`.headerName).tflatMap(publicKey =>
+          signedGet(PublicKey.fromBase58String(publicKey._1).getOrElse(PublicKey.empty))
+        )
+    }
 
   protected def signedGet(publicKey: PublicKey): Directive0 =
     (headerValueByName("Timestamp") & headerValueByName("Signature")).tflatMap { case (timestamp, sig) =>
@@ -64,7 +74,7 @@ trait ApiRoute extends Directives with ApiMarshallers with ScorexLogging {
         if (validate)
           FutureDirectives.onSuccess(assetPairBuilder.validateAssetPair(p).value) flatMap {
             case Right(_) => provide(p)
-            case Left(e) if redirectToInverse =>
+            case Left(e: OrderAssetPairReversed) if redirectToInverse =>
               FutureDirectives.onSuccess(assetPairBuilder.validateAssetPair(p.reverse).value) flatMap {
                 case Right(_) => redirect(s"/matcher/orderbook/${p.priceAssetStr}/${p.amountAssetStr}$suffix", StatusCodes.MovedPermanently)
                 case Left(_) => complete(formatError(e))

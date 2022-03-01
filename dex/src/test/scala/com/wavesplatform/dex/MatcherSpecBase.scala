@@ -215,12 +215,13 @@ trait MatcherSpecBase
     matcherFee: Option[Long],
     version: Byte,
     timestamp: Option[Long],
-    feeAsset: Asset
+    feeAsset: Asset,
+    expiration: Gen[Long]
   ): Gen[(Order, KeyPair)] =
     for {
       sender: KeyPair <- sender.map(Gen.const).getOrElse(accountGen)
       timestamp: Long <- timestamp.map(Gen.const).getOrElse(createdTimeGen)
-      expiration: Long <- maxTimeGen
+      expiration: Long <- expiration
       matcherFee: Long <- matcherFee.map(Gen.const).getOrElse(maxWavesAmountGen)
     } yield (Order.buy(sender, MatcherAccount, pair, amount, price, timestamp, expiration, matcherFee, version, feeAsset), sender)
 
@@ -232,12 +233,13 @@ trait MatcherSpecBase
     matcherFee: Option[Price],
     timestamp: Option[Price],
     version: Byte,
-    feeAsset: Asset
+    feeAsset: Asset,
+    expiration: Gen[Long]
   ): Gen[(Order, KeyPair)] =
     for {
       sender: KeyPair <- sender.map(Gen.const).getOrElse(accountGen)
       timestamp: Long <- timestamp.map(Gen.const).getOrElse(createdTimeGen)
-      expiration: Long <- maxTimeGen
+      expiration: Long <- expiration
       matcherFee: Long <- matcherFee.map(Gen.const).getOrElse(maxWavesAmountGen)
     } yield (Order.sell(sender, MatcherAccount, pair, amount, price, timestamp, expiration, matcherFee, version, feeAsset), sender)
 
@@ -249,9 +251,10 @@ trait MatcherSpecBase
     matcherFee: Option[Long] = None,
     ts: Option[Long] = None,
     version: Byte = 1,
-    feeAsset: Asset = Waves
+    feeAsset: Asset = Waves,
+    expiration: Gen[Long] = maxTimeGen
   ): Order =
-    rawBuy(pair, amount, (price * Order.PriceConstant).toLong, sender, matcherFee, ts, version, feeAsset)
+    rawBuy(pair, amount, (price * Order.PriceConstant).toLong, sender, matcherFee, ts, version, feeAsset, expiration)
 
   protected def rawBuy(
     pair: AssetPair,
@@ -261,9 +264,10 @@ trait MatcherSpecBase
     matcherFee: Option[Long] = None,
     ts: Option[Long] = None,
     version: Byte = 1,
-    feeAsset: Asset = Waves
+    feeAsset: Asset = Waves,
+    expiration: Gen[Long] = maxTimeGen
   ): Order =
-    valueFromGen(buyGenerator(pair, amount, price, sender, matcherFee, version, ts, feeAsset))._1
+    valueFromGen(buyGenerator(pair, amount, price, sender, matcherFee, version, ts, feeAsset, expiration))._1
 
   protected def sell(
     pair: AssetPair,
@@ -273,9 +277,10 @@ trait MatcherSpecBase
     matcherFee: Option[Long] = None,
     ts: Option[Long] = None,
     version: Byte = 1,
-    feeAsset: Asset = Waves
+    feeAsset: Asset = Waves,
+    expiration: Gen[Long] = maxTimeGen
   ): Order =
-    rawSell(pair, amount, (price * Order.PriceConstant).toLong, sender, matcherFee, ts, version, feeAsset)
+    rawSell(pair, amount, (price * Order.PriceConstant).toLong, sender, matcherFee, ts, version, feeAsset, expiration)
 
   protected def rawSell(
     pair: AssetPair,
@@ -285,9 +290,10 @@ trait MatcherSpecBase
     matcherFee: Option[Long] = None,
     ts: Option[Long] = None,
     version: Byte = 1,
-    feeAsset: Asset = Waves
+    feeAsset: Asset = Waves,
+    expiration: Gen[Long] = maxTimeGen
   ): Order =
-    valueFromGen(sellGenerator(pair, amount, price, sender, matcherFee, ts, version, feeAsset))._1
+    valueFromGen(sellGenerator(pair, amount, price, sender, matcherFee, ts, version, feeAsset, expiration))._1
 
   protected val orderTypeGenerator: Gen[OrderType] = Gen.oneOf(OrderType.BUY, OrderType.SELL)
 
@@ -408,7 +414,7 @@ trait MatcherSpecBase
         MatcherAccount,
         pair,
         OrderType.BUY,
-        Order.correctAmount(amount, price),
+        AcceptedOrder.correctedAmountOfAmountAsset(amount, price),
         price,
         timestampBuy,
         expirationBuy,
@@ -420,7 +426,7 @@ trait MatcherSpecBase
         MatcherAccount,
         pair,
         OrderType.SELL,
-        Order.correctAmount(amount, price),
+        AcceptedOrder.correctedAmountOfAmountAsset(amount, price),
         price,
         timestampSell,
         expirationSell,
@@ -431,9 +437,10 @@ trait MatcherSpecBase
 
   protected val percentSettingsGenerator: Gen[PercentSettings] =
     for {
-      assetType <- Gen.oneOf(AssetType.values.toSeq)
+      assetType <- Gen.oneOf(AssetType.values)
       minFee <- Gen.choose(0.01, 100.0)
-    } yield PercentSettings(assetType, minFee)
+      minFeeInWaves <- Gen.choose(1, 100000000)
+    } yield PercentSettings(assetType, minFee, minFeeInWaves)
 
   protected def fixedSettingsGenerator(defaultAsset: Asset, lowerMinFeeBound: Long = 1, upperMinFeeBound: Long = 1000000L): Gen[FixedSettings] =
     for { minFee <- Gen.choose(lowerMinFeeBound, upperMinFeeBound) } yield FixedSettings(defaultAsset, minFee)
@@ -460,38 +467,41 @@ trait MatcherSpecBase
     }
   }
 
-  protected val orderV3WithFeeSettingsGenerator: Gen[(Order, OrderFeeSettings)] = {
+  protected val orderV3WithFeeSettingsGenerator: Gen[(Order, OrderFeeSettings)] =
     for {
       (sender, order) <- orderV3WithPredefinedFeeAssetGenerator()
       orderFeeSettings <- orderFeeSettingsGenerator(Some(order.feeAsset))
     } yield correctOrderByFeeSettings(order, sender, orderFeeSettings) -> orderFeeSettings
-  }
 
   private def correctOrderByFeeSettings(
     order: Order,
     sender: KeyPair,
     orderFeeSettings: OrderFeeSettings,
     matcherFeeAssetForDynamicSettings: Option[Asset] = None,
+    rateForPercentSettings: Option[Double] = Some(1.0),
     rateForDynamicSettings: Option[Double] = None
   ): Order = {
 
     val correctedOrder = (order.version, orderFeeSettings) match {
-      case (3, FixedSettings(defaultAssetId, minFee)) =>
+      case (_, FixedSettings(defaultAssetId, minFee)) =>
         order
           .updateFeeAsset(defaultAssetId)
           .updateFee(minFee)
-      case (3, percentSettings: PercentSettings) =>
+      case (_, percentSettings: PercentSettings) =>
         order
-          .updateFeeAsset(OrderValidator.getValidFeeAssetForSettings(order, percentSettings, rateCache).head)
+          .updateFeeAsset(OrderValidator.getValidFeeAssetsForSettings(order.assetPair, order.orderType, percentSettings).head)
           .updateFee {
+            rateForPercentSettings.foreach(rateCache.upsertRate(order.feeAsset, _))
+            rateForPercentSettings.foreach(rateCache.upsertRate(percentSettings.getFeeAsset(order), _))
+
             OrderValidator.getMinValidFeeForSettings(
-              order,
+              OrderValidator.OrderParams.fromOrder(order),
               percentSettings,
-              getDefaultAssetDescriptions(order.feeAsset).decimals,
+              getDefaultAssetDescriptions(_).decimals,
               rateCache
             ).explicitGet()
           }
-      case (_, ds @ DynamicSettings(_, _)) =>
+      case (_, ds @ DynamicSettings(_, _, _)) =>
         order
           .updateFeeAsset(matcherFeeAssetForDynamicSettings getOrElse Waves)
           .updateFee(
@@ -516,7 +526,7 @@ trait MatcherSpecBase
 
   protected def mkOrderExecuted(submittedAo: AcceptedOrder, counterLo: LimitOrder, timestamp: Long): OrderExecuted = {
     val (counterExecutedFee, submittedExecutedFee) = makerTakerPartialFee(submittedAo, counterLo)
-    OrderExecuted(submittedAo, counterLo, timestamp, counterExecutedFee, submittedExecutedFee)
+    OrderExecuted(submittedAo, counterLo, timestamp, counterExecutedFee, submittedExecutedFee, 0L)
   }
 
   protected def makerTakerPartialFee(submittedAo: AcceptedOrder, counterLo: LimitOrder): (Long, Long) = {

@@ -15,7 +15,8 @@ class HttpMatcherPublicSettingsSpec extends AnyFreeSpec with Matchers with DiffM
     """{
       |  "matcherPublicKey" : "2eEUvypDSivnzPiLrbYEW39SM8yMZ1aq4eJuiKfs4sEY",
       |  "matcherVersion" : "2.1.3.3",
-      |  "priceAssets" : [ null, "4LHHvYGNKJUg5hj65aGD5vgScvCBmLpdRFtjokvCjSL8" ],
+      |  "priceAssets" : [ "TN", "4LHHvYGNKJUg5hj65aGD5vgScvCBmLpdRFtjokvCjSL8" ],
+      |  "rates" : { },
       |  "orderFee" : {
       |    "fixed" : {
       |      "assetId" : "4LHHvYGNKJUg5hj65aGD5vgScvCBmLpdRFtjokvCjSL8",
@@ -37,6 +38,7 @@ class HttpMatcherPublicSettingsSpec extends AnyFreeSpec with Matchers with DiffM
         assetId = issuedAsset,
         minFee = 4000000
       ),
+      rates = Map.empty,
       orderVersions = Seq(1, 2, 3),
       networkByte = 83
     )
