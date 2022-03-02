@@ -16,7 +16,7 @@ class WsAddressStreamRealTimeTestSuite extends WsSuiteBase {
   val account = mkKeyPair("Test")
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
-    .parseString(s"""waves.dex {
+    .parseString(s"""TN.dex {
                     |  price-assets = [ "$UsdId", "TN" ]
                     |  address-actor {
                     |    realtime-ws-accounts = [${account.publicKey}]

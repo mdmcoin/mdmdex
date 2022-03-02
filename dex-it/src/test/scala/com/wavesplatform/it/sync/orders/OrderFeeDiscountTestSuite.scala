@@ -30,7 +30,7 @@ final class OrderFeeDiscountTestSuite extends OrderFeeBaseTestSuite {
     "(dynamic settings) should apply discount" in {
       dex1.restartWithNewSuiteConfig(
         ConfigFactory.parseString(
-          "waves.dex.order-fee.-1.composite.discount.value = 50"
+          "TN.dex.order-fee.-1.composite.discount.value = 50"
         ).withFallback(dexInitialSuiteConfig)
       )
 
@@ -54,7 +54,7 @@ final class OrderFeeDiscountTestSuite extends OrderFeeBaseTestSuite {
       dex1.restartWithNewSuiteConfig(
         ConfigFactory.parseString(
           """
-            |waves.dex.order-fee.-1.composite {
+            |TN.dex.order-fee.-1.composite {
             |  default.mode = percent
             |  discount.value = 0
             |}
@@ -82,7 +82,7 @@ final class OrderFeeDiscountTestSuite extends OrderFeeBaseTestSuite {
       dex1.restartWithNewSuiteConfig(
         ConfigFactory.parseString(
           """
-            |waves.dex.order-fee.-1.composite {
+            |TN.dex.order-fee.-1.composite {
             |  default.mode = percent
             |  discount.value = 50
             |}
@@ -110,7 +110,7 @@ final class OrderFeeDiscountTestSuite extends OrderFeeBaseTestSuite {
       dex1.restartWithNewSuiteConfig(
         ConfigFactory.parseString(
           """
-            |waves.dex.order-fee.-1.composite {
+            |TN.dex.order-fee.-1.composite {
             |  default {
             |    mode = percent
             |    percent.asset-type = price
@@ -141,7 +141,7 @@ final class OrderFeeDiscountTestSuite extends OrderFeeBaseTestSuite {
       dex1.restartWithNewSuiteConfig(
         ConfigFactory.parseString(
           """
-            |waves.dex.order-fee.-1.composite {
+            |TN.dex.order-fee.-1.composite {
             |  default {
             |    mode = percent
             |    percent.asset-type = price
@@ -181,7 +181,7 @@ final class OrderFeeDiscountTestSuite extends OrderFeeBaseTestSuite {
   override protected def dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
       s"""
-         |waves.dex {
+         |TN.dex {
          |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
          |  allowed-order-versions = [1, 2, 3]
          |  order-fee.-1 {

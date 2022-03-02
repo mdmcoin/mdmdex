@@ -121,7 +121,7 @@ final class WsImaginaryTransactionsTestSuite extends WsSuiteBase with HasKafka {
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
     .parseString(
-      s"""waves.dex {
+      s"""TN.dex {
          |  price-assets = [ "$UsdId", "TN" ]
          |  web-sockets.external-client-handler.messages-interval = 1ms
          |}""".stripMargin

@@ -88,7 +88,7 @@ final class OrderCompositeFeeTestSuite extends OrderFeeBaseTestSuite {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
     s"""
-       |waves.dex {
+       |TN.dex {
        |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
        |  allowed-order-versions = [1, 2, 3]
        |  order-fee.-1 {

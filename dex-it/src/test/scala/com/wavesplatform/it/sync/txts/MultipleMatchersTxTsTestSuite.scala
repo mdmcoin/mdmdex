@@ -59,7 +59,7 @@ final class MultipleMatchersTxTsTestSuite extends MatcherSuiteBase with HasKafka
 
   override protected def dexInitialSuiteConfig: Config =
     dexRunConfig.withFallback(ConfigFactory.parseString(
-      s"""|waves.dex {
+      s"""|TN.dex {
           |  price-assets = [ "$UsdId", "TN" ]
           |  exchange-tx-ts-start-offset = -1
           |}""".stripMargin

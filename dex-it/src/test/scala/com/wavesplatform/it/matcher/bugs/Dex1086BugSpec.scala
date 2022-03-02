@@ -10,7 +10,7 @@ import com.wavesplatform.it.MatcherSuiteBase
 class Dex1086BugSpec extends MatcherSuiteBase {
 
   override protected def dexInitialSuiteConfig: Config =
-    ConfigFactory.parseString(s"""waves.dex {
+    ConfigFactory.parseString(s"""TN.dex {
       price-assets = [ "$UsdId", "TN" ]
       snapshots-interval = 1
     }""")

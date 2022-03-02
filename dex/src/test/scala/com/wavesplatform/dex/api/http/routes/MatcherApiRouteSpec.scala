@@ -1442,7 +1442,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
     val transactionsRoute = new TransactionsRoute(() => MatcherStatus.Working, odb, apiKeys map crypto.secureHash)
     val debugRoute = new DebugRoute(
       settings.actorResponseTimeout,
-      ConfigFactory.load().atKey("waves.dex"),
+      ConfigFactory.load().atKey("TN.dex"),
       orderBookDirectoryActor.ref,
       addressActor.ref,
       CombinedStream.Status.Working(10),

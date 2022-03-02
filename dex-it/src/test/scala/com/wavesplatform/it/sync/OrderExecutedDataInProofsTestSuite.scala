@@ -138,7 +138,7 @@ final class OrderExecutedDataInProofsTestSuite extends MatcherSuiteBase {
   }
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
-    s"""waves.dex {
+    s"""TN.dex {
        |  price-assets = [ "$UsdnId", "TN" ]
        |  pass-execution-parameters {
        |    since-offset = 3
@@ -150,7 +150,7 @@ final class OrderExecutedDataInProofsTestSuite extends MatcherSuiteBase {
   override protected def wavesNodeInitialSuiteConfig: Config = ConfigFactory
     .parseString(
       s"""
-         |waves.dex.order-script-validation.allowed-blockchain-state-accounts=["${alice.publicKey.base58}", "${bob.publicKey.base58}"]
+         |TN.dex.order-script-validation.allowed-blockchain-state-accounts=["${alice.publicKey.base58}", "${bob.publicKey.base58}"]
          |""".stripMargin
     )
 

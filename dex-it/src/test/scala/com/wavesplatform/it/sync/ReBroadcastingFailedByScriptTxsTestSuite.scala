@@ -39,7 +39,7 @@ final class ReBroadcastingFailedByScriptTxsTestSuite extends MatcherSuiteBase {
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
     .parseString(
-      s"""waves.dex {
+      s"""TN.dex {
          |  price-assets = [ "$UsdId", "TN" ]
          |  exchange-transaction-broadcast {
          |    interval = 1 second
@@ -51,7 +51,7 @@ final class ReBroadcastingFailedByScriptTxsTestSuite extends MatcherSuiteBase {
   override protected def wavesNodeInitialSuiteConfig: Config = ConfigFactory
     .parseString(
       s"""
-         |waves.dex.order-script-validation.allowed-blockchain-state-accounts=["${carol.publicKey.base58}"]
+         |TN.dex.order-script-validation.allowed-blockchain-state-accounts=["${carol.publicKey.base58}"]
          |""".stripMargin
     )
 

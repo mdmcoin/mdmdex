@@ -63,7 +63,7 @@ class DatabaseBackwardCompatTestSuite extends BackwardCompatSuiteBase {
 
     markup("delete orderbook for additional asset pair at DEX2")
     dex2.restartWithNewSuiteConfig(
-      dexInitialSuiteConfig.withFallback(ConfigFactory.parseString(s""" waves.dex.blacklisted-assets=["$UsdId"] """))
+      dexInitialSuiteConfig.withFallback(ConfigFactory.parseString(s""" TN.dex.blacklisted-assets=["$UsdId"] """))
     )
     dex2.tryApi.deleteOrderBookWithKey(additionalAssetPair)
     dex2.restartWithNewSuiteConfig(dexInitialSuiteConfig)
