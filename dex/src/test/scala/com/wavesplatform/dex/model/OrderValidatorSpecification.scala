@@ -327,20 +327,14 @@ class OrderValidatorSpecification
         Seq[Byte](1, 2, 3) foreach { version =>
           validateByMatcherSettings(FixedSettings(usd, 0.01.usd))(orderOfVersion(version)) should produce("UnexpectedFeeAsset")
           validateByMatcherSettings(FixedSettings(Waves, 0.04.waves))(orderOfVersion(version)) shouldBe Symbol("right")
-
-<<<<<<< HEAD
-          validateByMatcherSettings(PercentSettings(AssetType.Price, 0.04))(orderOfVersion(version)) should produce("UnexpectedFeeAsset")
-          validateByMatcherSettings(PercentSettings(AssetType.Amount, 0.04))(orderOfVersion(version)) shouldBe Symbol("right")
-=======
-          validateByMatcherSettings(PercentSettings(AssetType.Price, 0.003, defaultWavesFee))(orderOfVersion(version)) should produce(
+          validateByMatcherSettings(PercentSettings(AssetType.Price, 0.04, defaultWavesFee))(orderOfVersion(version)) should produce(
             "UnexpectedFeeAsset"
           )
-          validateByMatcherSettings(PercentSettings(AssetType.Price, 0.003, defaultWavesFee))(orderOfVersion(version)) should produce(
+          validateByMatcherSettings(PercentSettings(AssetType.Price, 0.04, defaultWavesFee))(orderOfVersion(version)) should produce(
             "UnexpectedFeeAsset"
           )
-          validateByMatcherSettings(PercentSettings(AssetType.Amount, 0.003, defaultWavesFee))(orderOfVersion(version)) shouldBe Symbol("right")
-          validateByMatcherSettings(PercentSettings(AssetType.Amount, 0.003, defaultWavesFee))(orderOfVersion(version)) shouldBe Symbol("right")
->>>>>>> 09ad80e4504ebe895c1721c8bc1709043719926b
+          validateByMatcherSettings(PercentSettings(AssetType.Amount, 0.04, defaultWavesFee))(orderOfVersion(version)) shouldBe Symbol("right")
+          validateByMatcherSettings(PercentSettings(AssetType.Amount, 0.04, defaultWavesFee))(orderOfVersion(version)) shouldBe Symbol("right")
         }
       }
 
@@ -827,25 +821,25 @@ class OrderValidatorSpecification
             matcherAccountScript = Some(RunScriptResult.Allowed),
             rateCache = rateCache
           )(order).value.futureValue
-
-        validateByFee(0.04.waves, 0.04.waves)(orderWithFee(0.04.waves)) shouldBe Symbol("right")
-        validateByFee(0.01.waves, 0.05.waves)(orderWithFee(0.05.waves)) shouldBe Symbol("right")
-        validateByFee(0.01.waves, 0.05.waves)(orderWithFee(0.0499999.waves)) should produce("FeeNotEnough")
+        }
+        validateByFee(0.04.waves, 0.04.waves)(orderWithFee(0.04.waves), Waves) shouldBe Symbol("right")
+        validateByFee(0.01.waves, 0.05.waves)(orderWithFee(0.05.waves), Waves) shouldBe Symbol("right")
+        validateByFee(0.01.waves, 0.05.waves)(orderWithFee(0.0499999.waves), Waves) should produce("FeeNotEnough")
 
         withClue("BTC rate = 0.0011167; 0.04.waves = 0.00004467.btc, 0.05.waves = 0.0000056.btc\n") {
-          validateByFee(0.04.waves, 0.04.waves)(orderWithFee(0.00004467.btc, btc)) shouldBe Symbol("right")
-          validateByFee(0.01.waves, 0.05.waves)(orderWithFee(0.00005584.btc, btc)) shouldBe Symbol("right")
-          validateByFee(0.01.waves, 0.05.waves)(orderWithFee(0.00005583.btc, btc)) should produce("FeeNotEnough")
+          validateByFee(0.04.waves, 0.04.waves)(orderWithFee(0.00004467.btc, btc), btc) shouldBe Symbol("right")
+          validateByFee(0.01.waves, 0.05.waves)(orderWithFee(0.00005584.btc, btc),btc) shouldBe Symbol("right")
+          validateByFee(0.01.waves, 0.05.waves)(orderWithFee(0.00005583.btc, btc),btc) should produce("FeeNotEnough")
         }
 
-        validateByFeeWithScript(0.04.waves, 0.04.waves)(orderWithFee(0.04.waves + smartFee)) shouldBe Symbol("right")
-        validateByFeeWithScript(0.01.waves, 0.05.waves)(orderWithFee(0.05.waves + smartFee)) shouldBe Symbol("right")
-        validateByFeeWithScript(0.01.waves, 0.05.waves)(orderWithFee(0.0499999.waves + smartFee)) should produce("FeeNotEnough")
+        validateByFeeWithScript(0.04.waves, 0.04.waves)(orderWithFee(0.04.waves + smartFee),Waves) shouldBe Symbol("right")
+        validateByFeeWithScript(0.01.waves, 0.05.waves)(orderWithFee(0.05.waves + smartFee),Waves) shouldBe Symbol("right")
+        validateByFeeWithScript(0.01.waves, 0.05.waves)(orderWithFee(0.0499999.waves + smartFee),Waves) should produce("FeeNotEnough")
 
         withClue("BTC rate = 0.0011167; 0.07.waves = 0.0000079.btc, 0.09.waves = 0.0000101.btc\n") {
-          validateByFeeWithScript(0.04.waves, 0.04.waves)(orderWithFee(0.00008934.btc, btc)) shouldBe Symbol("right")
-          validateByFeeWithScript(0.01.waves, 0.05.waves)(orderWithFee(0.00010051.btc, btc)) shouldBe Symbol("right")
-          validateByFeeWithScript(0.01.waves, 0.05.waves)(orderWithFee(0.00010050.btc, btc)) should produce("FeeNotEnough")
+          validateByFeeWithScript(0.04.waves, 0.04.waves)(orderWithFee(0.00008934.btc, btc),btc) shouldBe Symbol("right")
+          validateByFeeWithScript(0.01.waves, 0.05.waves)(orderWithFee(0.00010051.btc, btc),btc) shouldBe Symbol("right")
+          validateByFeeWithScript(0.01.waves, 0.05.waves)(orderWithFee(0.00010050.btc, btc),btc) should produce("FeeNotEnough")
         }
       }
     }

@@ -1087,11 +1087,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
 
     "changing waves rate" in test(
       route =>
-<<<<<<< HEAD
-        Put(routePath("/settings/rates/TN"), rate).withHeaders(apiKeyHeader) ~> route ~> check {
-=======
-        Put(routePath("/settings/rates/WAVES"), rate).withHeaders(apiKeyHeader()) ~> route ~> check {
->>>>>>> 09ad80e4504ebe895c1721c8bc1709043719926b
+        Put(routePath("/settings/rates/TN"), rate).withHeaders(apiKeyHeader()) ~> route ~> check {
           status shouldBe StatusCodes.BadRequest
           responseAs[HttpMessage] should matchTo(HttpMessage("The rate for TN cannot be changed"))
         },

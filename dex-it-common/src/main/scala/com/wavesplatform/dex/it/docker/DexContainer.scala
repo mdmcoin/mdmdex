@@ -120,14 +120,9 @@ object DexContainer extends ScorexLogging {
   private val baseContainerPath: String = "/usr/share/tn-dex"
   private val containerLogsPath: String = s"$baseContainerPath/logs"
 
-<<<<<<< HEAD
-  private val restApiPort: Int = 6886 // application.conf TN.dex.rest-api.port
-  private val exposedPorts = Seq(6886)
-=======
   private val restApiPort: Int = 6886 // application.conf waves.dex.rest-api.port
   private val prometheusPort = 9095
   private val exposedPorts = Seq(restApiPort, prometheusPort)
->>>>>>> 09ad80e4504ebe895c1721c8bc1709043719926b
 
   def apply(
     name: String,

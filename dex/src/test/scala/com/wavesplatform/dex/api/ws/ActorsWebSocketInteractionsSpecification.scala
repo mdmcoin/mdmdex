@@ -127,13 +127,8 @@ class ActorsWebSocketInteractionsSpecification
     }
 
     def executeOrder(s: AcceptedOrder, c: LimitOrder): OrderExecuted = {
-<<<<<<< HEAD
       val (counterExecutedFee, submittedExecutedFee) = Fee.getMakerTakerFee(DynamicSettings.symmetric(0.04.waves))(s, c)
-      val oe = OrderExecuted(s, c, System.currentTimeMillis, counterExecutedFee, submittedExecutedFee)
-=======
-      val (counterExecutedFee, submittedExecutedFee) = Fee.getMakerTakerFee(DynamicSettings.symmetric(0.003.waves))(s, c)
       val oe = OrderExecuted(s, c, System.currentTimeMillis, counterExecutedFee, submittedExecutedFee, 0L)
->>>>>>> 09ad80e4504ebe895c1721c8bc1709043719926b
       val (sellOrder, buyOrder) = if (oe.counter.isSellOrder) (oe.counter, oe.submitted) else (oe.submitted, oe.counter)
       val tx = ExchangeTransactionV2
         .create(
