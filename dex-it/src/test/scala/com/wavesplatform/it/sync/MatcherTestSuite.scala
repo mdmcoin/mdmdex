@@ -592,8 +592,8 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       )
 
       dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(
-        s"""waves.dex {
-           |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", "WAVES", $EthId]
+        s"""TN.dex {
+           |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", "TN", $EthId]
            |  blacklisted-assets  = [$EthId]
            |}""".stripMargin
       ))
@@ -604,8 +604,8 @@ class MatcherTestSuite extends MatcherSuiteBase with TableDrivenPropertyChecks {
       }
 
       dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(
-        s"""waves.dex {
-           |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", $EthId, "WAVES" ]
+        s"""TN.dex {
+           |  price-assets = [ "$UsdnId", "$BtcId", "$UsdId", $EthId, "TN" ]
            |  blacklisted-assets  = []
            |}""".stripMargin
       ))

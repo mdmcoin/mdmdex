@@ -53,7 +53,7 @@ The order in which containers are started matters! Matcher Node should be starte
 
 We will use container linking. Although this is the legacy practice, it is a bit simpler (you don't need to set up network before containers running).
 
-Also, Matcher Node and Matcher Server can be connected via network. In this case use network alias for the Matcher Node container and `waves.dex.waves-blockchain-client.grpc.target` setting. 
+Also, Matcher Node and Matcher Server can be connected via network. In this case use network alias for the Matcher Node container and `TN.dex.waves-blockchain-client.grpc.target` setting. 
 
 #### Running Matcher Node
 ```
@@ -61,7 +61,7 @@ docker run \
 -v /docker/matcher-node/data:/var/lib/waves \
 -v /docker/matcher-node/config:/etc/waves \
 -p 6869:6869 -p 6862:6862 \
--e JAVA_OPTS="-Dwaves.rest-api.enable=yes -Dwaves.rest-api.bind-address=0.0.0.0 -Dwaves.wallet.password=myWalletSuperPassword -Dwaves.dex.grpc.integration.host=0.0.0.0" \
+-e JAVA_OPTS="-Dwaves.rest-api.enable=yes -Dwaves.rest-api.bind-address=0.0.0.0 -Dwaves.wallet.password=myWalletSuperPassword -DTN.dex.grpc.integration.host=0.0.0.0" \
 -e WAVES_HEAP_SIZE=4g \
 -e WAVES_LOG_LEVEL=DEBUG \
 -e WAVES_NETWORK=mainnet \
@@ -69,7 +69,7 @@ docker run \
 -ti wavesplatform/matcher-node:latest
 ```
 
-Worth to note here that we specified container name by means of `--name matcher-node`. This name will be used as a link to Matcher Node during start of Matcher Server and also in Matcher Server setting `waves.dex.waves-blockchain-client.grpc.target`.
+Worth to note here that we specified container name by means of `--name matcher-node`. This name will be used as a link to Matcher Node during start of Matcher Server and also in Matcher Server setting `TN.dex.waves-blockchain-client.grpc.target`.
 
 #### Running Matcher Server
 ```
@@ -77,7 +77,7 @@ docker run \
 -v /docker/matcher-server:/var/lib/tn-dex \
 -p 6886:6886 \
 -e MATCHER_HEAP_SIZE=4g \
--e JAVA_OPTS="-Dwaves.dex.rest-api.api-key-hash=MyRestApiBase58EncodedKeyHash" \
+-e JAVA_OPTS="-DTN.dex.rest-api.api-key-hash=MyRestApiBase58EncodedKeyHash" \
 --link matcher-node:matcher-node \
 --name matcher-server \
 wavesplatform/matcher-server:latest
@@ -87,7 +87,7 @@ Here we specified link to Matcher Node container `--link matcher-node:matcher-no
 
 Directory `/docker/matcher-server/data` will be used for storing Matcher Server data. If you want to move from JAR/DEB installation to the Docker, you can put your own Matcher Server state here.
 
-If you are using encrypted file as a Matcher Server account storage, please, put `account.dat` file in this directory and do not forget to specify `waves.dex.account-storage.type = "encrypted-file"` settings in `local.conf`.
+If you are using encrypted file as a Matcher Server account storage, please, put `account.dat` file in this directory and do not forget to specify `TN.dex.account-storage.type = "encrypted-file"` settings in `local.conf`.
 
 Directory `/docker/matcher-server/config` is used to provide all necessary runtime configurations of the Matcher Server. Note that:
   1. `/docker/matcher-server/config/local.conf` should be provided (see its mandatory content above)

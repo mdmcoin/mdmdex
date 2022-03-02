@@ -29,8 +29,8 @@ class DeleteOrderBookWithKeySpec extends MatcherSuiteBase with ApiKeyHeaderCheck
       placeAndAwaitAtDex(order)
 
       dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(
-        s"""waves.dex {
-           |  price-assets = [ "$UsdId", "WAVES" ]
+        s"""TN.dex {
+           |  price-assets = [ "$UsdId", "TN" ]
            |  blacklisted-assets  = [$UsdId]
            |}""".stripMargin
       ))

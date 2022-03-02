@@ -126,7 +126,7 @@ trait MatcherSuiteBase
       if (!discountAssetId.isEmpty)
         ConfigFactory.parseString(
           s"""
-             |waves.dex.order-fee.$offset.composite.discount {
+             |TN.dex.order-fee.$offset.composite.discount {
              |  asset = "${discountAssetId.base58}"
              |  value = $discountAssetValue
              |}
@@ -136,7 +136,7 @@ trait MatcherSuiteBase
         ConfigFactory.empty()
 
     ConfigFactory.parseString(
-      s"""waves.dex.order-fee.$offset {
+      s"""TN.dex.order-fee.$offset {
          |  mode = composite
          |  composite {
          |    default {

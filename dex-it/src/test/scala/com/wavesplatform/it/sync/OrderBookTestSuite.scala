@@ -66,7 +66,7 @@ class OrderBookTestSuite extends MatcherSuiteBase {
     bobRBForBothPairs = reservedBalancesOf(bob)
 
     dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(
-      s"""waves.dex {
+      s"""TN.dex {
          |  blacklisted-assets  = [$WctId]
          |}""".stripMargin
     ).withFallback(dexInitialSuiteConfig))
@@ -78,7 +78,7 @@ class OrderBookTestSuite extends MatcherSuiteBase {
 
     "orders by the pair should be canceled" in {
       dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(
-        s"""waves.dex {
+        s"""TN.dex {
            |  blacklisted-assets  = []
            |}""".stripMargin
       ).withFallback(dexInitialSuiteConfig))
@@ -127,7 +127,7 @@ class OrderBookTestSuite extends MatcherSuiteBase {
       def deleteWctWaves(): Future[Either[MatcherError, HttpMessage]] = dex1.asyncTryApi.deleteOrderBookWithKey(wctWavesPair)
 
       dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(
-        s"""waves.dex {
+        s"""TN.dex {
            |  blacklisted-assets  = [$WctId]
            |}""".stripMargin
       ).withFallback(dexInitialSuiteConfig))

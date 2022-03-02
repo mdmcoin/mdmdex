@@ -40,7 +40,7 @@ final class ReBroadcastingFailedByScriptTxsTestSuite extends MatcherSuiteBase {
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
     .parseString(
       s"""waves.dex {
-         |  price-assets = [ "$UsdId", "WAVES" ]
+         |  price-assets = [ "$UsdId", "TN" ]
          |  exchange-transaction-broadcast {
          |    interval = 1 second
          |    max-pending-time = 15 minutes

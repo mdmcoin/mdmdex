@@ -17,7 +17,7 @@ class WsAddressStreamRealTimeTestSuite extends WsSuiteBase {
 
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
     .parseString(s"""waves.dex {
-                    |  price-assets = [ "$UsdId", "WAVES" ]
+                    |  price-assets = [ "$UsdId", "TN" ]
                     |  address-actor {
                     |    realtime-ws-accounts = [${account.publicKey}]
                     |    ws-messages-interval = 1 hour

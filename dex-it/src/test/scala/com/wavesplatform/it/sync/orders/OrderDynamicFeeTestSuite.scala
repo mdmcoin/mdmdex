@@ -202,7 +202,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
       dex1.safeRestartWithNewSuiteConfig(
         ConfigFactory.parseString(
-          s""" waves.dex.order-fee.-1.composite.discount.asset="$EthId" """
+          s""" TN.dex.order-fee.-1.composite.discount.asset="$EthId" """
         ).withFallback(dexInitialSuiteConfig)
       )
 
@@ -435,7 +435,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
   "fee in pairs with different decimals count" in {
     dex1.safeRestartWithNewSuiteConfig(
       ConfigFactory.parseString(
-        s""" waves.dex.order-fee.-1.composite.discount.asset="$UsdId" """
+        s""" TN.dex.order-fee.-1.composite.discount.asset="$UsdId" """
       ).withFallback(dexInitialSuiteConfig)
     )
     upsertAssetRate(usd -> 5d)
@@ -547,7 +547,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
         dex1.safeRestartWithNewSuiteConfig(
           ConfigFactory.parseString(
-            s""" waves.dex.order-fee.-1.composite.discount.asset="$usd" """
+            s""" TN.dex.order-fee.-1.composite.discount.asset="$usd" """
           ).withFallback(dexInitialSuiteConfig)
         )
 
@@ -624,7 +624,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
       dex1.safeRestartWithNewSuiteConfig(
         ConfigFactory.parseString(
-          s""" waves.dex.order-fee.-1.composite.discount.asset="$BtcId" """
+          s""" TN.dex.order-fee.-1.composite.discount.asset="$BtcId" """
         ).withFallback(dexInitialSuiteConfig)
       )
 
@@ -661,7 +661,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
         dex1.safeRestartWithNewSuiteConfig(
           ConfigFactory.parseString(
-            s""" waves.dex.order-fee.-1.composite.discount.asset="$UsdId" """
+            s""" TN.dex.order-fee.-1.composite.discount.asset="$UsdId" """
           ).withFallback(dexInitialSuiteConfig)
         )
 

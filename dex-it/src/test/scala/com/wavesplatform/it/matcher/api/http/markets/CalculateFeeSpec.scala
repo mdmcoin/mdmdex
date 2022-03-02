@@ -30,7 +30,7 @@ final class CalculateFeeSpec extends MatcherSuiteBase with RawHttpChecks {
       List(btc -> btcRate, usd -> usdRate).foreach { case (asset, rate) => dex1.api.upsertAssetRate(asset, rate) }
       dex1.restartWithNewSuiteConfig(
         ConfigFactory.parseString(
-          """ waves.dex.order-fee.-1.composite.default.mode = percent """.stripMargin
+          """ TN.dex.order-fee.-1.composite.default.mode = percent """.stripMargin
         ).withFallback(dexInitialSuiteConfig)
       )
 
@@ -51,8 +51,8 @@ final class CalculateFeeSpec extends MatcherSuiteBase with RawHttpChecks {
   override protected def dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
       s"""
-         |waves.dex {
-         |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
+         |TN.dex {
+         |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
          |  allowed-order-versions = [1, 2, 3]
          |  order-fee.-1 {
          |    mode = composite

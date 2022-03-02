@@ -169,7 +169,7 @@ final class OrderDynamicFeeWithZeroFeeAccountsTestSuite extends MatcherSuiteBase
     ConfigFactory.parseString(
       s"""
          |waves.dex {
-         |  price-assets = [ "$UsdId", "WAVES" ]
+         |  price-assets = [ "$UsdId", "TN" ]
          |  allowed-order-versions = [1, 2, 3]
          |}
        """.stripMargin

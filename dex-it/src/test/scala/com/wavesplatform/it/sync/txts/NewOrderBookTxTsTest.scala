@@ -29,7 +29,7 @@ final class NewOrderBookTxTsTest extends MatcherSuiteBase {
   override protected def dexInitialSuiteConfig: Config =
     ConfigFactory.parseString(
       s"""|waves.dex {
-          |  price-assets = [ "$UsdId", "WAVES" ]
+          |  price-assets = [ "$UsdId", "TN" ]
           |  exchange-tx-ts-start-offset = -1
           |}""".stripMargin // turning on this feature at the first command
     )

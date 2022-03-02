@@ -15,8 +15,8 @@ object GenesisConfig {
         override val chainId: Byte = GenesisConfig.chainId
       }
 
-//    import im.mak.waves.transactions.WavesConfig
-//    WavesConfig.chainId(GenesisConfig.chainId)
+    //import im.mak.waves.transactions.WavesConfig
+    //WavesConfig.chainId(GenesisConfig.chainId)
   }
 
   setupAddressScheme()

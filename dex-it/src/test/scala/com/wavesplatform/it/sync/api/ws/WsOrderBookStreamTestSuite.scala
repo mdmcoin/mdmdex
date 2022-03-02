@@ -426,7 +426,7 @@ class WsOrderBookStreamTestSuite extends WsSuiteBase {
       dex1.tryApi.deleteOrderBookWithKey(assetPair)
 
       dex1.restartWithNewSuiteConfig(ConfigFactory.parseString(
-        s"""waves.dex {
+        s"""TN.dex {
            |  blacklisted-assets  = [${asset.id}]
            |}""".stripMargin
       ).withFallback(dexInitialSuiteConfig))

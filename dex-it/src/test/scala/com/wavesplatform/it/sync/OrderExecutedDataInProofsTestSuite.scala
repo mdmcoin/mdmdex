@@ -139,7 +139,7 @@ final class OrderExecutedDataInProofsTestSuite extends MatcherSuiteBase {
 
   override protected def dexInitialSuiteConfig: Config = ConfigFactory.parseString(
     s"""waves.dex {
-       |  price-assets = [ "$UsdnId", "WAVES" ]
+       |  price-assets = [ "$UsdnId", "TN" ]
        |  pass-execution-parameters {
        |    since-offset = 3
        |    for-accounts = [${alice.publicKey}, ${bob.publicKey}]

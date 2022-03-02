@@ -68,7 +68,7 @@ final class AllowedBlockchainStateAccountsTestSuite extends MatcherSuiteBase {
   override protected val dexInitialSuiteConfig: Config = ConfigFactory
     .parseString(
       s"""waves.dex {
-         |  price-assets = [ "$UsdId", "WAVES" ]
+         |  price-assets = [ "$UsdId", "TN" ]
          |}""".stripMargin
     )
 

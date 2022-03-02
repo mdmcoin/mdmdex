@@ -182,7 +182,7 @@ final class OrderFeeDiscountTestSuite extends OrderFeeBaseTestSuite {
     ConfigFactory.parseString(
       s"""
          |waves.dex {
-         |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
+         |  price-assets = [ "$UsdId", "$BtcId", "TN" ]
          |  allowed-order-versions = [1, 2, 3]
          |  order-fee.-1 {
          |    mode = composite
