@@ -123,7 +123,7 @@ inTask(docker)(
         user("143:143") // waves:waves
         add(
           sources = Seq((Universal / stage).value / "lib", grpcServerDir / "lib"),
-          destination = "/usr/share/TN/lib/plugins/",
+          destination = "/usr/share/tn/lib/plugins/",
           chown = "143:143"
         )
         expose(6887, 6881, 6871) // DEX Extension, Blockchain Updates Extension, Stagenet REST API

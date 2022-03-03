@@ -84,7 +84,7 @@ final case class WavesNodeContainer(override val internalIp: String, underlying:
 
 object WavesNodeContainer extends ScorexLogging {
 
-  private val baseContainerPath: String = "/opt/TN"
+  private val baseContainerPath: String = "/opt/tn"
   private val containerLogsPath: String = s"$baseContainerPath/logs"
 
   private val restApiPort: Int = 6861 // application.conf waves.rest-api.port
@@ -147,8 +147,8 @@ object WavesNodeContainer extends ScorexLogging {
 
   private def getEnv(containerName: String, ip: String): Map[String, String] = Map(
     "BRIEF_LOG_PATH" -> s"$containerLogsPath/container-$containerName.log",
-    "DETAILED_LOG_PATH" -> "/dev/null",
-    "WAVES_NODE_DETAILED_LOG_PATH" -> "/dev/null", // Backward compatibility for v1.1.10+v2.0.3
+    "DETAILED_LOG_PATH" -> "/root/file",
+    "WAVES_NODE_DETAILED_LOG_PATH" -> "/root/file", // Backward compatibility for v1.1.10+v2.0.3
     "WAVES_NODE_CONFIGPATH" -> s"$baseContainerPath/$containerName.conf",
     "WAVES_OPTS" -> List(
       "-Xmx1024M",

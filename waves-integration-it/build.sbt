@@ -18,7 +18,7 @@ inTask(docker)(
     imageTagMakeFunction := (gitTag => s"${wavesNodeVersion.value}_$gitTag"),
     dockerfile := new Dockerfile {
 
-      val basePath = "/opt/TN"
+      val basePath = "/opt/tn"
       val entryPointSh = s"$basePath/start-matcher-node-it.sh"
 
       from("turtlenetwork/matcher-node:latest")
