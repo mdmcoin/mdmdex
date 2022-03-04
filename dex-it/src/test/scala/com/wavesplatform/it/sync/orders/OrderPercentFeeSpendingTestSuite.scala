@@ -287,7 +287,7 @@ class OrderPercentFeeSpendingTestSuite extends OrderFeeBaseTestSuite {
         )
       ) should failWith(
       FeeNotEnough.code,
-      "Required 0.003 WAVES as fee for this order, but given 0.00299999 WAVES"
+      "Required 0.003 TN as fee for this order, but given 0.00299999 TN"
     )
   }
 }
