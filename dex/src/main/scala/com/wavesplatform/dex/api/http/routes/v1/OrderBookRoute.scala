@@ -42,8 +42,8 @@ final case class OrderBookRoute(
   )
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset Id in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
-      new ApiImplicitParam(name = "priceAsset", value = "Price Asset Id in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset Id in Pair, or 'TN'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "priceAsset", value = "Price Asset Id in Pair, or 'TN'", dataType = "string", paramType = "path"),
       new ApiImplicitParam(
         name = "depth",
         value = "Limit the number of bid/ask records returned",

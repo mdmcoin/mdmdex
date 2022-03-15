@@ -23,7 +23,7 @@ final class OrderCompositeFeeTestSuite extends OrderFeeBaseTestSuite {
         mkOrder(alice, wavesUsdPair, OrderType.BUY, 10.waves, 1.usd, baseFee - 1)
       ) should failWith(
         FeeNotEnough.code,
-        s"Required 0.003 WAVES as fee for this order, but given 0.00299999 WAVES"
+        s"Required 0.003 TN as fee for this order, but given 0.00299999 TN"
       )
 
       dex1.api.cancelAllInOrderBookWithKey(wavesUsdPair)
@@ -39,7 +39,7 @@ final class OrderCompositeFeeTestSuite extends OrderFeeBaseTestSuite {
         mkOrder(alice, wavesBtcPair, OrderType.BUY, 10.waves, 1.btc, requiredFee - 1)
       ) should failWith(
         FeeNotEnough.code,
-        "Required 0.2 WAVES as fee for this order, but given 0.19999999 WAVES"
+        "Required 0.2 TN as fee for this order, but given 0.19999999 TN"
       )
 
       dex1.api.cancelAllInOrderBookWithKey(wavesBtcPair)
@@ -95,7 +95,7 @@ final class OrderCompositeFeeTestSuite extends OrderFeeBaseTestSuite {
        |    mode = composite
        |    composite {
        |      custom {
-       |        "WAVES-$BtcId": {
+       |        "TN-$BtcId": {
        |          mode = percent
        |          percent {
        |            asset-type = "amount"

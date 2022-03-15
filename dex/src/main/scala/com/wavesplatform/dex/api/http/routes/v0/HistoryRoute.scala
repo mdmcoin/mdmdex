@@ -68,8 +68,8 @@ final class HistoryRoute(
   )
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset ID in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
-      new ApiImplicitParam(name = "priceAsset", value = "Price Asset ID in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset ID in Pair, or 'TN'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "priceAsset", value = "Price Asset ID in Pair, or 'TN'", dataType = "string", paramType = "path"),
       new ApiImplicitParam(
         name = "body",
         value = "Json with data",
@@ -102,8 +102,8 @@ final class HistoryRoute(
   )
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset ID in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
-      new ApiImplicitParam(name = "priceAsset", value = "Price Asset ID in Pair, or 'WAVES'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "amountAsset", value = "Amount Asset ID in Pair, or 'TN'", dataType = "string", paramType = "path"),
+      new ApiImplicitParam(name = "priceAsset", value = "Price Asset ID in Pair, or 'TN'", dataType = "string", paramType = "path"),
       new ApiImplicitParam(name = "publicKey", value = "Public Key", required = true, dataType = "string", paramType = "path"),
       new ApiImplicitParam(
         name = "activeOnly",

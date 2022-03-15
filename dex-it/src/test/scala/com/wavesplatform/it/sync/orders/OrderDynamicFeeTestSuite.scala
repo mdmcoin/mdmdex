@@ -223,7 +223,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
 
       dex1.tryApi.place(mkBobOrder(btc, 300L)) should failWith(
         UnexpectedFeeAsset.code,
-        s"Required one of the following fee asset: WAVES, $EthId. But given $BtcId"
+        s"Required one of the following fee asset: TN, $EthId. But given $BtcId"
       )
     }
 

@@ -25,7 +25,7 @@ class V3OrderPercentFeeAmountTestSuite extends OrderPercentFeeAmountTestSuite(3.
     ) should failWith(UnexpectedFeeAsset.code)
   }
 
-  s"buy order should be rejected if fee Asset not equal WAVES when fee asset-type = $assetType" in {
+  s"buy order should be rejected if fee Asset not equal TN when fee asset-type = $assetType" in {
     dex1.tryApi.place(
       mkOrder(
         mkAccountWithBalance(fullyAmountUsd + minimalFeeWaves -> usd, minimalFeeWaves -> Waves),
@@ -39,7 +39,7 @@ class V3OrderPercentFeeAmountTestSuite extends OrderPercentFeeAmountTestSuite(3.
     ) should failWith(UnexpectedFeeAsset.code)
   }
 
-  s"sell order should be rejected if fee Asset not equal WAVES when fee asset-type = $assetType" in {
+  s"sell order should be rejected if fee Asset not equal TN when fee asset-type = $assetType" in {
     dex1.tryApi.place(
       mkOrder(
         mkAccountWithBalance(minimalFeeWaves -> usd, fullyAmountWaves -> Waves),

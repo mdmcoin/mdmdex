@@ -34,7 +34,7 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
     "should reject orders with insufficient fee" in {
       dex1.tryApi.place(mkOrderDP(maker, wavesUsdPair, SELL, 1.waves, 3.00, 0.00499999.waves)) should failWith(
         FeeNotEnough.code,
-        s"Required 0.05 TN as fee for this order, but given 0.00499999 WAVES"
+        s"Required 0.05 TN as fee for this order, but given 0.00499999 TN"
       )
 
       dex1.tryApi.place(mkOrderDP(maker, wavesUsdPair, SELL, 1.waves, 3.00, 0.00002837.eth, eth)) should failWith(

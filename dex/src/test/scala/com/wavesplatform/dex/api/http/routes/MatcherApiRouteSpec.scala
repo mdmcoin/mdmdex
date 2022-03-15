@@ -201,7 +201,7 @@ class MatcherApiRouteSpec extends RouteSpec("/matcher") with MatcherSpecBase wit
   routePath("/orderbook/{amountAsset}/{priceAsset}/calculateFee") - {
     "returns fee" in test { route =>
       Post(
-        routePath(s"/orderbook/$smartAssetId/WAVES/calculateFee"),
+        routePath(s"/orderbook/$smartAssetId/TN/calculateFee"),
         HttpCalculateFeeRequest(OrderType.BUY, 100.waves, 1.usd)
       ) ~> route ~> check {
         status shouldEqual StatusCodes.OK
