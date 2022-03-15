@@ -5,7 +5,8 @@
 
 variables:
   SBT_THREAD_NUMBER: 2
-  OTHER_NODE_IMAGE: turtlenetwork/tnnode:1.2.2
+  OTHER_NODE_IMAGE: turtlenetwork/tn-integration-it:latest
+  OTHER_DEX_IMAGE: turtlenetwork/dex-it:latest
 
 jobs:
 - job: Default
