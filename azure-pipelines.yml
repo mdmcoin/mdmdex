@@ -47,17 +47,17 @@ jobs:
       testResultsFiles: 'target/test-reports/*.xml'
     condition: succeededOrFailed()
 
-#- job: quickCheck
-#  timeoutInMinutes: 360
-#  pool:
-#    name: Turtle
+- job: quickCheck
+  timeoutInMinutes: 360
+  pool:
+    name: Turtle
 
-#  steps:
-#  - script: 'sbt -J-Xms4G -J-Xmx4G quickCheck'
-#    displayName: 'Run quickCheck tests '
+  steps:
+  - script: 'sbt -J-Xms4G -J-Xmx4G quickCheck'
+    displayName: 'Run quickCheck tests '
 
-#  - task: PublishTestResults@2
-#    displayName: 'Publish Test Results target/test-reports/*.xml copy'
-#    inputs:
-#      testResultsFiles: 'target/test-reports/*.xml'
-#    condition: succeededOrFailed()
+  - task: PublishTestResults@2
+    displayName: 'Publish Test Results target/test-reports/*.xml copy'
+    inputs:
+      testResultsFiles: 'target/test-reports/*.xml'
+    condition: succeededOrFailed()
