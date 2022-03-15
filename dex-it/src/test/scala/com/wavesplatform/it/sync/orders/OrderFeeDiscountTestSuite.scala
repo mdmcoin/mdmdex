@@ -16,15 +16,15 @@ final class OrderFeeDiscountTestSuite extends OrderFeeBaseTestSuite {
         mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 1.usd, matcherFee = 0.000001.btc, feeAsset = btc)
       ) should failWith(
         FeeNotEnough.code,
-        s"Required 0.000003 $BtcId as fee for this order, but given 0.000001 $BtcId"
+        s"Required 0.00004 $BtcId as fee for this order, but given 0.000001 $BtcId"
       )
 
       val aliceBtcBalance = wavesNode1.api.balance(alice, btc)
-      val aliceOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 1.usd, matcherFee = 0.000003.btc, feeAsset = btc)
+      val aliceOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 1.usd, matcherFee = 0.00004.btc, feeAsset = btc)
       dex1.api.place(aliceOrder)
       dex1.api.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 1.usd))
       waitForOrderAtNode(aliceOrder)
-      wavesNode1.api.balance(alice, btc) shouldBe aliceBtcBalance - 0.000003.btc
+      wavesNode1.api.balance(alice, btc) shouldBe aliceBtcBalance - 0.00004.btc
     }
 
     "(dynamic settings) should apply discount" in {
@@ -38,15 +38,15 @@ final class OrderFeeDiscountTestSuite extends OrderFeeBaseTestSuite {
         mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 1.usd, matcherFee = 0.0000014.btc, feeAsset = btc)
       ) should failWith(
         FeeNotEnough.code,
-        s"Required 0.0000015 $BtcId as fee for this order, but given 0.0000014 $BtcId"
+        s"Required 0.00002 $BtcId as fee for this order, but given 0.0000014 $BtcId"
       )
 
       val aliceBtcBalance = wavesNode1.api.balance(alice, btc)
-      val aliceOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 1.usd, matcherFee = 0.0000015.btc, feeAsset = btc)
+      val aliceOrder = mkOrder(alice, wavesUsdPair, OrderType.BUY, 1.waves, 1.usd, matcherFee = 0.00002.btc, feeAsset = btc)
       dex1.api.place(aliceOrder)
       dex1.api.place(mkOrder(bob, wavesUsdPair, OrderType.SELL, 1.waves, 1.usd))
       waitForOrderAtNode(aliceOrder)
-      wavesNode1.api.balance(alice, btc) shouldBe aliceBtcBalance - 0.0000015.btc
+      wavesNode1.api.balance(alice, btc) shouldBe aliceBtcBalance - 0.00002.btc
     }
 
     "(percent settings [amount]) should work without discount" in {

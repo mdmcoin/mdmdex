@@ -100,7 +100,7 @@ class DatabaseBackwardCompatTestSuite extends BackwardCompatSuiteBase {
   override protected def beforeAll(): Unit = {
     super.beforeAll()
 
-    val containerDataDir = "/opt/waves-dex/data"
+    val containerDataDir = "/opt/tn-dex/data"
     List(dex1, dex2).foreach {
       _.underlying.configure {
         _.withFileSystemBind(localLogsDir.resolve("db").toString, containerDataDir, BindMode.READ_WRITE)

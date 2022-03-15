@@ -39,7 +39,7 @@ class MakerTakerFeeTestSuite extends MatcherSuiteBase with TableDrivenPropertyCh
 
       dex1.tryApi.place(mkOrderDP(maker, wavesUsdPair, SELL, 1.waves, 3.00, 0.00002837.eth, eth)) should failWith(
         FeeNotEnough.code,
-        s"Required 0.00002838 $EthId as fee for this order, but given 0.00002837 $EthId"
+        s"Required 0.0002838 $EthId as fee for this order, but given 0.00002837 $EthId"
       )
     }
 
