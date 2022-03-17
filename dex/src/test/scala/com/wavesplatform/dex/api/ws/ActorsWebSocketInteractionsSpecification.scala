@@ -609,11 +609,11 @@ class ActorsWebSocketInteractionsSpecification
             0
           )
           .placeOrder(counter1)
-          .expectWsBalancesAndOrders(Map(usd -> WsBalances(55, 15), Waves -> WsBalances(99.997, 0.003)), Seq(WsOrder.fromDomain(counter1)), 1)
+          .expectWsBalancesAndOrders(Map(usd -> WsBalances(55, 15), Waves -> WsBalances(99.96, 0.04)), Seq(WsOrder.fromDomain(counter1)), 1)
           .placeOrder(counter2)
-          .expectWsBalancesAndOrders(Map(usd -> WsBalances(39.5, 30.5), Waves -> WsBalances(99.994, 0.006)), Seq(WsOrder.fromDomain(counter2)), 2)
+          .expectWsBalancesAndOrders(Map(usd -> WsBalances(39.5, 30.5), Waves -> WsBalances(99.92, 0.08)), Seq(WsOrder.fromDomain(counter2)), 2)
           .placeOrder(counter3)
-          .expectWsBalancesAndOrders(Map(usd -> WsBalances(23.5, 46.5), Waves -> WsBalances(99.991, 0.009)), Seq(WsOrder.fromDomain(counter3)), 3)
+          .expectWsBalancesAndOrders(Map(usd -> WsBalances(23.5, 46.5), Waves -> WsBalances(99.88, 0.12)), Seq(WsOrder.fromDomain(counter3)), 3)
 
         mo = matchOrders(mo, counter1)._1
 

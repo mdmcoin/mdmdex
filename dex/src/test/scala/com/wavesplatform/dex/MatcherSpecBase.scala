@@ -554,7 +554,7 @@ trait MatcherSpecBase
       price = sellOrder.price,
       buyMatcherFee = buyOrder.matcherFee,
       sellMatcherFee = sellOrder.matcherFee,
-      fee = 300000L,
+      fee = 4000000L,
       timestamp = nowTs,
       proofs = Proofs.empty
     )
