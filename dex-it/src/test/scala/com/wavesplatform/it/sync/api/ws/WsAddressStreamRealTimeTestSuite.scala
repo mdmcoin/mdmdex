@@ -45,7 +45,7 @@ class WsAddressStreamRealTimeTestSuite extends WsSuiteBase {
           wsc.balanceChanges.squashed should matchTo(
             Map(
               usd -> WsBalances(110.0, 0),
-              Waves -> WsBalances(87.996, 0.0)
+              Waves -> WsBalances(87.94, 0.0)
             )
           )
         }

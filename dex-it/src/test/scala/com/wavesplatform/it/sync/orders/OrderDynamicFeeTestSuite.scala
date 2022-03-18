@@ -260,7 +260,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
         orderType = OrderType.SELL,
         amount = 2.waves,
         price = 50000L,
-        matcherFee = 25600L,
+        matcherFee = 40000L,
         feeAsset = eth
       )
 
@@ -272,7 +272,7 @@ class OrderDynamicFeeTestSuite extends OrderFeeBaseTestSuite {
       waitForOrderAtNode(aliceOrder)
 
       eventually {
-        dex1.api.getReservedBalanceWithApiKey(alice)(eth) shouldBe 12800L
+        dex1.api.getReservedBalanceWithApiKey(alice)(eth) shouldBe 20000L
         wavesNode1.api.balance(alice, Waves) shouldBe (aliceWavesBalance - 1.waves)
         wavesNode1.api.balance(alice, eth) shouldBe (aliceEthBalance - 1500L)
         wavesNode1.api.balance(bob, eth) shouldBe (bobEthBalance - 40000L)

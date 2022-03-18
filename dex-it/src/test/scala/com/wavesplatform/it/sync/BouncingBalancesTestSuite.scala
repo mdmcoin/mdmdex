@@ -104,7 +104,7 @@ class BouncingBalancesTestSuite extends WsSuiteBase {
         placeAndAwaitAtDex(bobOrder)
 
         assertChanges(wsc)(
-          Map(Waves -> WsBalances(4949949.997, 0.003)), // Fee for order
+          Map(Waves -> WsBalances(4949949.96, 0.04)), // Fee for order
           Map(doggyCoin -> WsBalances(0, 1000000))
         )(WsOrder.fromDomain(LimitOrder(bobOrder)))
         wsc.clearMessages()
@@ -130,7 +130,7 @@ class BouncingBalancesTestSuite extends WsSuiteBase {
 
           // Relates DEX-1099
           dex1.api.getTradableBalanceByAssetPairAndAddress(bob, AssetPair(doggyCoin, Waves)) should matchTo(Map[Asset, Long](
-            Waves -> 494994999700000L
+            Waves -> 494994996000000L
           ))
         }
       }
