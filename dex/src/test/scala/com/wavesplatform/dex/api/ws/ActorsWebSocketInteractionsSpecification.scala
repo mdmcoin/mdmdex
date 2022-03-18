@@ -485,7 +485,7 @@ class ActorsWebSocketInteractionsSpecification
           .updateBalances(Map(Waves -> 115.waves, usd -> 300.usd, eth -> 5.eth))
           .subscribeAddress()
           .expectWsBalancesAndOrders(
-            Map(Waves -> WsBalances(114.997, 0.04), usd -> WsBalances(297, 3), eth -> WsBalances(5, 0)),
+            Map(Waves -> WsBalances(114.96, 0.04), usd -> WsBalances(297, 3), eth -> WsBalances(5, 0)),
             Seq(WsOrder.fromDomain(lo)),
             0
           )
