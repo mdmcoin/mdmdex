@@ -237,7 +237,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
     placeAndAwaitAtNode(sellOrder)
 
     // buy counter order is not executed completely, but has filled status
-    dex1.api.orderStatusByAssetPairAndId(buyOrder) should matchTo(HttpOrderStatus(Status.Filled, 2.70476663.waves.some, 0.03999992.btc.some))
+    dex1.api.orderStatusByAssetPairAndId(buyOrder) should matchTo(HttpOrderStatus(Status.Filled, 1.waves.some, 0.04.btc.some))
 
     eventually {
       val buyOrderEvents = getEventsInfoByOrderId(buyOrder.id())
@@ -459,7 +459,7 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
   "Postgres order history should correctly save events: 1 small counter and 1 big submitted" in {
     dex1.safeRestartWithNewSuiteConfig(baseConf.withFallback(mkCompositeDynamicFeeSettings(EthId)))
     val smallBuyOrder = mkOrderDP(alice, wctUsdPair, BUY, 300.wct, 0.35, 0.00022704.eth, feeAsset = eth)
-    val bigSellOrder = mkOrderDP(bob, wctUsdPair, SELL, 900.wct, 0.35, 0.00000395.eth, feeAsset = eth)
+    val bigSellOrder = mkOrderDP(bob, wctUsdPair, SELL, 900.wct, 0.35, 0.00022704.eth, feeAsset = eth)
 
     dex1.api.place(smallBuyOrder)
     dex1.api.place(bigSellOrder)
@@ -505,13 +505,13 @@ class PostgresHistoryDatabaseTestSuite extends MatcherSuiteBase with HasPostgres
             eth.toString,
             900,
             0.35,
-            0.00000395,
+            0.00022704,
             None
           )
         )
 
         getEventsInfoByOrderId(bigSellOrder.id()) should matchTo(
-          List(EventBriefInfo(bigSellOrder.idStr(), eventTrade, 300, 300, 0.00000131, 0.00000131, statusPartiallyFilled, OrderExecutedReason))
+          List(EventBriefInfo(bigSellOrder.idStr(), eventTrade, 300, 300, 0.00007568, 0.00007568, statusPartiallyFilled, OrderExecutedReason))
         )
       }
     }
