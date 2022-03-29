@@ -463,7 +463,7 @@ class ActorsWebSocketInteractionsSpecification
         expectWsBalance(mobileSubscription, Map(usd -> WsBalances(297, 3), Waves -> WsBalances(99.96, 0.04)), 1)
 
         subscribe(desktopSubscription)
-        expectWsBalance(desktopSubscription, Map(Waves -> WsBalances(99.997, 0.003), usd -> WsBalances(297, 3), eth -> WsBalances(5, 0)), 0)
+        expectWsBalance(desktopSubscription, Map(Waves -> WsBalances(99.96, 0.04), usd -> WsBalances(297, 3), eth -> WsBalances(5, 0)), 0)
 
         env.cancelOrder(order, true)
 

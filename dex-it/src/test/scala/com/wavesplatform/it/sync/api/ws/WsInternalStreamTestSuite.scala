@@ -86,7 +86,7 @@ class WsInternalStreamTestSuite extends WsSuiteBase with TableDrivenPropertyChec
             List(
               mkExecutedFullOrder(
                 order2,
-                OrderStatus.Filled(1.waves, 0.003.waves),
+                OrderStatus.Filled(1.waves, 0.04.waves),
                 avgWeighedPrice = 3,
                 executedAmount = 1,
                 executedFee = 0.04,

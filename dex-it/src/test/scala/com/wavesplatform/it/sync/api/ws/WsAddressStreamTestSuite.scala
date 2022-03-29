@@ -297,7 +297,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
           dex1.api.cancelAllOrdersWithSig(acc)
 
           eventually {
-            wsc.balanceChanges.squashed should matchTo(Map(usd -> WsBalances(5, 0), Waves -> WsBalances(14.9985, 0)))
+            wsc.balanceChanges.squashed should matchTo(Map(usd -> WsBalances(5, 0), Waves -> WsBalances(14.98, 0)))
             wsc.orderChanges.squashed should matchTo(
               Map(limitOrder.id -> WsOrder.fromOrder(bo, status = OrderStatus.Cancelled.name.some))
             )
@@ -347,18 +347,18 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
 
         "issued via IssueTx" in {
 
-          val acc = mkAccountWithBalance(10.waves -> Waves)
+          val acc = mkAccountWithBalance(2000.waves -> Waves)
 
           broadcastAndAwait(mkIssue(acc, "testAssetNT", 1L, 0))
 
           step("should be in the address stream")
           Using.resource(mkWsAddressConnection(acc)) { wsc =>
-            validateBalances(wsc, WsBalances(9, 0), acc)
+            validateBalances(wsc, WsBalances(1000, 0), acc)
           }
 
           step("shouldn't be in the filtered address stream")
           Using.resource(mkWsAddressFilteredConnection(acc, Set(WsAddressFlag.ExcludeNft))) { wsc =>
-            validateBalances(wsc, WsBalances(9, 0), acc, hasNft = false)
+            validateBalances(wsc, WsBalances(1000, 0), acc, hasNft = false)
           }
 
         }
@@ -452,18 +452,18 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
 
         "issued after connection has been established" in {
 
-          val acc = mkAccountWithBalance(10.waves -> Waves)
+          val acc = mkAccountWithBalance(3000.waves -> Waves)
 
           step("should be in the address stream")
           Using.resource(mkWsAddressConnection(acc)) { wsc =>
             broadcast(mkIssue(acc, "testAssetNT", 1L, 0))
-            validateBalances(wsc, WsBalances(9, 0), acc)
+            validateBalances(wsc, WsBalances(2000, 0), acc)
           }
 
           step("shouldn't be in the filtered address stream")
           Using.resource(mkWsAddressFilteredConnection(acc, Set(WsAddressFlag.ExcludeNft))) { wsc2 =>
             broadcast(mkIssue(acc, "testAssetNT", 1L, 0))
-            validateBalances(wsc2, WsBalances(8, 0), acc, hasNft = false)
+            validateBalances(wsc2, WsBalances(1000, 0), acc, hasNft = false)
           }
         }
       }
@@ -505,7 +505,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
           broadcastAndAwait(mkBurn(acc, usd, 20.usd))
 
           assertChanges(wsc)(
-            Map(Waves -> WsBalances(9, 0)),
+            Map(Waves -> WsBalances(9.8, 0)),
             Map(usd -> WsBalances(0, 0))
           )()
         }
@@ -617,7 +617,7 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
         def copyWithCommonPart(wsOrder: WsOrder): WsOrder = wsOrder.copy(
           status = OrderStatus.Filled.name.some,
           filledAmount = 10.0.some,
-          filledFee = 0.003.some,
+          filledFee = 0.04.some,
           avgWeighedPrice = 1.0.some,
           totalExecutedPriceAssets = 10.0.some,
           matchInfo = Seq(WsMatchTransactionInfo(ByteStr.empty, 0L, 1, 10.0, 10.0))
@@ -664,15 +664,15 @@ class WsAddressStreamTestSuite extends WsSuiteBase with TableDrivenPropertyCheck
       }
 
       assertChanges(wsc1)(
-        Map(usd -> WsBalances(400, 100), Waves -> WsBalances(9.997, 0.003)),
-        Map(usd -> WsBalances(300, 200), Waves -> WsBalances(9.994, 0.006))
+        Map(usd -> WsBalances(400, 100), Waves -> WsBalances(9.96, 0.04)),
+        Map(usd -> WsBalances(300, 200), Waves -> WsBalances(9.92, 0.08))
       )(
         WsOrder.fromDomain(LimitOrder(bo1)),
         WsOrder.fromDomain(LimitOrder(bo2))
       )
 
       Using.resource(mkWsAddressConnection(acc, dex1)) { wsc2 =>
-        assertChanges(wsc2)(Map(Waves -> WsBalances(9.994, 0.006), usd -> WsBalances(300, 200)))(
+        assertChanges(wsc2)(Map(Waves -> WsBalances(9.92, 0.08), usd -> WsBalances(300, 200)))(
           WsOrder.fromDomain(LimitOrder(bo1)),
           WsOrder.fromDomain(LimitOrder(bo2))
         )
