@@ -73,12 +73,12 @@ object ExtensionPackaging extends AutoPlugin {
         } else Seq.empty
       },
       classpath := makeRelativeClasspathNames(classpathOrdering.value),
-      nodePackageName := s"TN${network.value.packageSuffix}",
+      nodePackageName := s"tn${network.value.packageSuffix}",
       debianPackageDependencies := {
         val nodeVersion = wavesNodeVersion.value
         val minorNodeVersion = nodeVersion.split('.')
           .lastOption.flatMap(x => Try(x.toInt).toOption).getOrElse(throw new RuntimeException(
-            s"Can't parse TN node minor version of $nodeVersion"
+            s"Can't parse tn node minor version of $nodeVersion"
           ))
         val nextNodeVersion = (nodeVersion.split('.').dropRight(1) :+ (minorNodeVersion + 1)).mkString(".")
         Seq(s"${nodePackageName.value} (>= $nodeVersion)", s"${nodePackageName.value} (<< $nextNodeVersion)")
