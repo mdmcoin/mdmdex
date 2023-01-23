@@ -10,7 +10,7 @@
 Matcher for MDMCOIN Node.
 
 In the master branch there is a code with functions that is under development. 
-The latest release for each network can be found in the [Releases section](https://github.com/wavesplatform/matcher/releases), you can switch to the corresponding tag and build the application.
+The latest release for each network can be found in the [Releases section](https://github.com/mdmcoin/mdmdex/releases), you can switch to the corresponding tag and build the application.
 
 <!--ts-->
    * [Matcher](#matcher)
