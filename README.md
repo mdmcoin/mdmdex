@@ -7,7 +7,7 @@
 </a>
 </p>
   
-Matcher for Waves Node.
+Matcher for MDMCOIN Node.
 
 In the master branch there is a code with functions that is under development. 
 The latest release for each network can be found in the [Releases section](https://github.com/wavesplatform/matcher/releases), you can switch to the corresponding tag and build the application.
@@ -253,7 +253,7 @@ java <your_JVM_options> -cp "/absolute_path_to_fat_jar/waves-all.jar;/absolute_p
 
 ## 3. 📃 Node's configuration
 
-Usually it is `/etc/waves-{network}/waves.conf`
+Usually it is `path/to/config/mdm.conf`
 
 Add these lines:
 ```hocon
@@ -262,10 +262,10 @@ TN {
   extensions += "com.wavesplatform.events.BlockchainUpdates"
   extensions += "com.wavesplatform.dex.grpc.integration.DEXExtension"
 
-  # Other settings: https://github.com/wavesplatform/Waves/blob/version-1.2.x/grpc-server/src/main/resources/application.conf 
+  # Other settings: https://github.com/mdmcoin/mdmdex/blob/version-1.2.x/grpc-server/src/main/resources/application.conf 
   grpc.host = "127.0.0.1" # "0.0.0.0" if Node and Matcher installed on different servers
 
-  # Other settings: https://github.com/wavesplatform/matcher/blob/master/waves-ext/src/main/resources/application.conf#L4
+  # Other settings: https://github.com/mdmcoin/mdmdex/blob/master/waves-ext/src/main/resources/application.conf#L4
   dex.grpc.integration.host = "127.0.0.1" # "0.0.0.0" if Node and Matcher installed on different servers
 }
 ```
@@ -301,13 +301,13 @@ To run:
 *Debian/Ubuntu/macOS*:
 
 ```
-/path/to/matcher/directory/bin/tn-dex -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
+/path/to/matcher/directory/bin/mdmdex -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
 ```
 
 *Windows*:
 
 ```
-/path/to/matcher/directory/bin/tn-dex.bat -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
+/path/to/matcher/directory/bin/mdmdex.bat -Dlogback.configurationFile=/path/to/config/directory/logback.xml <your_JVM_options> /path/to/config/directory/main.conf
 ```
 
 ## 5. 📃 Matcher's configuration
@@ -321,10 +321,10 @@ Also there is an example of logging configuration in the "doc" directory.
 
     ```hocon
     # Client for com.wavesplatform.dex.grpc.integration.DEXExtension
-    # grpc.target = "127.0.0.1:6887" # Replace host and port. 6887 is a default port.
+    # grpc.target = "127.0.0.1:7887" # Replace host and port. 6887 is a default port.
 
     # Client for com.wavesplatform.events.BlockchainUpdates
-    # blockchain-updates-grpc.target = "127.0.0.1:6881" # Replace host and port. 6881 is a default port.
+    # blockchain-updates-grpc.target = "127.0.0.1:7881" # Replace host and port. 6881 is a default port.
     ```
    
 ## 6. ✅ That's all
@@ -356,7 +356,7 @@ tn-dex-cli create-account-storage --address-scheme W --seed-format base64 --acco
 # With Docker (an image is not available on Docker Hub, you should built it yourself):
 docker run --rm --name matcher-cli -it -e MATCHER_HEAP_SIZE=512M -v ${PWD}/files:/var/lib/waves-dex/files \
 --entrypoint /usr/share/waves-dex/bin/waves-dex-cli wavesplatform/matcher-server:latest \
-create-account-storage --address-scheme W --seed-format base64 --account-nonce 3 --output-directory /var/lib/waves-dex/files
+create-account-storage --address-scheme M --seed-format base64 --account-nonce 3 --output-directory /var/lib/waves-dex/files
 ```
 
 here:
