@@ -115,8 +115,8 @@ About options:
 ## 2. Obtaining Source Codes
 
 ```
-git clone git@github.com:wavesplatform/matcher.git waves-matcher
-cd waves-matcher
+git clone git@github.com:mdmcoin/mdmdex.git mdmdex
+cd mdmdex
 ```
 
 **NOTE**: the directory name must not be a one of root directories if you work in IntelliJ IDEA, see [Known issues](#9-known-issues).
